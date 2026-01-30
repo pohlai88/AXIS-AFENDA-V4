@@ -1,6 +1,14 @@
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { routes } from "@/lib/routes"
 
 export default function AppDashboardPage() {
   return (
@@ -13,31 +21,35 @@ export default function AppDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <div className="rounded-xl border p-5">
-          <h2 className="font-medium">Modules</h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Integrations are added as modules (iframe first), so the shell stays
-            stable.
-          </p>
-          <div className="mt-4">
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Modules</CardTitle>
+            <CardDescription>
+              Integrations are added as modules (iframe first), so the shell stays
+              stable.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <Button variant="outline" asChild>
-              <Link href="/app/modules">Open module registry</Link>
+              <Link href={routes.app.modules()}>Open module registry</Link>
             </Button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        <div className="rounded-xl border p-5">
-          <h2 className="font-medium">Approvals</h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            First end-to-end workflow validating contracts, tenant scope, and
-            persistence.
-          </p>
-          <div className="mt-4">
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle>Approvals</CardTitle>
+            <CardDescription>
+              First end-to-end workflow validating contracts, tenant scope, and
+              persistence.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
             <Button variant="outline" asChild>
-              <Link href="/app/approvals">Go to approvals</Link>
+              <Link href={routes.app.approvals()}>Go to approvals</Link>
             </Button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
   )

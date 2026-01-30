@@ -48,6 +48,7 @@
 }
 
 :root {
+  --font-sans: var(--font-figtree), system-ui, sans-serif;
   --background: oklch(1 0 0);
   --foreground: oklch(0.147 0.004 49.25);
   --card: oklch(1 0 0);
@@ -123,4 +124,11 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* View Transitions (theme toggle animation) */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }

@@ -1,6 +1,14 @@
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardAction,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { routes } from "@/lib/routes"
 import { modules } from "@/lib/shared/modules"
 
 export default function ModulesPage() {
@@ -18,24 +26,22 @@ export default function ModulesPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {enabledModules.map((m) => (
-          <div key={m.slug} className="rounded-xl border p-5">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="font-medium">{m.name}</div>
-                {m.description ? (
-                  <p className="text-muted-foreground mt-1 text-sm">
-                    {m.description}
-                  </p>
-                ) : null}
-                <p className="text-muted-foreground mt-2 text-xs">
-                  {m.kind.toUpperCase()} · {m.href}
-                </p>
-              </div>
-              <Button variant="outline" asChild>
-                <Link href={`/app/modules/${m.slug}`}>Open</Link>
-              </Button>
+          <Card key={m.slug} size="sm">
+            <CardHeader className="border-b">
+              <CardTitle>{m.name}</CardTitle>
+              <CardDescription>
+                {m.description ?? "Module integration (iframe first)."}
+              </CardDescription>
+              <CardAction>
+                <Button variant="outline" asChild>
+                  <Link href={routes.app.moduleBySlug(m.slug)}>Open</Link>
+                </Button>
+              </CardAction>
+            </CardHeader>
+            <div className="text-muted-foreground px-6 pb-5 text-xs group-data-[size=sm]/card:px-4">
+              {m.kind.toUpperCase()} · {m.href}
             </div>
-          </div>
+          </Card>
         ))}
       </div>
     </div>

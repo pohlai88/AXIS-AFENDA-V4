@@ -1,8 +1,14 @@
-import Link from "next/link"
 import { redirect } from "next/navigation"
 
-import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { siteConfig } from "@/lib/config/site"
+import { routes } from "@/lib/routes"
 import { getAuthContext } from "@/lib/server/auth/context"
+
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
+import { AppBreadcrumbs } from "./_components/app-breadcrumbs"
+import { AppSidebar } from "./_components/app-sidebar"
 
 type Props = {
   children: React.ReactNode
@@ -10,53 +16,25 @@ type Props = {
 
 export default async function AppShellLayout({ children }: Props) {
   const auth = await getAuthContext()
-  if (!auth.userId) redirect("/login?callbackUrl=/app")
+  if (!auth.userId) redirect(routes.login({ callbackUrl: routes.app.root() }))
 
   return (
-    <div className="min-h-dvh">
-      <header className="border-b">
-        <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-2">
-            <Link href="/app" className="font-semibold tracking-tight">
-              AFENDA
-            </Link>
-            <span className="text-muted-foreground text-sm">App Shell</span>
+    <SidebarProvider defaultOpen>
+      <AppSidebar userId={auth.userId} />
+      <SidebarInset>
+        <header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b px-4">
+          <SidebarTrigger />
+          <Separator orientation="vertical" className="h-4" />
+          <AppBreadcrumbs appName={siteConfig.name} />
+          <div className="ml-auto flex items-center">
+            <AnimatedThemeToggler />
           </div>
-          <nav className="flex items-center gap-2">
-            <Button variant="ghost" asChild>
-              <Link href="/">Home</Link>
-            </Button>
-            <Button variant="ghost" asChild>
-              <Link href="/components">Components</Link>
-            </Button>
-            <span className="text-muted-foreground hidden text-sm md:inline">
-              {auth.userId}
-            </span>
-          </nav>
+        </header>
+        <div className="p-4 md:p-6">
+          <div className="mx-auto w-full max-w-6xl">{children}</div>
         </div>
-      </header>
-
-      <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 px-4 py-6 md:grid-cols-[240px_1fr]">
-        <aside className="space-y-2">
-          <div className="text-muted-foreground px-2 text-xs font-medium uppercase tracking-wide">
-            Navigation
-          </div>
-          <div className="flex flex-col gap-1">
-            <Button variant="ghost" className="justify-start" asChild>
-              <Link href="/app">Dashboard</Link>
-            </Button>
-            <Button variant="ghost" className="justify-start" asChild>
-              <Link href="/app/modules">Modules</Link>
-            </Button>
-            <Button variant="ghost" className="justify-start" asChild>
-              <Link href="/app/approvals">Approvals</Link>
-            </Button>
-          </div>
-        </aside>
-
-        <main className="min-w-0">{children}</main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }
 

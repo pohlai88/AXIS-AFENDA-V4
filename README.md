@@ -1,5 +1,12 @@
 AFENDA — Next.js App Router project (App Shell).
 
+## Quick Links
+
+- **[Week 1 Summary](./WEEK1-SUMMARY.md)** — Complete MVP checklist & what was built.
+- **[MagicToDo Setup Guide](./MAGICTODO.md)** — Individual-first task management MVP.
+- **[Scheduler Documentation](./SCHEDULER.md)** — Background job for recurring tasks.
+- **[AGENT.md](./AGENT.md)** — Development conventions & architecture.
+
 ## Getting Started
 
 ### Quick start

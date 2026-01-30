@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 
+import { Card, CardContent } from "@/components/ui/card"
 import { getModuleBySlug } from "@/lib/shared/modules"
 
 type Props = {
@@ -20,15 +21,17 @@ export default async function ModuleEmbedPage({ params }: Props) {
         ) : null}
       </div>
 
-      <div className="rounded-xl border">
-        <iframe
-          title={mod.name}
-          src={mod.href}
-          className="h-[75dvh] w-full rounded-xl"
-          referrerPolicy="no-referrer"
-          sandbox="allow-forms allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"
-        />
-      </div>
+      <Card className="py-0">
+        <CardContent className="px-0 py-0">
+          <iframe
+            title={mod.name}
+            src={mod.href}
+            className="h-[75dvh] w-full rounded-2xl"
+            referrerPolicy="no-referrer"
+            sandbox="allow-forms allow-same-origin allow-scripts allow-popups allow-popups-to-escape-sandbox"
+          />
+        </CardContent>
+      </Card>
     </div>
   )
 }

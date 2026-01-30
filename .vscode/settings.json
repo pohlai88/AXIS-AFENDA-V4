@@ -1,0 +1,9 @@
+{
+  // Tailwind CSS v4 uses custom at-rules like `@theme` and `@custom-variant`.
+  // VS Code's built-in CSS/SCSS/LESS validators flag these as "Unknown at rule".
+  // We intentionally ignore these warnings at the workspace level.
+  "css.lint.unknownAtRules": "ignore",
+  "scss.lint.unknownAtRules": "ignore",
+  "less.lint.unknownAtRules": "ignore"
+}
+

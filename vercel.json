@@ -1,0 +1,14 @@
+/**
+ * Vercel Cron Configuration for MagicToDo
+ * https://vercel.com/docs/cron-jobs
+ *
+ * This file defines scheduled background jobs.
+ * No additional setup needed—Vercel automatically reads this file and schedules jobs.
+ */
+
+export const crons = [
+  {
+    path: "/api/cron/generate-recurrence",
+    schedule: "0 2 * * *", // 2 AM UTC daily
+  },
+]

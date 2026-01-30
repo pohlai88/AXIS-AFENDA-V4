@@ -11,6 +11,14 @@ const ServerEnvSchema = z.object({
 
   // Dev-only convenience: default tenant when cookie/header is missing.
   DEV_TENANT_ID: z.string().min(1).optional(),
+
+  // Dev auth convenience (Credentials provider).
+  // - Enabled by default in non-production.
+  // - Can be explicitly enabled in production by setting ENABLE_DEV_CREDENTIALS=true
+  //   and providing DEV_AUTH_USERNAME/DEV_AUTH_PASSWORD (not recommended).
+  ENABLE_DEV_CREDENTIALS: z.coerce.boolean().optional().default(false),
+  DEV_AUTH_USERNAME: z.string().min(1).optional(),
+  DEV_AUTH_PASSWORD: z.string().min(1).optional(),
 })
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>

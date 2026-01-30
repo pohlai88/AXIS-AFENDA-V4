@@ -1,23 +1,29 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono, Figtree } from "next/font/google";
-import "./globals.css";
+import type { Metadata } from "next"
+import { Geist, Geist_Mono, Figtree, Inter } from "next/font/google"
+import "./globals.css"
 
-const figtree = Figtree({subsets:['latin'],variable:'--font-sans'});
+import { ThemeProvider } from "@/components/theme-provider"
+import { Toaster } from "@/components/ui/sonner"
+import { siteConfig } from "@/lib/config/site"
+
+const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree" })
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
-});
+})
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
-});
+})
 
 export const metadata: Metadata = {
-  title: "AFENDA",
-  description: "Life is chaos, but work doesn't have to be.",
-};
+  title: siteConfig.name,
+  description: siteConfig.description,
+}
 
 export default function RootLayout({
   children,
@@ -25,12 +31,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={figtree.variable}>
+    <html lang="en" className={`${figtree.variable} ${inter.variable}`} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground min-h-svh antialiased font-sans`}
       >
-        {children}
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }

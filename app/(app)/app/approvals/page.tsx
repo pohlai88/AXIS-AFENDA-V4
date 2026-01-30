@@ -1,4 +1,5 @@
 import { getServerEnv } from "@/lib/env/server"
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 import { ApprovalsClient } from "./ui"
 
@@ -7,13 +8,15 @@ export default function ApprovalsPage() {
 
   if (!hasDb) {
     return (
-      <div className="rounded-xl border p-6">
-        <h1 className="text-2xl font-semibold tracking-tight">Approvals</h1>
-        <p className="text-muted-foreground mt-2">
-          Database is not configured. Set <code>DATABASE_URL</code> to enable the
-          approvals workflow.
-        </p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Approvals</CardTitle>
+          <CardDescription>
+            Database is not configured. Set <code>DATABASE_URL</code> to enable
+            the approvals workflow.
+          </CardDescription>
+        </CardHeader>
+      </Card>
     )
   }
 

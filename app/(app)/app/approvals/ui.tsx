@@ -3,11 +3,22 @@
 import * as React from "react"
 import { z } from "zod"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { apiFetch } from "@/lib/api/client"
 import { endpoints } from "@/lib/api/endpoints"
+import { AlertCircleIcon } from "lucide-react"
 
 const ApprovalSchema = z.object({
   id: z.string(),
@@ -93,72 +104,95 @@ export function ApprovalsClient() {
         </p>
       </div>
 
-      <div className="rounded-xl border p-5">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
-          <div className="space-y-2">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Escalate customer request to CEO"
-            />
-          </div>
-          <Button onClick={create} disabled={loading || !title.trim()}>
-            Create
-          </Button>
-        </div>
-      </div>
-
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-
-      <div className="rounded-xl border">
-        <div className="flex items-center justify-between border-b px-5 py-3">
-          <div className="font-medium">Approvals</div>
-          <Button variant="outline" onClick={refresh} disabled={loading}>
-            Refresh
-          </Button>
-        </div>
-        <div className="divide-y">
-          {items.length === 0 ? (
-            <div className="text-muted-foreground px-5 py-6 text-sm">
-              No approvals yet.
+      <Card size="sm">
+        <CardHeader className="border-b">
+          <CardTitle>Create approval</CardTitle>
+          <CardDescription>Create → approve/reject → audit later.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Escalate customer request to CEO"
+              />
             </div>
-          ) : (
-            items.map((a) => (
-              <div
-                key={a.id}
-                className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:justify-between"
-              >
-                <div className="min-w-0">
-                  <div className="truncate font-medium">{a.title}</div>
-                  <div className="text-muted-foreground mt-1 text-xs">
-                    {a.id} · {a.status}
+            <Button onClick={create} disabled={loading || !title.trim()}>
+              Create
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {error ? (
+        <Alert variant="destructive">
+          <AlertCircleIcon />
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <Card size="sm">
+        <CardHeader className="border-b">
+          <CardTitle>Queue</CardTitle>
+          <CardDescription>Pending approvals for this tenant.</CardDescription>
+          <CardAction>
+            <Button variant="outline" onClick={refresh} disabled={loading}>
+              Refresh
+            </Button>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="divide-y">
+            {items.length === 0 ? (
+              <div className="px-6 py-6 group-data-[size=sm]/card:px-4">
+                <Empty className="p-10">
+                  <EmptyHeader>
+                    <EmptyTitle>No approvals yet</EmptyTitle>
+                    <EmptyDescription>
+                      Create your first approval request above.
+                    </EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              </div>
+            ) : (
+              items.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex flex-col gap-3 px-6 py-4 md:flex-row md:items-center md:justify-between group-data-[size=sm]/card:px-4"
+                >
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">{a.title}</div>
+                    <div className="text-muted-foreground mt-1 text-xs">
+                      {a.id} · {a.status}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      disabled={loading}
+                      onClick={() => setStatus(a.id, "approved")}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      disabled={loading}
+                      onClick={() => setStatus(a.id, "rejected")}
+                    >
+                      Reject
+                    </Button>
                   </div>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    disabled={loading}
-                    onClick={() => setStatus(a.id, "approved")}
-                  >
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    disabled={loading}
-                    onClick={() => setStatus(a.id, "rejected")}
-                  >
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }
