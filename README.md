@@ -1,24 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+AFENDA — Next.js App Router project (App Shell).
 
 ## Getting Started
 
-First, run the development server:
+### Quick start
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Quality gates (should always stay green)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+pnpm lint
+pnpm typecheck
+pnpm build
+```
+
+### Database (Neon + Drizzle)
+
+- **Provider**: Neon Postgres
+- **ORM**: Drizzle + drizzle-kit
+- **Env**: `DATABASE_URL` (use the Neon `-pooler` hostname when available)
+
+Handy commands:
+
+```bash
+pnpm db:push
+pnpm db:generate
+pnpm db:migrate
+pnpm db:studio
+```
+
+Neon CLI (dev dependency):
+
+```bash
+pnpm neon:auth
+pnpm neon:projects
+pnpm neon:branches
+```
+
+## Docs (entry point)
+
+- **Agent guidance**: [`AGENT.md`](./AGENT.md)
+
+### Repository map
+
+- **App Router**: [`app/`](./app/README.md)
+- **Components**: [`components/`](./components/README.md)
+- **Hooks**: [`hooks/`](./hooks/README.md)
+- **Shared library**: [`lib/`](./lib/README.md)
+
+### `lib/` map
+
+- `lib/server/`: [`lib/server/README.md`](./lib/server/README.md)
+- `lib/client/`: [`lib/client/README.md`](./lib/client/README.md)
+- `lib/shared/`: [`lib/shared/README.md`](./lib/shared/README.md)
+- `lib/env/`: [`lib/env/README.md`](./lib/env/README.md)
+- `lib/api/`: [`lib/api/README.md`](./lib/api/README.md)
+- `lib/constants/`: [`lib/constants/README.md`](./lib/constants/README.md)
+- `lib/config/`: [`lib/config/README.md`](./lib/config/README.md)
+- `lib/contracts/`: [`lib/contracts/README.md`](./lib/contracts/README.md)
 
 ## Learn More
 
