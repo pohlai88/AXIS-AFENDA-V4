@@ -35,7 +35,7 @@ export const users = pgTable("users", {
   roleIdx: index("users_role_idx").on(table.role),
 }))
 
-// ============ Accounts Table (NextAuth) ============
+// ============ Accounts Table (legacy auth) ============
 export const accounts = pgTable(
   "accounts",
   {
@@ -61,7 +61,7 @@ export const accounts = pgTable(
   })
 )
 
-// ============ Sessions Table (NextAuth) ============
+// ============ Sessions Table (legacy auth) ============
 export const sessions = pgTable(
   "sessions",
   {
@@ -69,8 +69,8 @@ export const sessions = pgTable(
     sessionToken: varchar("session_token", { length: 255 }).notNull().unique(),
     userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
     expires: timestamp("expires", { withTimezone: true }).notNull(),
-    // NextAuth's AdapterSession doesn't include a user snapshot; we store it for optional debugging/auditing.
-    // Default keeps inserts simple and schema compatible with the adapter.
+    // Legacy: user snapshot column kept for optional debugging/auditing.
+    // Default keeps inserts simple and schema compatible with historical adapters.
     user: jsonb("user").notNull().default({}),
     ipAddress: varchar("ip_address", { length: 45 }),
     userAgent: varchar("user_agent", { length: 500 }),

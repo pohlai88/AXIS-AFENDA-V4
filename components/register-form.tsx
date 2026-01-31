@@ -1,8 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { signIn } from "next-auth/react"
-import { useSearchParams } from "next/navigation"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -23,9 +22,6 @@ export function RegisterForm({
   className,
   ...props
 }: React.ComponentProps<"form">) {
-  const searchParams = useSearchParams()
-  const callbackUrl = searchParams.get("callbackUrl") ?? routes.app.root()
-
   const [username, setUsername] = React.useState("")
   const [email, setEmail] = React.useState("")
   const [password, setPassword] = React.useState("")
@@ -45,21 +41,13 @@ export function RegisterForm({
     }
 
     try {
-      // For now, simulate registration and auto-login
-      // In a real implementation, you'd call a registration API first
-      const res = await signIn("credentials", {
-        username,
-        password,
-        redirect: false,
-        callbackUrl,
-      })
-
-      if (!res || res.error) {
-        setError("Registration failed")
-        return
-      }
-
-      window.location.assign(res.url ?? callbackUrl)
+      // NextAuth has been removed. This component is kept for the UI playground,
+      // but auth will be reintroduced via Neon Auth.
+      void username
+      void email
+      void password
+      toast.error("Registration is temporarily disabled while authentication is migrating.")
+      setError("Registration is temporarily disabled while authentication is migrating.")
     } catch {
       setError("Registration failed")
     } finally {

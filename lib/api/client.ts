@@ -1,8 +1,9 @@
 import { z } from "zod"
 
 import { ApiErrorSchema, type ApiError } from "@/lib/contracts/api-error"
-import { CACHE_TTL } from "@/lib/constants"
+import { CACHE_TTL, CIRCUIT_BREAKER } from "@/lib/constants"
 import { retry } from "@/lib/utils"
+import { CircuitBreaker } from "@/lib/shared/circuit-breaker"
 
 const ApiEnvelopeSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
   z.union([
@@ -43,6 +44,14 @@ interface ApiFetchOptions extends RequestInit {
 // Simple in-memory cache for GET requests
 const cache = new Map<string, { data: unknown; timestamp: number; ttl: number }>()
 const DEFAULT_CACHE_TTL = CACHE_TTL.MEDIUM
+
+// Global circuit breaker for outbound HTTP calls via apiFetch
+const apiFetchCircuit = new CircuitBreaker({
+  failureThreshold: CIRCUIT_BREAKER.FAILURE_THRESHOLD,
+  windowSize: CIRCUIT_BREAKER.WINDOW_SIZE,
+  openDurationMs: CIRCUIT_BREAKER.OPEN_DURATION_MS,
+  halfOpenMaxProbes: CIRCUIT_BREAKER.HALF_OPEN_MAX_PROBES,
+})
 
 function getFromCache(key: string): unknown | null {
   const entry = cache.get(key)
@@ -96,11 +105,13 @@ export async function apiFetch<T extends z.ZodTypeAny>(
   try {
     const result = await retry(
       async () => {
-        const res = await fetch(input, {
-          ...requestInit,
-          signal: controller.signal,
-          cache: requestCache,
-        })
+        const res = await apiFetchCircuit.execute(async () =>
+          fetch(input, {
+            ...requestInit,
+            signal: controller.signal,
+            cache: requestCache,
+          })
+        )
 
         // Handle non-JSON responses
         const contentType = res.headers.get('content-type')

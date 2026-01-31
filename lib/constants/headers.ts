@@ -6,6 +6,10 @@ export const HEADER_NAMES = {
   REQUEST_ID: "x-request-id",
   /** Tenant ID header for multi-tenancy */
   TENANT_ID: "x-tenant-id",
+  /** Authenticated user id (internal tenancy boundary) */
+  USER_ID: "x-user-id",
+  /** Authenticated user role (optional) */
+  USER_ROLE: "x-user-role",
 } as const
 
 export type HeaderNameKey = keyof typeof HEADER_NAMES

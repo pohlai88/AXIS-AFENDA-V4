@@ -5,6 +5,7 @@ import { users, passwordResetTokens } from "@/lib/server/db/schema"
 import { eq, and } from "drizzle-orm"
 import { nanoid } from "nanoid"
 import bcrypt from "bcryptjs"
+import { logger } from "@/lib/server/logger"
 
 const forgotPasswordSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
 
       // TODO: Send email with reset link
       // For now, just return success
-      console.log(`Password reset token for ${user[0].email}: ${token}`)
+      logger.info({ email: user[0].email }, "[auth] password reset token generated (email sending not implemented)")
 
       return NextResponse.json({
         message: "If an account with that email exists, a password reset link has been sent.",
@@ -115,7 +116,7 @@ export async function POST(request: NextRequest) {
     }
 
   } catch (error) {
-    console.error("Password reset error:", error)
+    logger.error({ error }, "[auth] reset-password failed")
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(

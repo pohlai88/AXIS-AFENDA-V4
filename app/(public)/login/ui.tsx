@@ -1,7 +1,6 @@
 "use client"
 
 import * as React from "react"
-import { signIn } from "next-auth/react"
 import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 
@@ -39,33 +38,21 @@ export function LoginClient() {
     }
 
     setIsPending(true)
-    setError(null)
-
     try {
-      const res = await signIn("credentials", {
-        username,
-        password,
-        redirect: false,
-        callbackUrl,
-      })
-
-      if (!res || res.error) {
-        setError("Invalid credentials")
-        return
-      }
-
-      toast.success("Successfully signed in!")
-      window.location.assign(res.url ?? callbackUrl)
+      // NextAuth has been removed. Login will be reintroduced via Neon Auth.
+      setError("Login is temporarily disabled while authentication is migrating.")
+      toast.error("Login is temporarily disabled while authentication is migrating.")
+      void callbackUrl
     } catch {
-      setError("Authentication failed")
-      toast.error("Authentication failed")
+      // no-op
     } finally {
       setIsPending(false)
     }
   }
 
   const handleGitHubSignIn = () => {
-    signIn("github", { callbackUrl })
+    toast.message("OAuth sign-in is migrating to Neon Auth.")
+    void callbackUrl
   }
   return (
     <main className="mx-auto flex w-full max-w-sm flex-col gap-6 px-6 py-16">

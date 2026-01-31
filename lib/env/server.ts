@@ -4,21 +4,9 @@ import { z } from "zod"
 const ServerEnvSchema = z.object({
   DATABASE_URL: z.string().min(1).optional(),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-  // Prefer NEXTAUTH_SECRET (standard) but keep AUTH_SECRET/SESSION_SECRET for compatibility.
-  NEXTAUTH_SECRET: z.string().min(16).optional(),
-  AUTH_SECRET: z.string().min(16).optional(),
-  SESSION_SECRET: z.string().min(16).optional(),
 
   // Dev-only convenience: default tenant when cookie/header is missing.
   DEV_TENANT_ID: z.string().min(1).optional(),
-
-  // Dev auth convenience (Credentials provider).
-  // - Enabled by default in non-production.
-  // - Can be explicitly enabled in production by setting ENABLE_DEV_CREDENTIALS=true
-  //   and providing DEV_AUTH_USERNAME/DEV_AUTH_PASSWORD (not recommended).
-  ENABLE_DEV_CREDENTIALS: z.coerce.boolean().optional().default(false),
-  DEV_AUTH_USERNAME: z.string().min(1).optional(),
-  DEV_AUTH_PASSWORD: z.string().min(1).optional(),
 
   // Neon Auth configuration
   NEON_DATA_API_URL: z.string().url().optional(),

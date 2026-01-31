@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs"
 import { db } from "@/lib/server/db"
 import { users } from "@/lib/server/db/schema"
 import { eq } from "drizzle-orm"
+import { logger } from "@/lib/server/logger"
 
 const registerSchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name too long"),
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     })
 
   } catch (error) {
-    console.error("Registration error:", error)
+    logger.error({ error }, "[auth] registration failed")
     
     if (error instanceof z.ZodError) {
       return NextResponse.json(

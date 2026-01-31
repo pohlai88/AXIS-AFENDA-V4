@@ -3,6 +3,9 @@ import "@/lib/server/only"
 import { getServerEnv } from "@/lib/env/server"
 import jwt, { JwtPayload } from 'jsonwebtoken'
 import jwksClient, { SigningKey } from 'jwks-rsa'
+import { CIRCUIT_BREAKER } from "@/lib/constants"
+import { CircuitBreaker } from "@/lib/shared/circuit-breaker"
+import { logger } from "@/lib/server/logger"
 
 export interface NeonAuthConfig {
   enabled: boolean
@@ -41,6 +44,13 @@ export function getNeonAuthConfig(): NeonAuthConfig {
 // JWKS client for signature verification
 let jwksClientInstance: jwksClient.JwksClient | null = null
 
+const neonAuthCircuit = new CircuitBreaker({
+  failureThreshold: CIRCUIT_BREAKER.FAILURE_THRESHOLD,
+  windowSize: CIRCUIT_BREAKER.WINDOW_SIZE,
+  openDurationMs: CIRCUIT_BREAKER.OPEN_DURATION_MS,
+  halfOpenMaxProbes: CIRCUIT_BREAKER.HALF_OPEN_MAX_PROBES,
+})
+
 function getJwksClient(jwksUrl: string): jwksClient.JwksClient {
   if (!jwksClientInstance) {
     jwksClientInstance = jwksClient({
@@ -74,7 +84,7 @@ export async function validateNeonAuthToken(token: string): Promise<boolean> {
 
     // Get signing key
     const client = getJwksClient(config.jwksUrl)
-    const key: SigningKey = await client.getSigningKey(header.kid)
+    const key: SigningKey = await neonAuthCircuit.execute(async () => client.getSigningKey(header.kid))
     const signingKey = key.getPublicKey()
 
     // Verify JWT signature and claims
@@ -87,7 +97,7 @@ export async function validateNeonAuthToken(token: string): Promise<boolean> {
 
     return true
   } catch (error) {
-    console.error('Neon Auth token validation failed:', error)
+    logger.error({ error }, "[neon-auth] token validation failed")
     return false
   }
 }

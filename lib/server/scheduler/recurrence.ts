@@ -3,7 +3,8 @@ import "@/lib/server/only"
 import { addDays, addWeeks, addMonths, addYears, isBefore, isAfter } from "date-fns"
 import { eq, and, lte, isNotNull } from "drizzle-orm"
 
-import { getDb } from "@/lib/server/db/client"
+import { logger } from "@/lib/server/logger"
+import { getDb } from "@/lib/server/db"
 import { tasks, recurrenceRules, taskHistory } from "@/lib/server/db/schema"
 import { TASK_HISTORY_ACTION, TASK_STATUS, type RecurrenceRule } from "@/lib/contracts/tasks"
 
@@ -99,7 +100,7 @@ export async function generateNextOccurrences(limit = 100) {
 
       generated++
     } catch (error) {
-      console.error(`Failed to generate next occurrence for task ${task.id}:`, error)
+      logger.error({ error, taskId: task.id }, "[scheduler] failed to generate next occurrence")
     }
   }
 

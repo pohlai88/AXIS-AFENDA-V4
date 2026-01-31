@@ -1,7 +1,3 @@
-import { getServerSession } from "next-auth/next"
-import { redirect } from "next/navigation"
-import { cache } from "react"
-
 import { REGEX_PATTERNS, STORAGE_KEYS, TIME_INTERVALS } from "@/lib/constants"
 
 export type UserRole = "user" | "admin" | "moderator"
@@ -13,31 +9,6 @@ export interface AuthUser {
   image?: string | null
   username?: string | null
   role?: UserRole
-}
-
-// Server-side auth utilities
-export const getServerAuthSession = cache(async () => {
-  return await getServerSession()
-})
-
-export async function requireAuth(): Promise<AuthUser> {
-  const session = await getServerAuthSession()
-  
-  if (!session?.user) {
-    redirect("/login")
-  }
-
-  return session.user as AuthUser
-}
-
-export async function requireRole(requiredRole: UserRole): Promise<AuthUser> {
-  const user = await requireAuth()
-  
-  if (!hasRole(user, requiredRole)) {
-    redirect("/auth/unauthorized")
-  }
-
-  return user
 }
 
 export function hasRole(user: AuthUser, requiredRole: UserRole): boolean {

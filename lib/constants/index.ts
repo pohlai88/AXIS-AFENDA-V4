@@ -13,12 +13,6 @@ export { STORAGE_KEYS, type StorageKeyPath } from './storage'
 export const COOKIE_NAMES = {
   /** Tenant ID cookie for multi-tenancy */
   TENANT_ID: "afenda_tenant_id",
-  /** Session cookie name */
-  SESSION: "next-auth.session-token",
-  /** CSRF token cookie */
-  CSRF_TOKEN: "next-auth.csrf-token",
-  /** Callback URL cookie */
-  CALLBACK_URL: "next-auth.callback-url",
   /** Theme preference cookie */
   THEME: "theme",
   /** UI state persistence cookie */
@@ -219,6 +213,37 @@ export const ENVIRONMENTS = {
 
 export type EnvironmentKey = keyof typeof ENVIRONMENTS
 export type EnvironmentValue = (typeof ENVIRONMENTS)[EnvironmentKey]
+
+/**
+ * Logging defaults (server).
+ *
+ * Primary configuration uses env vars:
+ * - LOG_LEVEL (trace|debug|info|warn|error|fatal)
+ */
+export const LOGGER = {
+  /** Default level in development */
+  DEFAULT_LEVEL_DEV: "debug",
+  /** Default level in production */
+  DEFAULT_LEVEL_PROD: "info",
+  /** Redaction placeholder */
+  REDACTION_CENSOR: "[redacted]",
+} as const
+
+/**
+ * Circuit breaker defaults for outbound network calls.
+ *
+ * These are conservative defaults to prevent cascading failures.
+ */
+export const CIRCUIT_BREAKER = {
+  /** Failures before opening the circuit */
+  FAILURE_THRESHOLD: 5,
+  /** Sliding window size for failures (number of attempts) */
+  WINDOW_SIZE: 20,
+  /** How long to stay open before allowing half-open probes (ms) */
+  OPEN_DURATION_MS: 30 * TIME_INTERVALS.SECOND,
+  /** Max probe calls allowed in half-open before closing/opening (count) */
+  HALF_OPEN_MAX_PROBES: 2,
+} as const
 
 /**
  * Common MIME types.

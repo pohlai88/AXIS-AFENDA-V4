@@ -17,9 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Spinner } from "@/components/ui/spinner"
 import { siteConfig } from "@/lib/config/site"
-import { routes } from "@/lib/routes"
 import { AlertCircleIcon, EyeIcon, EyeOffIcon, GithubIcon } from "lucide-react"
-import { signIn } from "next-auth/react"
 
 export function RegisterClient() {
   const router = useRouter()
@@ -116,7 +114,8 @@ export function RegisterClient() {
   }
 
   const handleOAuthSignIn = (provider: string) => {
-    signIn(provider, { callbackUrl: routes.app.root() })
+    // NextAuth has been removed. OAuth will be reintroduced via Neon Auth.
+    toast.message(`${provider} sign-in is migrating to Neon Auth.`)
   }
 
   return (
@@ -260,31 +259,27 @@ export function RegisterClient() {
           </div>
 
           <div className="space-y-3">
-            {process.env.GOOGLE_CLIENT_ID && (
-              <Button
-                variant="outline"
-                type="button"
-                className="w-full"
-                onClick={() => handleOAuthSignIn("google")}
-                disabled={isPending}
-              >
-                <span className="mr-2 h-4 w-4">G</span>
-                Google
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              type="button"
+              className="w-full"
+              onClick={() => handleOAuthSignIn("Google")}
+              disabled={isPending}
+            >
+              <span className="mr-2 h-4 w-4">G</span>
+              Google
+            </Button>
 
-            {process.env.GITHUB_ID && (
-              <Button
-                variant="outline"
-                type="button"
-                className="w-full"
-                onClick={() => handleOAuthSignIn("github")}
-                disabled={isPending}
-              >
-                <GithubIcon className="mr-2 h-4 w-4" />
-                GitHub
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              type="button"
+              className="w-full"
+              onClick={() => handleOAuthSignIn("GitHub")}
+              disabled={isPending}
+            >
+              <GithubIcon className="mr-2 h-4 w-4" />
+              GitHub
+            </Button>
           </div>
 
           <div className="text-center text-sm text-muted-foreground">

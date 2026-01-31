@@ -1,5 +1,6 @@
 import { ok, fail } from "@/lib/server/api/response"
 import { generateNextOccurrences, cleanupOverdueTasks } from "@/lib/server/scheduler/recurrence"
+import { logger } from "@/lib/server/logger"
 
 /**
  * POST /api/cron/generate-recurrence
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
       message: "Scheduler completed successfully",
     })
   } catch (error) {
-    console.error("Scheduler error:", error)
+    logger.error({ error }, "[cron] generate-recurrence failed")
     return fail(
       { message: "Scheduler failed", code: "SCHEDULER_ERROR" },
       500

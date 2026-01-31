@@ -11,6 +11,7 @@ import { invalidateTag } from "@/lib/server/cache/revalidate"
 import { cacheTags } from "@/lib/server/cache/tags"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { getTenantContext } from "@/lib/server/tenant/context"
+import { logger } from "@/lib/server/logger"
 import {
   getTenantDesignSystem,
   upsertTenantDesignSystem,
@@ -39,7 +40,7 @@ export async function GET() {
     })
   } catch (e) {
     if (e instanceof HttpError) return fail(e.toApiError(requestId), e.status)
-    console.error("[design-system] GET error:", e)
+    logger.error({ error: e, requestId }, "[design-system] GET error")
     return fail({ 
       code: "INTERNAL", 
       message: e instanceof Error ? e.message : "Internal error", 
@@ -75,7 +76,7 @@ export async function PUT(request: Request) {
     })
   } catch (e) {
     if (e instanceof HttpError) return fail(e.toApiError(requestId), e.status)
-    console.error("[design-system] PUT error:", e)
+    logger.error({ error: e, requestId }, "[design-system] PUT error")
     return fail({ 
       code: "INTERNAL", 
       message: e instanceof Error ? e.message : "Internal error", 

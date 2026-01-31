@@ -98,7 +98,7 @@ Client components leverage optimized utilities:
 1. **Public Routes**: No auth required
 2. **Protected Routes**: Redirect to login if not authenticated
 3. **Role-based Access**: Check permissions in middleware
-4. **Session Management**: Use NextAuth.js with proper configuration
+4. **Session Management**: Use the repository auth system (Neon Auth) with proper configuration
 
 ## Request Flow
 

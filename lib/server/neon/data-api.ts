@@ -1,12 +1,22 @@
 import "@/lib/server/only"
 
 import { getNeonAuthConfig } from "@/lib/server/auth/neon-integration"
+import { CIRCUIT_BREAKER } from "@/lib/constants"
+import { CircuitBreaker } from "@/lib/shared/circuit-breaker"
+import { logger } from "@/lib/server/logger"
 
 export interface NeonDataApiResponse<T = unknown> {
   data: T[]
   error: string | null
   status: number
 }
+
+const neonCircuit = new CircuitBreaker({
+  failureThreshold: CIRCUIT_BREAKER.FAILURE_THRESHOLD,
+  windowSize: CIRCUIT_BREAKER.WINDOW_SIZE,
+  openDurationMs: CIRCUIT_BREAKER.OPEN_DURATION_MS,
+  halfOpenMaxProbes: CIRCUIT_BREAKER.HALF_OPEN_MAX_PROBES,
+})
 
 export class NeonDataApiClient {
   private baseUrl: string
@@ -73,10 +83,12 @@ export class NeonDataApiClient {
       }
 
       const url = `${this.baseUrl}/${table}?${params.toString()}`
-      const response = await fetch(url, {
-        method: "GET",
-        headers: this.headers,
-      })
+      const response = await neonCircuit.execute(async () =>
+        fetch(url, {
+          method: "GET",
+          headers: this.headers,
+        })
+      )
 
       if (!response.ok) {
         return {
@@ -93,6 +105,7 @@ export class NeonDataApiClient {
         status: response.status,
       }
     } catch (error) {
+      logger.error({ error }, "[neon-data-api] GET failed")
       return {
         data: [],
         error: error instanceof Error ? error.message : "Unknown error",
@@ -103,11 +116,13 @@ export class NeonDataApiClient {
 
   async post<T = unknown>(table: string, data: Record<string, unknown>): Promise<NeonDataApiResponse<T>> {
     try {
-      const response = await fetch(`${this.baseUrl}/${table}`, {
-        method: "POST",
-        headers: this.headers,
-        body: JSON.stringify(data),
-      })
+      const response = await neonCircuit.execute(async () =>
+        fetch(`${this.baseUrl}/${table}`, {
+          method: "POST",
+          headers: this.headers,
+          body: JSON.stringify(data),
+        })
+      )
 
       if (!response.ok) {
         return {
@@ -124,6 +139,7 @@ export class NeonDataApiClient {
         status: response.status,
       }
     } catch (error) {
+      logger.error({ error }, "[neon-data-api] POST failed")
       return {
         data: [],
         error: error instanceof Error ? error.message : "Unknown error",
@@ -145,11 +161,13 @@ export class NeonDataApiClient {
       }
 
       const url = `${this.baseUrl}/${table}${params.toString() ? `?${params.toString()}` : ""}`
-      const response = await fetch(url, {
-        method: "PATCH",
-        headers: this.headers,
-        body: JSON.stringify(data),
-      })
+      const response = await neonCircuit.execute(async () =>
+        fetch(url, {
+          method: "PATCH",
+          headers: this.headers,
+          body: JSON.stringify(data),
+        })
+      )
 
       if (!response.ok) {
         return {
@@ -166,6 +184,7 @@ export class NeonDataApiClient {
         status: response.status,
       }
     } catch (error) {
+      logger.error({ error }, "[neon-data-api] PATCH failed")
       return {
         data: [],
         error: error instanceof Error ? error.message : "Unknown error",
@@ -185,10 +204,12 @@ export class NeonDataApiClient {
       })
 
       const url = `${this.baseUrl}/${table}?${params.toString()}`
-      const response = await fetch(url, {
-        method: "DELETE",
-        headers: this.headers,
-      })
+      const response = await neonCircuit.execute(async () =>
+        fetch(url, {
+          method: "DELETE",
+          headers: this.headers,
+        })
+      )
 
       if (!response.ok) {
         return {
@@ -205,6 +226,7 @@ export class NeonDataApiClient {
         status: response.status,
       }
     } catch (error) {
+      logger.error({ error }, "[neon-data-api] DELETE failed")
       return {
         data: [],
         error: error instanceof Error ? error.message : "Unknown error",
