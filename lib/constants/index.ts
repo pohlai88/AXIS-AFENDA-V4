@@ -452,3 +452,134 @@ export const TASK_FILTERING_UI = {
 
 export type TaskFilteringUiKey = keyof typeof TASK_FILTERING_UI
 export type TaskFilteringUiValue = (typeof TASK_FILTERING_UI)[TaskFilteringUiKey]
+
+/**
+ * Organization and team management constants.
+ */
+export const ORGANIZATION = {
+  /** Default organization role */
+  DEFAULT_ROLE: "member",
+  /** Organization roles */
+  ROLES: {
+    OWNER: "owner",
+    ADMIN: "admin",
+    MEMBER: "member",
+  },
+  /** Maximum name length */
+  MAX_NAME_LENGTH: 255,
+  /** Maximum slug length */
+  MAX_SLUG_LENGTH: 100,
+  /** Maximum description length */
+  MAX_DESCRIPTION_LENGTH: 1000,
+} as const
+
+export type OrganizationRoleKey = keyof typeof ORGANIZATION.ROLES
+export type OrganizationRoleValue = (typeof ORGANIZATION.ROLES)[OrganizationRoleKey]
+
+/**
+ * Team management constants.
+ */
+export const TEAM = {
+  /** Default team role */
+  DEFAULT_ROLE: "member",
+  /** Team roles */
+  ROLES: {
+    MANAGER: "manager",
+    MEMBER: "member",
+  },
+  /** Maximum name length */
+  MAX_NAME_LENGTH: 255,
+  /** Maximum slug length */
+  MAX_SLUG_LENGTH: 100,
+  /** Maximum description length */
+  MAX_DESCRIPTION_LENGTH: 1000,
+} as const
+
+export type TeamRoleKey = keyof typeof TEAM.ROLES
+export type TeamRoleValue = (typeof TEAM.ROLES)[TeamRoleKey]
+
+/**
+ * Permission system constants.
+ */
+export const PERMISSIONS = {
+  // System permissions
+  SYSTEM_ADMIN: "system:admin",
+  SYSTEM_USER_MANAGE: "system:user:manage",
+
+  // Organization permissions
+  ORG_CREATE: "organization:create",
+  ORG_READ: "organization:read",
+  ORG_UPDATE: "organization:update",
+  ORG_DELETE: "organization:delete",
+  ORG_MANAGE: "organization:manage",
+  ORG_MEMBER_INVITE: "organization:member:invite",
+  ORG_MEMBER_MANAGE: "organization:member:manage",
+  ORG_MEMBER_REMOVE: "organization:member:remove",
+  ORG_TEAM_CREATE: "organization:team:create",
+  ORG_TEAM_MANAGE: "organization:team:manage",
+  ORG_SETTINGS_MANAGE: "organization:settings:manage",
+
+  // Team permissions
+  TEAM_CREATE: "team:create",
+  TEAM_READ: "team:read",
+  TEAM_UPDATE: "team:update",
+  TEAM_DELETE: "team:delete",
+  TEAM_MANAGE: "team:manage",
+  TEAM_MEMBER_INVITE: "team:member:invite",
+  TEAM_MEMBER_MANAGE: "team:member:manage",
+  TEAM_MEMBER_REMOVE: "team:member:remove",
+  TEAM_SETTINGS_MANAGE: "team:settings:manage",
+
+  // Resource permissions (projects/tasks)
+  PROJECT_CREATE: "project:create",
+  PROJECT_READ: "project:read",
+  PROJECT_UPDATE: "project:update",
+  PROJECT_DELETE: "project:delete",
+  PROJECT_SHARE: "project:share",
+  PROJECT_ADMIN: "project:admin",
+
+  TASK_CREATE: "task:create",
+  TASK_READ: "task:read",
+  TASK_UPDATE: "task:update",
+  TASK_DELETE: "task:delete",
+  TASK_ASSIGN: "task:assign",
+  TASK_COMMENT: "task:comment",
+
+  // Sharing permissions
+  SHARE_READ: "share:read",
+  SHARE_WRITE: "share:write",
+  SHARE_ADMIN: "share:admin",
+} as const
+
+export type PermissionKey = keyof typeof PERMISSIONS
+export type PermissionValue = (typeof PERMISSIONS)[PermissionKey]
+
+/**
+ * Resource sharing constants.
+ */
+export const RESOURCE_SHARING = {
+  /** Resource types */
+  RESOURCE_TYPES: {
+    PROJECT: "project",
+    TASK: "task",
+  },
+  /** Share target types */
+  TARGET_TYPES: {
+    USER: "user",
+    TEAM: "team",
+    ORGANIZATION: "organization",
+  },
+  /** Permission levels */
+  PERMISSION_LEVELS: {
+    READ: "read",
+    WRITE: "write",
+    ADMIN: "admin",
+  },
+} as const
+
+export type ResourceShareTypeKey = keyof typeof RESOURCE_SHARING.RESOURCE_TYPES
+export type ResourceShareTypeValue = (typeof RESOURCE_SHARING.RESOURCE_TYPES)[ResourceShareTypeKey]
+export type ShareTargetTypeKey = keyof typeof RESOURCE_SHARING.TARGET_TYPES
+export type ShareTargetTypeValue = (typeof RESOURCE_SHARING.TARGET_TYPES)[ShareTargetTypeKey]
+export type PermissionLevelKey = keyof typeof RESOURCE_SHARING.PERMISSION_LEVELS
+export type PermissionLevelValue = (typeof RESOURCE_SHARING.PERMISSION_LEVELS)[PermissionLevelKey]

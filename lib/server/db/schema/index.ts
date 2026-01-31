@@ -2,6 +2,7 @@ import { pgTable, text, timestamp, uuid, boolean, integer, jsonb, varchar, index
 import { relations } from "drizzle-orm"
 
 import { TASK_PRIORITY, TASK_STATUS } from "@/lib/contracts/tasks"
+import { ORGANIZATION, TEAM, RESOURCE_SHARING } from "@/lib/constants"
 
 /**
  * MagicToDo Drizzle Schema
@@ -249,16 +250,7 @@ export const taskHistory = pgTable(
 )
 
 // ============ Relations ============
-export const usersRelations = relations(users, ({ many }) => ({
-  projects: many(projects),
-  tasks: many(tasks),
-  recurrenceRules: many(recurrenceRules),
-  taskHistory: many(taskHistory),
-  accounts: many(accounts),
-  sessions: many(sessions),
-  passwordResetTokens: many(passwordResetTokens),
-  userActivityLog: many(userActivityLog),
-}))
+// Note: Relations are defined after all tables to avoid reference errors
 
 export const accountsRelations = relations(accounts, ({ one }) => ({
   user: one(users, { fields: [accounts.userId], references: [users.id] }),
@@ -298,6 +290,162 @@ export const recurrenceRulesRelations = relations(recurrenceRules, ({ one, many 
 export const taskHistoryRelations = relations(taskHistory, ({ one }) => ({
   task: one(tasks, { fields: [taskHistory.taskId], references: [tasks.id] }),
   user: one(users, { fields: [taskHistory.userId], references: [users.id] }),
+}))
+
+// ============ Organizations Table ============
+export const organizations = pgTable(
+  "organizations",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    name: varchar("name", { length: ORGANIZATION.MAX_NAME_LENGTH }).notNull(),
+    slug: varchar("slug", { length: ORGANIZATION.MAX_SLUG_LENGTH }).notNull().unique(),
+    description: text("description"),
+    logo: varchar("logo", { length: 500 }),
+    settings: jsonb("settings").default({}),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    slugIdx: index("organizations_slug_idx").on(table.slug),
+    nameIdx: index("organizations_name_idx").on(table.name),
+    isActiveIdx: index("organizations_is_active_idx").on(table.isActive),
+  })
+)
+
+// ============ Teams Table ============
+export const teams = pgTable(
+  "teams",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: TEAM.MAX_NAME_LENGTH }).notNull(),
+    slug: varchar("slug", { length: TEAM.MAX_SLUG_LENGTH }).notNull(),
+    description: text("description"),
+    parentId: uuid("parent_id").references(() => teams.id, { onDelete: "set null" }),
+    settings: jsonb("settings").default({}),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    organizationIdIdx: index("teams_organization_id_idx").on(table.organizationId),
+    slugIdx: index("teams_slug_idx").on(table.slug),
+    parentIdIdx: index("teams_parent_id_idx").on(table.parentId),
+    uniqueTeamSlug: index("teams_unique_slug").on(table.organizationId, table.slug),
+    isActiveIdx: index("teams_is_active_idx").on(table.isActive),
+  })
+) as any
+
+// ============ Memberships Table ============
+export const memberships = pgTable(
+  "memberships",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+    teamId: uuid("team_id").references(() => teams.id, { onDelete: "cascade" }),
+    role: varchar("role", { length: 50 }).notNull().default(ORGANIZATION.DEFAULT_ROLE),
+    permissions: jsonb("permissions").default({}),
+    invitedBy: uuid("invited_by").references(() => users.id, { onDelete: "set null" }),
+    joinedAt: timestamp("joined_at", { withTimezone: true }).notNull().defaultNow(),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("memberships_user_id_idx").on(table.userId),
+    organizationIdIdx: index("memberships_organization_id_idx").on(table.organizationId),
+    teamIdIdx: index("memberships_team_id_idx").on(table.teamId),
+    uniqueMembership: index("memberships_unique").on(table.userId, table.organizationId, table.teamId),
+    roleIdx: index("memberships_role_idx").on(table.role),
+    isActiveIdx: index("memberships_is_active_idx").on(table.isActive),
+  })
+)
+
+// ============ Resource Shares Table ============
+export const resourceShares = pgTable(
+  "resource_shares",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    resourceType: varchar("resource_type", { length: 50 }).notNull(),
+    resourceId: uuid("resource_id").notNull(),
+    ownerId: uuid("owner_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    sharedWithUserId: uuid("shared_with_user_id").references(() => users.id, { onDelete: "cascade" }),
+    sharedWithTeamId: uuid("shared_with_team_id").references(() => teams.id, { onDelete: "cascade" }),
+    sharedWithOrganizationId: uuid("shared_with_organization_id").references(() => organizations.id, { onDelete: "cascade" }),
+    permissions: jsonb("permissions").notNull().default({ read: true, write: false, admin: false }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    resourceIdIdx: index("resource_shares_resource_id_idx").on(table.resourceId),
+    ownerIdIdx: index("resource_shares_owner_id_idx").on(table.ownerId),
+    sharedWithUserIdx: index("resource_shares_shared_with_user_idx").on(table.sharedWithUserId),
+    sharedWithTeamIdx: index("resource_shares_shared_with_team_idx").on(table.sharedWithTeamId),
+    sharedWithOrgIdx: index("resource_shares_shared_with_org_idx").on(table.sharedWithOrganizationId),
+    expiresAtIdx: index("resource_shares_expires_at_idx").on(table.expiresAt),
+    uniqueShare: index("resource_shares_unique").on(
+      table.resourceType,
+      table.resourceId,
+      table.sharedWithUserId,
+      table.sharedWithTeamId,
+      table.sharedWithOrganizationId
+    ),
+  })
+)
+
+// ============ Relations for New Tables ============
+export const organizationsRelations = relations(organizations, ({ one, many }) => ({
+  teams: many(teams),
+  memberships: many(memberships),
+  resourceShares: many(resourceShares),
+  owner: one(users, {
+    fields: [organizations.id],
+    references: [users.id],
+    relationName: "ownedOrganizations"
+  }),
+}))
+
+export const teamsRelations = relations(teams, ({ one, many }) => ({
+  organization: one(organizations, { fields: [teams.organizationId], references: [organizations.id] }),
+  parent: one(teams, { fields: [teams.parentId], references: [teams.id], relationName: "teamHierarchy" }),
+  children: many(teams, { relationName: "teamHierarchy" }),
+  memberships: many(memberships),
+  resourceShares: many(resourceShares),
+}))
+
+export const membershipsRelations = relations(memberships, ({ one }) => ({
+  user: one(users, { fields: [memberships.userId], references: [users.id] }),
+  organization: one(organizations, { fields: [memberships.organizationId], references: [organizations.id] }),
+  team: one(teams, { fields: [memberships.teamId], references: [teams.id] }),
+  invitedByUser: one(users, { fields: [memberships.invitedBy], references: [users.id] }),
+}))
+
+export const resourceSharesRelations = relations(resourceShares, ({ one }) => ({
+  owner: one(users, { fields: [resourceShares.ownerId], references: [users.id] }),
+  sharedWithUser: one(users, { fields: [resourceShares.sharedWithUserId], references: [users.id] }),
+  sharedWithTeam: one(teams, { fields: [resourceShares.sharedWithTeamId], references: [teams.id] }),
+  sharedWithOrganization: one(organizations, { fields: [resourceShares.sharedWithOrganizationId], references: [organizations.id] }),
+}))
+
+// Update users relations to include new relationships
+export const usersRelations = relations(users, ({ many }) => ({
+  projects: many(projects),
+  tasks: many(tasks),
+  recurrenceRules: many(recurrenceRules),
+  taskHistory: many(taskHistory),
+  accounts: many(accounts),
+  sessions: many(sessions),
+  passwordResetTokens: many(passwordResetTokens),
+  userActivityLog: many(userActivityLog),
+  // New relations
+  ownedOrganizations: many(organizations, { relationName: "ownedOrganizations" }),
+  memberships: many(memberships),
+  ownedResourceShares: many(resourceShares),
+  sharedResourceShares: many(resourceShares),
+  invitedMemberships: many(memberships, { relationName: "invitedByUser" }),
 }))
 
 // ============ Tenant Design System ============

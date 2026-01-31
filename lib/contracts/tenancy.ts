@@ -15,8 +15,9 @@ import { z } from "zod"
 
 export const tenancySchema = z.object({
   userId: z.string().min(1, "User ID is required").describe("Primary tenant ID"),
-  orgId: z.string().optional().describe("Future: organization ID for scaling"),
-  teamId: z.string().optional().describe("Future: team ID for sub-projects"),
+  orgId: z.string().optional().describe("Organization ID for multi-tenant access"),
+  teamId: z.string().optional().describe("Team ID for team-scoped access"),
+  permission: z.string().optional().describe("Required permission for the request"),
 })
 
 export type TenancyContext = z.infer<typeof tenancySchema>
