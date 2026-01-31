@@ -1,310 +1,215 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { useRouter, useSearchParams } from "next/navigation"
+import { z } from "zod"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 import { toast } from "sonner"
+import { ChromeIcon, GithubIcon } from "lucide-react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Spinner } from "@/components/ui/spinner"
-import { siteConfig } from "@/lib/config/site"
-import { AlertCircleIcon, EyeIcon, EyeOffIcon, GithubIcon } from "lucide-react"
+import { Separator } from "@/components/ui/separator"
+import { authClient } from "@/lib/auth/client"
+import { routes } from "@/lib/routes"
 
-export function RegisterClient() {
-  const router = useRouter()
-  const [showPassword, setShowPassword] = React.useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = React.useState(false)
-  const [isPending, setIsPending] = React.useState(false)
-  const [error, setError] = React.useState<string | null>(null)
-
-  const [formData, setFormData] = React.useState({
-    name: "",
-    email: "",
-    username: "",
-    password: "",
-    confirmPassword: "",
+const RegisterSchema = z
+  .object({
+    name: z.string().min(1, "Name is required"),
+    email: z.string().email("Enter a valid email"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
   })
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }))
-    if (error) setError(null)
+type RegisterValues = z.infer<typeof RegisterSchema>
+
+export function SignupForm({ className, ...props }: React.ComponentProps<"form">) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const callbackPath = searchParams?.get("callbackUrl") ?? routes.app.root()
+
+  const form = useForm<RegisterValues>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(RegisterSchema as any),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  })
+
+  const isPending = form.formState.isSubmitting
+
+  const getCallbackUrl = () => {
+    return `${window.location.origin}${callbackPath}`
   }
 
-  const validateForm = () => {
-    if (!formData.name.trim()) {
-      setError("Name is required")
-      return false
-    }
-
-    if (!formData.email.trim()) {
-      setError("Email is required")
-      return false
-    }
-
-    if (!formData.username.trim()) {
-      setError("Username is required")
-      return false
-    }
-
-    if (formData.password.length < 8) {
-      setError("Password must be at least 8 characters")
-      return false
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match")
-      return false
-    }
-
-    return true
-  }
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-
-    if (!validateForm()) return
-
-    setIsPending(true)
-    setError(null)
-
-    try {
-      // Call registration API
-      const response = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          username: formData.username,
-          password: formData.password,
-        }),
-      })
-
-      const data = await response.json()
-
-      if (!response.ok) {
-        setError(data.message || "Registration failed")
-        return
+  const onSubmit = async (values: RegisterValues) => {
+    const parsed = RegisterSchema.safeParse(values)
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) {
+        const name = issue.path[0]
+        if (typeof name === "string") {
+          form.setError(name as keyof RegisterValues, { message: issue.message })
+        }
       }
-
-      toast.success("Registration successful! Please check your email to verify your account.")
-
-      // Redirect to login after successful registration
-      setTimeout(() => {
-        router.push("/login")
-      }, 2000)
-
-    } catch {
-      setError("Registration failed. Please try again.")
-      toast.error("Registration failed")
-    } finally {
-      setIsPending(false)
+      return
     }
+
+    const res = await authClient.signUp.email({
+      name: parsed.data.name,
+      email: parsed.data.email,
+      password: parsed.data.password,
+      callbackURL: getCallbackUrl(),
+    })
+
+    if (res.error) {
+      toast.error(res.error.message ?? "Failed to create account")
+      return
+    }
+
+    toast.success("Account created")
+    router.push(routes.login())
+    router.refresh()
   }
 
-  const handleOAuthSignIn = (provider: string) => {
-    // NextAuth has been removed. OAuth will be reintroduced via Neon Auth.
-    toast.message(`${provider} sign-in is migrating to Neon Auth.`)
+  const signUpWithProvider = async (provider: "google" | "github") => {
+    const res = await authClient.signIn.social({
+      provider,
+      callbackURL: getCallbackUrl(),
+      requestSignUp: true,
+    })
+    if (res.error) {
+      toast.error(res.error.message ?? `Failed to continue with ${provider}`)
+      return
+    }
+    if (res.data?.url) window.location.assign(res.data.url)
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-sm flex-col gap-6 px-6 py-16">
-      <Card size="sm" className="border-0 shadow-lg">
-        <CardHeader className="space-y-1 border-b">
-          <CardTitle className="text-2xl font-bold text-center">
-            Create an account
-          </CardTitle>
-          <CardDescription className="text-center">
-            Sign up to get started with {siteConfig.name}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {error && (
-            <Alert variant="destructive">
-              <AlertCircleIcon className="h-4 w-4" />
-              <AlertTitle>Registration failed</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+    <form className={cn("flex flex-col gap-6", className)} {...props} onSubmit={form.handleSubmit(onSubmit)}>
+      <FieldGroup>
+        <div className="flex flex-col items-center gap-1 text-center">
+          <h1 className="text-2xl font-bold">Create your account</h1>
+          <p className="text-muted-foreground text-sm text-balance">
+            Fill in the form below to create your account
+          </p>
+        </div>
+        <Field>
+          <FieldLabel htmlFor="name">Full Name</FieldLabel>
+          <Input
+            id="name"
+            type="text"
+            placeholder="John Doe"
+            required
+            {...form.register("name")}
+            disabled={isPending}
+          />
+          {form.formState.errors.name && (
+            <FieldError>{form.formState.errors.name.message}</FieldError>
           )}
-
-          <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="Enter your full name"
-                value={formData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                autoComplete="name"
-                disabled={isPending}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="Enter your email"
-                value={formData.email}
-                onChange={(e) => handleInputChange("email", e.target.value)}
-                autoComplete="email"
-                disabled={isPending}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
-              <Input
-                id="username"
-                type="text"
-                placeholder="Choose a username"
-                value={formData.username}
-                onChange={(e) => handleInputChange("username", e.target.value)}
-                autoComplete="username"
-                disabled={isPending}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Create a password"
-                  value={formData.password}
-                  onChange={(e) => handleInputChange("password", e.target.value)}
-                  autoComplete="new-password"
-                  disabled={isPending}
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(!showPassword)}
-                  disabled={isPending}
-                >
-                  {showPassword ? (
-                    <EyeOffIcon className="h-4 w-4" />
-                  ) : (
-                    <EyeIcon className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirm Password</Label>
-              <div className="relative">
-                <Input
-                  id="confirmPassword"
-                  type={showConfirmPassword ? "text" : "password"}
-                  placeholder="Confirm your password"
-                  value={formData.confirmPassword}
-                  onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
-                  autoComplete="new-password"
-                  disabled={isPending}
-                  required
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  disabled={isPending}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOffIcon className="h-4 w-4" />
-                  ) : (
-                    <EyeIcon className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending && <Spinner className="mr-2 h-4 w-4" />}
-              {isPending ? "Creating account…" : "Create account"}
-            </Button>
-          </form>
-
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <span className="w-full border-t" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-3">
-            <Button
-              variant="outline"
-              type="button"
-              className="w-full"
-              onClick={() => handleOAuthSignIn("Google")}
+        </Field>
+        <Field>
+          <FieldLabel htmlFor="email">Email</FieldLabel>
+          <Input
+            id="email"
+            type="email"
+            placeholder="m@example.com"
+            required
+            {...form.register("email")}
+            disabled={isPending}
+          />
+          <FieldDescription>
+            We&apos;ll use this to contact you. We will not share your email
+            with anyone else.
+          </FieldDescription>
+          {form.formState.errors.email && (
+            <FieldError>{form.formState.errors.email.message}</FieldError>
+          )}
+        </Field>
+        <Field className="grid gap-2 sm:grid-cols-2">
+          <div>
+            <FieldLabel htmlFor="password">Password</FieldLabel>
+            <Input
+              id="password"
+              type="password"
+              placeholder="Enter password"
+              required
+              {...form.register("password")}
               disabled={isPending}
-            >
-              <span className="mr-2 h-4 w-4">G</span>
-              Google
-            </Button>
-
-            <Button
-              variant="outline"
-              type="button"
-              className="w-full"
-              onClick={() => handleOAuthSignIn("GitHub")}
+            />
+            <FieldDescription>
+              Must be at least 8 characters long.
+            </FieldDescription>
+            {form.formState.errors.password && (
+              <FieldError>{form.formState.errors.password.message}</FieldError>
+            )}
+          </div>
+          <div>
+            <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
+            <Input
+              id="confirm-password"
+              type="password"
+              placeholder="Confirm password"
+              required
+              {...form.register("confirmPassword")}
               disabled={isPending}
-            >
-              <GithubIcon className="mr-2 h-4 w-4" />
-              GitHub
-            </Button>
+            />
+            <FieldDescription>Please confirm your password.</FieldDescription>
+            {form.formState.errors.confirmPassword && (
+              <FieldError>{form.formState.errors.confirmPassword.message}</FieldError>
+            )}
           </div>
-
-          <div className="text-center text-sm text-muted-foreground">
-            <p>
-              Already have an account?{" "}
-              <Button variant="link" className="h-auto p-0" onClick={() => router.push("/login")}>
-                Sign in
-              </Button>
-            </p>
-          </div>
-
-          <div className="text-center text-xs text-muted-foreground border-t pt-4">
-            <p>
-              By creating an account, you agree to our{" "}
-              <Button variant="link" className="h-auto p-0 text-xs">
-                Terms of Service
-              </Button>{" "}
-              and{" "}
-              <Button variant="link" className="h-auto p-0 text-xs">
-                Privacy Policy
-              </Button>
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-    </main>
+        </Field>
+        <Field>
+          <Button type="submit" disabled={isPending} className="w-full">
+            {isPending ? "Creating account..." : "Create Account"}
+          </Button>
+        </Field>
+        <Separator />
+        <Field>
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => void signUpWithProvider("google")}
+            disabled={isPending}
+            className="w-full"
+          >
+            <ChromeIcon className="mr-2 size-4" />
+            Sign up with Google
+          </Button>
+        </Field>
+        <Field>
+          <Button
+            variant="outline"
+            type="button"
+            onClick={() => void signUpWithProvider("github")}
+            disabled={isPending}
+            className="w-full"
+          >
+            <GithubIcon className="mr-2 size-4" />
+            Sign up with GitHub
+          </Button>
+        </Field>
+        <FieldDescription className="px-6 text-center">
+          Already have an account? <Link href={routes.login()}>Sign in</Link>
+        </FieldDescription>
+      </FieldGroup>
+    </form>
   )
 }

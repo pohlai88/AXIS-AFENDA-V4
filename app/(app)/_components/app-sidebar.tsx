@@ -40,6 +40,7 @@ export function AppSidebar({ userId }: Props) {
   const isProjects = pathname.startsWith(routes.app.projects())
   const isModules = pathname.startsWith(routes.app.modules())
   const isApprovals = pathname.startsWith(routes.app.approvals())
+  const isAnalytics = pathname.startsWith(routes.app.analytics())
   const isSettings = pathname.startsWith(routes.app.settings.root())
   const isHome = pathname === routes.home()
   const isComponents = pathname.startsWith(routes.components())
@@ -49,11 +50,12 @@ export function AppSidebar({ userId }: Props) {
       title: "App",
       url: routes.app.root(),
       icon: LayoutDashboardIcon,
-      isActive: isDashboard || isTasks || isProjects || isModules || isApprovals,
+      isActive: isDashboard || isTasks || isProjects || isModules || isApprovals || isAnalytics,
       items: [
         { title: "Dashboard", url: routes.app.dashboard() },
         { title: "Tasks", url: routes.app.tasks() },
         { title: "Projects", url: routes.app.projects() },
+        { title: "Analytics", url: routes.app.analytics() },
         { title: "Modules", url: routes.app.modules() },
         { title: "Approvals", url: routes.app.approvals() },
       ],

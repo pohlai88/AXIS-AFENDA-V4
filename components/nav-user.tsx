@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import {
   BadgeCheck,
   Bell,
@@ -9,6 +10,7 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react"
+import { toast } from "sonner"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -26,6 +28,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { authClient } from "@/lib/auth/client"
 
 export type NavUserInfo = {
   name: string
@@ -35,11 +38,26 @@ export type NavUserInfo = {
 
 export function NavUser({ user }: { user: NavUserInfo }) {
   const { isMobile } = useSidebar()
+  const router = useRouter()
   const [isClient, setIsClient] = React.useState(false)
 
   React.useEffect(() => {
     setIsClient(true)
   }, [])
+
+  const handleLogout = async () => {
+    try {
+      const { error } = await authClient.signOut()
+      if (error) {
+        toast.error(error.message ?? "Failed to log out")
+        return
+      }
+      router.push("/auth/sign-in")
+      router.refresh()
+    } catch {
+      toast.error("Failed to log out")
+    }
+  }
 
   // Prevent hydration mismatch by only rendering DropdownMenu after client mount
   if (!isClient) {
@@ -126,7 +144,7 @@ export function NavUser({ user }: { user: NavUserInfo }) {
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleLogout}>
               <LogOut />
               Log out
             </DropdownMenuItem>

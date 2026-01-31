@@ -2,6 +2,8 @@ import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
+import { getServerEnv } from "@/lib/env/server"
+import { getNeonAuth } from "@/lib/auth/server"
 import { getTenantContext } from "@/lib/server/tenant/context"
 import { getNeonAuthConfig, validateNeonAuthToken } from "./neon-integration"
 import { decodeNeonJWT, extractUserIdFromJWT, extractUserRoleFromJWT } from "./jwt-utils"
@@ -17,15 +19,38 @@ export type AuthContext = {
 export async function getAuthContext(): Promise<AuthContext> {
   const [tenant, headersList] = await Promise.all([getTenantContext(), headers()])
 
-  // NOTE: NextAuth has been removed. Until Neon Auth session integration lands,
-  // we support two lightweight auth sources:
-  // - x-user-id header (used by current client stores)
-  // - Neon Auth Bearer token (used for Data API auth)
+  // Primary: Neon Auth session (cookie-based, via Neon Auth proxy route).
+  // Fallback: x-user-id header (set by proxy middleware for existing API tenancy).
+  // Fallback: Neon Auth Bearer token (used for Data API auth).
 
-  let userId = headersList.get(HEADER_NAMES.USER_ID)
+  let userId: string | null = null
   const userRoleHeader = headersList.get(HEADER_NAMES.USER_ROLE)
-  let roles: string[] = userRoleHeader ? [userRoleHeader] : []
-  let authSource: AuthContext["authSource"] = userId ? "header" : "none"
+  let roles: string[] = []
+  let authSource: AuthContext["authSource"] = "none"
+
+  const env = getServerEnv()
+  const neonSessionEnabled = Boolean(env.NEON_AUTH_BASE_URL && env.NEON_AUTH_COOKIE_SECRET)
+
+  if (neonSessionEnabled) {
+    try {
+      const { data } = await getNeonAuth().getSession()
+      const sessionUserId = data?.user?.id ?? null
+      if (sessionUserId) {
+        userId = sessionUserId
+        authSource = "neon"
+      }
+    } catch {
+      // If session lookup fails, fall back to header/token.
+    }
+  }
+
+  // Fallback: proxy-injected header (keeps existing API tenancy working)
+  if (!userId) {
+    userId = headersList.get(HEADER_NAMES.USER_ID)
+    if (userId) authSource = "header"
+  }
+
+  if (userRoleHeader && roles.length === 0) roles = [userRoleHeader]
 
   // Try Neon Auth as fallback (Bearer token)
   if (!userId) {

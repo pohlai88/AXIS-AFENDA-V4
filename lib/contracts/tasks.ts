@@ -1,10 +1,14 @@
 import { z } from "zod"
+import {
+  TASK_FILTERING,
+  PAGINATION
+} from "@/lib/constants"
 
 /**
  * MagicToDo Task & Project Contracts
  *
  * Used by route handlers and client to validate requests/responses.
- * DB zod schemas are in lib/server/db/zod; these are API contracts.
+ * These extend the database schemas with API-specific transformations.
  */
 
 // ============ Priority ============
@@ -56,6 +60,210 @@ export const RecurrenceFrequency = z.enum([
   RECURRENCE_FREQUENCY.YEARLY,
 ])
 export type RecurrenceFrequency = z.infer<typeof RecurrenceFrequency>
+
+// ============ Base Schemas ============
+export const TaskBaseSchema = z.object({
+  id: z.string(),
+  title: z.string().min(1).max(255),
+  description: z.string().nullable().optional(),
+  status: TaskStatus,
+  priority: TaskPriority,
+  dueDate: z.date().nullable().optional(),
+  projectId: z.string().nullable().optional(),
+  userId: z.string(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  completedAt: z.date().nullable().optional(),
+  // Sync fields
+  clientGeneratedId: z.string().nullable().optional(),
+  syncStatus: z.enum(["synced", "pending", "conflict", "deleted"]),
+  syncVersion: z.number(),
+  lastSyncedAt: z.date().nullable().optional(),
+})
+
+export const ProjectBaseSchema = z.object({
+  id: z.string(),
+  name: z.string().min(1).max(255),
+  description: z.string().nullable().optional(),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i).nullable().optional(),
+  userId: z.string(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+  archived: z.boolean().default(false),
+  // Sync fields
+  clientGeneratedId: z.string().nullable().optional(),
+  syncStatus: z.enum(["synced", "pending", "conflict", "deleted"]),
+  syncVersion: z.number(),
+  lastSyncedAt: z.date().nullable().optional(),
+})
+
+// ============ Request Schemas ============
+export const CreateTaskRequestSchema = TaskBaseSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  userId: true,
+  completedAt: true,
+  clientGeneratedId: true,
+  syncStatus: true,
+  syncVersion: true,
+  lastSyncedAt: true,
+}).extend({
+  title: z.string().min(1).max(255),
+  description: z.string().optional(),
+  status: TaskStatus.default(TASK_STATUS.TODO),
+  priority: TaskPriority.default(TASK_PRIORITY.MEDIUM),
+  dueDate: z.date().optional(),
+  projectId: z.string().optional(),
+})
+
+export const UpdateTaskRequestSchema = TaskBaseSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  userId: true,
+  completedAt: true,
+  clientGeneratedId: true,
+  syncStatus: true,
+  syncVersion: true,
+  lastSyncedAt: true,
+}).pick({
+  title: true,
+  description: true,
+  status: true,
+  priority: true,
+  dueDate: true,
+  projectId: true,
+}).partial()
+
+export const CreateProjectRequestSchema = ProjectBaseSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  userId: true,
+  archived: true,
+  clientGeneratedId: true,
+  syncStatus: true,
+  syncVersion: true,
+  lastSyncedAt: true,
+}).extend({
+  name: z.string().min(1).max(255),
+  description: z.string().optional(),
+  color: z.string().regex(/^#[0-9A-F]{6}$/i).optional(),
+})
+
+export const UpdateProjectRequestSchema = ProjectBaseSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  userId: true,
+  clientGeneratedId: true,
+  syncStatus: true,
+  syncVersion: true,
+  lastSyncedAt: true,
+}).pick({
+  name: true,
+  description: true,
+  color: true,
+  archived: true,
+}).partial()
+
+// ============ Response Schemas ============
+export const TaskResponseSchema = TaskBaseSchema.omit({
+  // Don't expose sync fields in API responses
+  syncStatus: true,
+  syncVersion: true,
+  lastSyncedAt: true,
+})
+
+export const ProjectResponseSchema = ProjectBaseSchema.omit({
+  // Don't expose sync fields in API responses
+  syncStatus: true,
+  syncVersion: true,
+  lastSyncedAt: true,
+})
+
+// ============ List Response Schemas ============
+export const TaskListResponseSchema = z.object({
+  tasks: z.array(TaskResponseSchema),
+  pagination: z.object({
+    page: z.number().min(1),
+    limit: z.number().min(1).max(PAGINATION.MAX_PAGE_SIZE),
+    total: z.number().min(0),
+    totalPages: z.number().min(0),
+  }),
+})
+
+export const ProjectListResponseSchema = z.object({
+  projects: z.array(ProjectResponseSchema),
+  pagination: z.object({
+    page: z.number().min(1),
+    limit: z.number().min(1).max(PAGINATION.MAX_PAGE_SIZE),
+    total: z.number().min(0),
+    totalPages: z.number().min(0),
+  }),
+})
+
+// ============ Sync Schemas ============
+export const TaskSyncSchema = TaskBaseSchema
+
+export const ProjectSyncSchema = ProjectBaseSchema
+
+export const SyncPullRequestSchema = z.object({
+  since: z.date().optional(),
+  limit: z.number().min(1).max(1000).default(100),
+})
+
+export const SyncPullResponseSchema = z.object({
+  tasks: z.array(TaskSyncSchema),
+  projects: z.array(ProjectSyncSchema),
+  deleted: z.object({
+    tasks: z.array(z.string()),
+    projects: z.array(z.string()),
+  }),
+  lastSyncAt: z.date(),
+})
+
+export const SyncPushRequestSchema = z.object({
+  operations: z.array(z.object({
+    entityType: z.enum(["task", "project"]),
+    operation: z.enum(["create", "update", "delete"]),
+    data: z.any(), // Will be validated per entity type
+    clientVersion: z.number().optional(),
+  })),
+  lastSyncAt: z.date().optional(),
+})
+
+export const SyncPushResponseSchema = z.object({
+  processed: z.array(z.object({
+    type: z.enum(["created", "updated", "deleted"]),
+    id: z.string(),
+    version: z.number().optional(),
+  })),
+  conflicts: z.array(z.object({
+    type: z.literal("conflict"),
+    entityType: z.enum(["task", "project"]),
+    entityId: z.string(),
+    reason: z.string(),
+  })),
+})
+
+// ============ Export Types ============
+export type Task = z.infer<typeof TaskResponseSchema>
+export type TaskCreate = z.infer<typeof CreateTaskRequestSchema>
+export type TaskUpdate = z.infer<typeof UpdateTaskRequestSchema>
+export type TaskSync = z.infer<typeof TaskSyncSchema>
+
+export type Project = z.infer<typeof ProjectResponseSchema>
+export type ProjectCreate = z.infer<typeof CreateProjectRequestSchema>
+export type ProjectUpdate = z.infer<typeof UpdateProjectRequestSchema>
+export type ProjectSync = z.infer<typeof ProjectSyncSchema>
+
+export type TaskListResponse = z.infer<typeof TaskListResponseSchema>
+export type ProjectListResponse = z.infer<typeof ProjectListResponseSchema>
+
+// Legacy exports for backward compatibility
+export type { TaskResponse as TaskResponseLegacy }
 
 export const recurrenceRuleSchema = z.object({
   frequency: RecurrenceFrequency,
@@ -162,8 +370,6 @@ export const taskListResponseSchema = z.object({
   offset: z.number().describe("Pagination offset"),
 })
 
-export type TaskListResponse = z.infer<typeof taskListResponseSchema>
-
 // ============ Quick-Add NL Parser Result ============
 export const nlParseResultSchema = z.object({
   title: z.string(),
@@ -173,3 +379,145 @@ export const nlParseResultSchema = z.object({
 })
 
 export type NlParseResult = z.infer<typeof nlParseResultSchema>
+
+// ============ Advanced Filtering ============
+
+// Date range filter
+export const dateRangeFilterSchema = z.object({
+  startDate: z.string().datetime().optional().describe("Start date (ISO 8601)"),
+  endDate: z.string().datetime().optional().describe("End date (ISO 8601)"),
+  relativeRange: z.enum([
+    "today",
+    "yesterday",
+    "this_week",
+    "last_week",
+    "this_month",
+    "last_month",
+    "this_quarter",
+    "last_quarter",
+    "this_year",
+    "last_year",
+    "overdue",
+    "due_today",
+    "due_this_week",
+    "due_this_month",
+  ]).optional().describe("Predefined date ranges"),
+})
+
+export type DateRangeFilter = z.infer<typeof dateRangeFilterSchema>
+
+// Search filter
+export const searchFilterSchema = z.object({
+  query: z.string().min(1).max(255).describe("Search query"),
+  fields: z.array(z.enum(Object.values(TASK_FILTERING.SEARCH_FIELDS)))
+    .default([TASK_FILTERING.SEARCH_FIELDS.ALL])
+    .describe("Fields to search in"),
+  matchType: z.enum(Object.values(TASK_FILTERING.SEARCH_MATCH_TYPES))
+    .default(TASK_FILTERING.SEARCH_MATCH_TYPES.CONTAINS)
+    .describe("Search matching type"),
+})
+
+export type SearchFilter = z.infer<typeof searchFilterSchema>
+
+// Multi-select filter
+export const multiSelectFilterSchema = z.object({
+  values: z.array(z.string()).describe("Selected values"),
+  includeMode: z.enum(Object.values(TASK_FILTERING.INCLUDE_MODES))
+    .default(TASK_FILTERING.INCLUDE_MODES.ANY)
+    .describe("How to combine multiple values"),
+})
+
+export type MultiSelectFilter = z.infer<typeof multiSelectFilterSchema>
+
+// Advanced task filters
+export const advancedTaskFiltersSchema = z.object({
+  // Search
+  search: searchFilterSchema.optional(),
+
+  // Date ranges
+  createdDate: dateRangeFilterSchema.optional(),
+  dueDate: dateRangeFilterSchema.optional(),
+  completedDate: dateRangeFilterSchema.optional(),
+
+  // Multi-select filters
+  status: multiSelectFilterSchema.optional(),
+  priority: multiSelectFilterSchema.optional(),
+  tags: multiSelectFilterSchema.optional(),
+  projects: multiSelectFilterSchema.optional(),
+
+  // Boolean filters
+  hasDueDate: z.boolean().optional().describe("Filter tasks with/without due dates"),
+  isOverdue: z.boolean().optional().describe("Filter overdue tasks"),
+  hasRecurrence: z.boolean().optional().describe("Filter recurring tasks"),
+  hasDescription: z.boolean().optional().describe("Filter tasks with descriptions"),
+  hasTags: z.boolean().optional().describe("Filter tasks with tags"),
+
+  // Numeric ranges
+  estimatedDuration: z.object({
+    min: z.number().min(0).optional(),
+    max: z.number().min(0).optional(),
+  }).optional().describe("Filter by estimated duration in hours"),
+
+  // Sorting
+  sortBy: z.enum(Object.values(TASK_FILTERING.SORT_OPTIONS))
+    .default(TASK_FILTERING.DEFAULTS.SORT_BY)
+    .describe("Field to sort by"),
+
+  sortOrder: z.enum(Object.values(TASK_FILTERING.SORT_ORDER))
+    .default(TASK_FILTERING.DEFAULTS.SORT_ORDER)
+    .describe("Sort order"),
+})
+
+export type AdvancedTaskFilters = z.infer<typeof advancedTaskFiltersSchema>
+
+// Filter request for API
+export const taskFilterRequestSchema = z.object({
+  filters: advancedTaskFiltersSchema.optional().default({
+    sortBy: TASK_FILTERING.DEFAULTS.SORT_BY,
+    sortOrder: TASK_FILTERING.DEFAULTS.SORT_ORDER,
+  }),
+  pagination: z.object({
+    limit: z.number().min(1).max(PAGINATION.MAX_PAGE_SIZE).default(PAGINATION.DEFAULT_PAGE_SIZE),
+    offset: z.number().min(0).default(PAGINATION.DEFAULT_PAGE),
+  }).optional().default({
+    limit: PAGINATION.DEFAULT_PAGE_SIZE,
+    offset: PAGINATION.DEFAULT_PAGE,
+  }),
+})
+
+export type TaskFilterRequest = z.infer<typeof taskFilterRequestSchema>
+
+// Filtered task response
+export const filteredTaskListResponseSchema = taskListResponseSchema.extend({
+  filters: advancedTaskFiltersSchema.optional().describe("Applied filters for reference"),
+  facets: z.object({
+    statusCounts: z.record(z.string(), z.number()),
+    priorityCounts: z.record(z.string(), z.number()),
+    projectCounts: z.record(z.string(), z.number()),
+    tagCounts: z.record(z.string(), z.number()),
+    totalCount: z.number(),
+  }).optional().describe("Filter facets for UI"),
+})
+
+export type FilteredTaskListResponse = z.infer<typeof filteredTaskListResponseSchema>
+
+// Saved filter presets
+export const filterPresetSchema = z.object({
+  id: z.string().optional(),
+  name: z.string().min(1).max(100).describe("Preset name"),
+  description: z.string().max(500).optional().describe("Preset description"),
+  filters: advancedTaskFiltersSchema,
+  isDefault: z.boolean().default(false).describe("Whether this is the default preset"),
+  userId: z.string().describe("Owner user ID"),
+  createdAt: z.string().datetime().optional(),
+  updatedAt: z.string().datetime().optional(),
+})
+
+export type FilterPreset = z.infer<typeof filterPresetSchema>
+
+export const filterPresetListResponseSchema = z.object({
+  items: z.array(filterPresetSchema),
+  total: z.number(),
+})
+
+export type FilterPresetListResponse = z.infer<typeof filterPresetListResponseSchema>

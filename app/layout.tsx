@@ -2,9 +2,13 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono, Figtree, Inter } from "next/font/google"
 import "./globals.css"
 
+import { AuthProvider } from "@/app/auth-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { siteConfig } from "@/lib/config/site"
+import { OfflineStatusIndicator } from "@/components/offline-status-indicator"
+import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
+import { ConflictResolutionModal } from "@/components/conflict-resolution-modal"
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree" })
 
@@ -23,6 +27,26 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: siteConfig.name,
   description: siteConfig.description,
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "AFENDA",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+  openGraph: {
+    type: "website",
+    siteName: "AFENDA",
+    title: siteConfig.name,
+    description: siteConfig.description,
+  },
+  twitter: {
+    card: "summary",
+    title: siteConfig.name,
+    description: siteConfig.description,
+  },
 }
 
 export default function RootLayout({
@@ -36,9 +60,31 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground min-h-svh antialiased font-sans`}
       >
         <ThemeProvider>
-          {children}
-          <Toaster />
+          <AuthProvider>
+            {children}
+            <Toaster />
+            <OfflineStatusIndicator />
+            <PWAInstallPrompt />
+            <ConflictResolutionModal isOpen={false} onClose={() => { }} />
+          </AuthProvider>
         </ThemeProvider>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              if ('serviceWorker' in navigator) {
+                window.addEventListener('load', function() {
+                  navigator.serviceWorker.register('/sw.js')
+                    .then(function(registration) {
+                      console.log('SW registered: ', registration);
+                    })
+                    .catch(function(registrationError) {
+                      console.log('SW registration failed: ', registrationError);
+                    });
+                });
+              }
+            `,
+          }}
+        />
       </body>
     </html>
   )

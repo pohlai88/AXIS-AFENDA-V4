@@ -4,11 +4,12 @@
 
 ## Purpose
 
-Shared application code, split by runtime:
+Shared application code, split by runtime and purpose:
 
 - `lib/server/`: **server-only** code (DB, auth/tenant context, API helpers).
 - `lib/client/`: client-only state and hydration utilities.
 - `lib/shared/`: runtime-agnostic utilities/types.
+- `lib/auth/`: authentication utilities for both client and server.
 - `lib/utils/`: Performance utilities and helper functions.
 
 ## Recent Optimizations
@@ -35,10 +36,42 @@ The `lib/` directory has been significantly optimized:
 - **Server-only marker**: `lib/server/only.ts` (import this to enforce server-only)
 - **DB**: `lib/server/db/client.ts` (`getDb()`)
 - **API**: `lib/server/api/*` (errors/response/validate)
+- **Auth**: `lib/auth/client.ts`, `lib/auth/server.ts` (authentication utilities)
 - **Caching**: `lib/server/cache/*` (tags + invalidation helpers)
 - **Performance**: `lib/utils.ts` (debounce, throttle, retry, etc.)
 - **Error Handling**: `lib/shared/result.ts` (Result type)
 - **Constants**: `lib/constants/index.ts` (all application constants)
+- **Routes**: `lib/routes.ts` (application route definitions)
+
+## Constants Structure
+
+The `lib/constants/` directory provides centralized, typed constants:
+
+### Main Constants (`lib/constants/index.ts`)
+
+- **HTTP_STATUS**: All HTTP status codes with TypeScript types
+- **API_ERROR_CODES**: Standardized error codes for API responses
+- **COOKIE_NAMES**: Application cookie identifiers
+- **TIME_INTERVALS**: Time values in ms (SECOND, MINUTE, HOUR, etc.)
+- **PAGINATION**: Pagination defaults and limits
+- **CACHE_TTL**: Cache duration presets
+- **REGEX_PATTERNS**: Common validation patterns (email, UUID, password)
+- **DATE_FORMATS**: Standard date/time format strings
+- **ENVIRONMENTS**: Environment names (development, production, etc.)
+- **LOGGER**: Logging configuration defaults
+- **CIRCUIT_BREAKER**: Network failure protection defaults
+
+### Specialized Constants
+
+- **headers.ts**: HTTP header names (x-request-id, x-tenant-id, etc.)
+- **storage.ts**: LocalStorage/sessionStorage key paths
+
+All constants include:
+
+- TypeScript exports with proper typing
+- JSDoc documentation
+- Backward compatibility where needed
+- No magic strings - everything is centralized
 
 ## Performance Guidelines
 
@@ -66,9 +99,31 @@ The `lib/` directory has been significantly optimized:
    ```
 
 4. **Constants**:
+
    ```typescript
-   import { HEADER_NAMES, HTTP_STATUS } from "@/lib/constants";
-   // No magic strings
+   import {
+     HEADER_NAMES, // HTTP headers (x-request-id, x-tenant-id, etc.)
+     HTTP_STATUS, // Status codes (OK: 200, NOT_FOUND: 404, etc.)
+     API_ERROR_CODES, // Error codes (UNAUTHORIZED, VALIDATION_ERROR, etc.)
+     COOKIE_NAMES, // Cookie names (TENANT_ID, THEME, etc.)
+     STORAGE_KEYS, // Storage keys for localStorage/sessionStorage
+     TIME_INTERVALS, // Time intervals (SECOND, MINUTE, HOUR, etc.)
+     PAGINATION, // Pagination defaults and limits
+     CACHE_TTL, // Cache TTL values (VERY_SHORT, SHORT, etc.)
+     REGEX_PATTERNS, // Validation patterns (EMAIL, UUID, PASSWORD, etc.)
+     DATE_FORMATS, // Date formats (ISO_DATE, DISPLAY_DATE, etc.)
+     ENVIRONMENTS, // Environment names (DEVELOPMENT, PRODUCTION, etc.)
+     LOGGER, // Logging defaults and configuration
+     CIRCUIT_BREAKER, // Circuit breaker defaults for network calls
+   } from "@/lib/constants";
+   // No magic strings - all constants are typed and documented
+   ```
+
+5. **Authentication**:
+   ```typescript
+   import { authClient } from "@/lib/auth/client";
+   import { getServerSession } from "@/lib/auth/server";
+   // Authentication helpers for client and server
    ```
 
 ## Subdirectory docs
@@ -76,6 +131,7 @@ The `lib/` directory has been significantly optimized:
 - [`lib/server/`](./server/README.md)
 - [`lib/client/`](./client/README.md)
 - [`lib/shared/`](./shared/README.md)
+- [`lib/auth/`](./auth/) - Authentication utilities (client & server)
 - [`lib/env/`](./env/README.md)
 - [`lib/api/`](./api/README.md)
 - [`lib/constants/`](./constants/README.md)

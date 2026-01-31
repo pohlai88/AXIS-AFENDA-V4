@@ -1,25 +1,20 @@
+import type { Metadata } from "next"
 import { Suspense } from "react"
 
-import { Card, CardContent } from "@/components/ui/card"
-import { Spinner } from "@/components/ui/spinner"
+import { SignupForm } from "./ui"
+import { SplitLayout } from "../_components/split-layout"
 
-import { RegisterClient } from "./ui"
+export const metadata: Metadata = {
+  title: "Register",
+  description: "Create a new account",
+}
 
 export default function RegisterPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="mx-auto flex w-full max-w-sm flex-col gap-6 px-6 py-16">
-          <Card size="sm">
-            <CardContent className="flex items-center gap-2">
-              <Spinner className="size-4" />
-              <span className="text-muted-foreground text-sm">Loading…</span>
-            </CardContent>
-          </Card>
-        </div>
-      }
-    >
-      <RegisterClient />
-    </Suspense>
+    <SplitLayout imageAlt="Sign up" showTerms>
+      <Suspense fallback={<div>Loading...</div>}>
+        <SignupForm />
+      </Suspense>
+    </SplitLayout>
   )
 }

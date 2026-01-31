@@ -6,6 +6,27 @@
 // Re-export from other constant files
 export { HEADER_NAMES, type HeaderNameKey, type HeaderNameValue } from './headers'
 export { STORAGE_KEYS, type StorageKeyPath } from './storage'
+export {
+  OFFLINE_STATUS,
+  SYNC_STATUS,
+  SYNC_OPERATION,
+  CONFLICT_STRATEGY,
+  OFFLINE_STORAGE_KEYS,
+  IDB_STORES,
+  SYNC_CONFIG,
+  PWA_CONFIG,
+  OFFLINE_EVENTS,
+  type OfflineStatusKey,
+  type OfflineStatusValue,
+  type SyncStatusKey,
+  type SyncStatusValue,
+  type SyncOperationKey,
+  type SyncOperationValue,
+  type ConflictStrategyKey,
+  type ConflictStrategyValue,
+  type OfflineStorageKeyPath,
+  type IdbStoreKey,
+} from './offline'
 
 /**
  * Cookie names used throughout the application.
@@ -307,3 +328,127 @@ export const FILE_UPLOAD = {
   /** Maximum filename length */
   MAX_FILENAME_LENGTH: 255,
 } as const
+
+/**
+ * Task filtering constants.
+ */
+export const TASK_FILTERING = {
+  /** Sort options for task filtering */
+  SORT_OPTIONS: {
+    CREATED_AT: "createdAt",
+    UPDATED_AT: "updatedAt",
+    DUE_DATE: "dueDate",
+    PRIORITY: "priority",
+    TITLE: "title",
+    STATUS: "status",
+    COMPLETED_AT: "completedAt",
+  },
+  /** Sort order options */
+  SORT_ORDER: {
+    ASC: "asc",
+    DESC: "desc",
+  },
+  /** Search match types */
+  SEARCH_MATCH_TYPES: {
+    CONTAINS: "contains",
+    EXACT: "exact",
+    FUZZY: "fuzzy",
+  },
+  /** Search field options */
+  SEARCH_FIELDS: {
+    TITLE: "title",
+    DESCRIPTION: "description",
+    TAGS: "tags",
+    ALL: "all",
+  },
+  /** Filter include modes */
+  INCLUDE_MODES: {
+    ANY: "any",
+    ALL: "all",
+    NONE: "none",
+  },
+  /** Relative date range options */
+  DATE_RANGES: {
+    TODAY: "today",
+    YESTERDAY: "yesterday",
+    THIS_WEEK: "this_week",
+    LAST_WEEK: "last_week",
+    THIS_MONTH: "this_month",
+    LAST_MONTH: "last_month",
+    THIS_QUARTER: "this_quarter",
+    LAST_QUARTER: "last_quarter",
+    THIS_YEAR: "this_year",
+    LAST_YEAR: "last_year",
+    OVERDUE: "overdue",
+    DUE_TODAY: "due_today",
+    DUE_THIS_WEEK: "due_this_week",
+    DUE_THIS_MONTH: "due_this_month",
+  },
+  /** Default filter values */
+  DEFAULTS: {
+    SORT_BY: "createdAt",
+    SORT_ORDER: "desc",
+    SEARCH_FIELDS: ["all"],
+    SEARCH_MATCH_TYPE: "contains",
+    INCLUDE_MODE: "any",
+  },
+} as const
+
+export type TaskFilteringKey = keyof typeof TASK_FILTERING
+export type TaskFilteringValue = (typeof TASK_FILTERING)[TaskFilteringKey]
+
+/**
+ * UI display constants for task filtering.
+ */
+export const TASK_FILTERING_UI = {
+  /** Filter section labels */
+  SECTION_LABELS: {
+    SEARCH: "Search",
+    DATE_RANGES: "Date Ranges",
+    STATUS: "Status",
+    PRIORITY: "Priority",
+    PROJECTS: "Projects",
+    QUICK_FILTERS: "Quick Filters",
+    SORT_BY: "Sort By",
+  },
+  /** Filter option labels */
+  OPTION_LABELS: {
+    ALL: "All",
+    TODAY: "Today",
+    THIS_WEEK: "This Week",
+    THIS_MONTH: "This Month",
+    OVERDUE: "Overdue",
+    DUE_TODAY: "Due Today",
+    DUE_THIS_WEEK: "Due This Week",
+    DUE_THIS_MONTH: "Due This Month",
+    NEWEST_FIRST: "Newest First",
+    OLDEST_FIRST: "Oldest First",
+    MATCH_ANY: "Match Any",
+    MATCH_ALL: "Match All",
+    EXCLUDE_ALL: "Exclude All",
+    CONTAINS: "Contains",
+    EXACT: "Exact",
+    FUZZY: "Fuzzy",
+    ALL_FIELDS: "All Fields",
+  },
+  /** Accessibility labels */
+  ARIA_LABELS: {
+    FILTER_PANEL: "Advanced task filters",
+    CLEAR_FILTERS: "Clear all filters",
+    TOGGLE_FILTERS: "Toggle filter panel",
+    ACTIVE_FILTER_COUNT: "Active filters count",
+  },
+  /** Filter descriptions */
+  DESCRIPTIONS: {
+    SEARCH: "Search across task title, description, and tags",
+    DATE_RANGE: "Filter tasks by date range",
+    STATUS_FILTER: "Filter by task status",
+    PRIORITY_FILTER: "Filter by task priority",
+    PROJECT_FILTER: "Filter by project assignment",
+    QUICK_FILTERS: "Quick access filters",
+    SORT_OPTIONS: "Sort tasks by selected field",
+  },
+} as const
+
+export type TaskFilteringUiKey = keyof typeof TASK_FILTERING_UI
+export type TaskFilteringUiValue = (typeof TASK_FILTERING_UI)[TaskFilteringUiKey]

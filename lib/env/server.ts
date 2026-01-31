@@ -9,12 +9,14 @@ const ServerEnvSchema = z.object({
   DEV_TENANT_ID: z.string().min(1).optional(),
 
   // Neon Auth configuration
+  // Used by the Next.js API proxy handler (`@neondatabase/auth/next/server`).
   NEON_DATA_API_URL: z.string().url().optional(),
   NEON_JWT_SECRET: z.string().min(16).optional(),
   NEON_PROJECT_ID: z.string().min(1).optional(),
   NEON_BRANCH_ID: z.string().min(1).optional(),
   JWKS_URL: z.string().url().optional(),
   NEON_AUTH_BASE_URL: z.string().url().optional(),
+  NEON_AUTH_COOKIE_SECRET: z.string().min(32).optional(),
   NEON_PASSWORDLESS_AUTH: z.string().optional(),
 })
 

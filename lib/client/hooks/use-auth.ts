@@ -20,7 +20,7 @@ export function useAuth() {
         })
         if (res.ok) {
           const data = await res.json()
-          setAuth({ userId: data.data?.userId || null })
+          setAuth({ userId: data.data?.auth?.userId ?? null })
         } else {
           setAuth({ userId: null })
         }
