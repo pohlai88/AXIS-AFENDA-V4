@@ -2,6 +2,15 @@ import "@/lib/server/only"
 
 import { eq, and, desc } from "drizzle-orm"
 import { tasks, taskHistory } from "@/lib/server/db/schema"
+import {
+  TASK_HISTORY_ACTION,
+  TASK_PRIORITY,
+  TASK_STATUS,
+  type TaskHistoryAction,
+  type TaskPriority,
+  type TaskStatus,
+} from "@/lib/contracts/tasks"
+import { DB_LIMITS, PAGINATION } from "@/lib/constants"
 import { getDb } from "@/lib/server/db/client"
 
 /**
@@ -14,8 +23,8 @@ export async function createTask(
     title: string
     description?: string
     dueDate?: Date
-    priority?: string
-    status?: string
+    priority?: TaskPriority
+    status?: TaskStatus
     projectId?: string
     tags?: string[]
   }
@@ -28,15 +37,15 @@ export async function createTask(
       title: taskData.title,
       description: taskData.description,
       dueDate: taskData.dueDate,
-      priority: taskData.priority || "medium",
-      status: taskData.status || "todo",
+      priority: taskData.priority || TASK_PRIORITY.MEDIUM,
+      status: taskData.status || TASK_STATUS.TODO,
       projectId: taskData.projectId,
       tags: taskData.tags || [],
     })
     .returning()
 
   // Log in task history
-  await logTaskHistory(userId, task.id, "created")
+  await logTaskHistory(userId, task.id, TASK_HISTORY_ACTION.CREATED)
 
   return task
 }
@@ -48,8 +57,8 @@ export async function updateTask(
     title?: string
     description?: string
     dueDate?: Date | null
-    priority?: string
-    status?: string
+    priority?: TaskPriority
+    status?: TaskStatus
     completedAt?: Date | null
     tags?: string[]
   }
@@ -65,7 +74,7 @@ export async function updateTask(
     .returning()
 
   if (task) {
-    await logTaskHistory(userId, taskId, "updated", updates)
+    await logTaskHistory(userId, taskId, TASK_HISTORY_ACTION.UPDATED, updates)
   }
 
   return task
@@ -79,7 +88,7 @@ export async function deleteTask(userId: string, taskId: string) {
     .returning()
 
   if (task) {
-    await logTaskHistory(userId, taskId, "deleted")
+    await logTaskHistory(userId, taskId, TASK_HISTORY_ACTION.DELETED)
   }
 
   return task
@@ -98,8 +107,8 @@ export async function listTasks(
   userId: string,
   filters?: {
     projectId?: string
-    status?: string
-    priority?: string
+    status?: TaskStatus
+    priority?: TaskPriority
     dueBefore?: Date
     dueAfter?: Date
     archived?: boolean
@@ -107,8 +116,11 @@ export async function listTasks(
   pagination?: { limit?: number; offset?: number }
 ) {
   const db = getDb()
-  const limit = pagination?.limit || 50
-  const offset = pagination?.offset || 0
+  const limit = Math.min(
+    pagination?.limit ?? PAGINATION.DEFAULT_PAGE_SIZE,
+    DB_LIMITS.MAX_SELECT_ROWS
+  )
+  const offset = pagination?.offset ?? 0
 
   const conditions: Array<ReturnType<typeof eq>> = [eq(tasks.userId, userId)]
 
@@ -133,7 +145,7 @@ export async function listTasks(
 
 export async function completeTask(userId: string, taskId: string) {
   return updateTask(userId, taskId, {
-    status: "done",
+    status: TASK_STATUS.DONE,
     completedAt: new Date(),
   })
 }
@@ -142,7 +154,7 @@ export async function completeTask(userId: string, taskId: string) {
 async function logTaskHistory(
   userId: string,
   taskId: string,
-  action: string,
+  action: TaskHistoryAction,
   previousValues?: unknown
 ) {
   const db = getDb()

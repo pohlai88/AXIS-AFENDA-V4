@@ -2,8 +2,8 @@ import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
-import { headerNames } from "@/lib/constants/headers"
-import { createTaskRequestSchema } from "@/lib/contracts/tasks"
+import { HEADER_NAMES } from "@/lib/constants/headers"
+import { createTaskRequestSchema, TaskPriority, TaskStatus } from "@/lib/contracts/tasks"
 import { HttpError, Unauthorized, BadRequest } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
 import { parseJson } from "@/lib/server/api/validate"
@@ -19,7 +19,7 @@ import { listTasks, createTask } from "@/lib/server/db/queries/tasks"
  * Query params: ?status=todo&priority=high&limit=50&offset=0
  */
 export async function GET(request: Request) {
-  const requestId = (await headers()).get(headerNames.requestId) ?? undefined
+  const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
@@ -29,8 +29,8 @@ export async function GET(request: Request) {
 
     // Parse query parameters
     const url = new URL(request.url)
-    const status = url.searchParams.get("status") || undefined
-    const priority = url.searchParams.get("priority") || undefined
+    const statusParam = url.searchParams.get("status") || undefined
+    const priorityParam = url.searchParams.get("priority") || undefined
     const projectId = url.searchParams.get("projectId") || undefined
     const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100)
     const offset = parseInt(url.searchParams.get("offset") || "0")
@@ -39,8 +39,18 @@ export async function GET(request: Request) {
       throw BadRequest("Invalid pagination parameters")
     }
 
+    const status = statusParam
+      ? TaskStatus.safeParse(statusParam).data
+      : undefined
+    const priority = priorityParam
+      ? TaskPriority.safeParse(priorityParam).data
+      : undefined
+
+    if (statusParam && !status) throw BadRequest("Invalid status")
+    if (priorityParam && !priority) throw BadRequest("Invalid priority")
+
     const result = await listTasks(
-      tenantId,
+      auth.userId,
       { status, priority, projectId },
       { limit, offset }
     )
@@ -62,7 +72,7 @@ export async function GET(request: Request) {
  * Create a new task
  */
 export async function POST(request: Request) {
-  const requestId = (await headers()).get(headerNames.requestId) ?? undefined
+  const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
@@ -71,12 +81,12 @@ export async function POST(request: Request) {
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const body = await parseJson(request, createTaskRequestSchema)
-    const task = await createTask(tenantId, {
+    const task = await createTask(auth.userId, {
       ...body,
       dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
     })
 
-    invalidateTag(cacheTags.tasks(tenantId))
+    invalidateTag(cacheTags.tasks(auth.userId))
     return ok(task, { status: 201 })
   } catch (e) {
     if (e instanceof HttpError) return fail(e.toApiError(requestId), e.status)

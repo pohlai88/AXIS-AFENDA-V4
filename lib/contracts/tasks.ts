@@ -8,15 +8,53 @@ import { z } from "zod"
  */
 
 // ============ Priority ============
-export const TaskPriority = z.enum(["low", "medium", "high", "urgent"])
+export const TASK_PRIORITY = {
+  LOW: "low",
+  MEDIUM: "medium",
+  HIGH: "high",
+  URGENT: "urgent",
+} as const
+
+export const TaskPriority = z.enum([
+  TASK_PRIORITY.LOW,
+  TASK_PRIORITY.MEDIUM,
+  TASK_PRIORITY.HIGH,
+  TASK_PRIORITY.URGENT,
+])
 export type TaskPriority = z.infer<typeof TaskPriority>
 
 // ============ Task Status ============
-export const TaskStatus = z.enum(["todo", "in_progress", "done", "cancelled"])
+export const TASK_STATUS = {
+  TODO: "todo",
+  IN_PROGRESS: "in_progress",
+  DONE: "done",
+  CANCELLED: "cancelled",
+} as const
+
+export const TaskStatus = z.enum([
+  TASK_STATUS.TODO,
+  TASK_STATUS.IN_PROGRESS,
+  TASK_STATUS.DONE,
+  TASK_STATUS.CANCELLED,
+])
 export type TaskStatus = z.infer<typeof TaskStatus>
 
 // ============ Recurrence Rules ============
-export const RecurrenceFrequency = z.enum(["daily", "weekly", "biweekly", "monthly", "yearly"])
+export const RECURRENCE_FREQUENCY = {
+  DAILY: "daily",
+  WEEKLY: "weekly",
+  BIWEEKLY: "biweekly",
+  MONTHLY: "monthly",
+  YEARLY: "yearly",
+} as const
+
+export const RecurrenceFrequency = z.enum([
+  RECURRENCE_FREQUENCY.DAILY,
+  RECURRENCE_FREQUENCY.WEEKLY,
+  RECURRENCE_FREQUENCY.BIWEEKLY,
+  RECURRENCE_FREQUENCY.MONTHLY,
+  RECURRENCE_FREQUENCY.YEARLY,
+])
 export type RecurrenceFrequency = z.infer<typeof RecurrenceFrequency>
 
 export const recurrenceRuleSchema = z.object({
@@ -31,13 +69,28 @@ export const recurrenceRuleSchema = z.object({
 export type RecurrenceRule = z.infer<typeof recurrenceRuleSchema>
 
 // ============ Task History Actions ============
+export const TASK_HISTORY_ACTION = {
+  /** User manually created task */
+  CREATED: "created",
+  /** User edited task */
+  UPDATED: "updated",
+  /** User marked done/undone */
+  COMPLETED: "completed",
+  /** User deleted task */
+  DELETED: "deleted",
+  /** Scheduler generated recurrence occurrence */
+  AUTO_GENERATED: "auto_generated",
+  /** Scheduler auto-cancelled overdue task */
+  AUTO_CANCELLED_OVERDUE: "auto_cancelled_overdue",
+} as const
+
 export const TaskHistoryAction = z.enum([
-  "created",                    // User manually created task
-  "updated",                    // User edited task
-  "completed",                  // User marked done/undone
-  "deleted",                    // User deleted task
-  "auto_generated",             // Scheduler generated recurrence occurrence
-  "auto_cancelled_overdue",     // Scheduler auto-cancelled overdue task
+  TASK_HISTORY_ACTION.CREATED,
+  TASK_HISTORY_ACTION.UPDATED,
+  TASK_HISTORY_ACTION.COMPLETED,
+  TASK_HISTORY_ACTION.DELETED,
+  TASK_HISTORY_ACTION.AUTO_GENERATED,
+  TASK_HISTORY_ACTION.AUTO_CANCELLED_OVERDUE,
 ])
 export type TaskHistoryAction = z.infer<typeof TaskHistoryAction>
 
@@ -46,8 +99,8 @@ const taskBaseSchema = z.object({
   title: z.string().min(1).max(255).describe("Task title"),
   description: z.string().max(5000).optional().describe("Markdown description"),
   dueDate: z.string().datetime().optional().describe("ISO 8601 date + time"),
-  priority: TaskPriority.default("medium"),
-  status: TaskStatus.default("todo"),
+  priority: TaskPriority.default(TASK_PRIORITY.MEDIUM),
+  status: TaskStatus.default(TASK_STATUS.TODO),
   projectId: z.string().optional().describe("Associated project"),
   tags: z.array(z.string().max(50)).optional().default([]).describe("User-defined tags"),
   recurrence: recurrenceRuleSchema.optional().describe("Recurrence rule if repeating"),

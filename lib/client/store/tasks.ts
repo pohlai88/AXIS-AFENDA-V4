@@ -1,7 +1,9 @@
 "use client"
 
 import { create } from "zustand"
+import { routes } from "@/lib/routes"
 import type { TaskResponse } from "@/lib/contracts/tasks"
+import { parseNaturalLanguage } from "@/lib/shared/nl-parser"
 
 interface TasksStore {
   tasks: TaskResponse[]
@@ -13,14 +15,15 @@ interface TasksStore {
   setTasks: (tasks: TaskResponse[]) => void
   setUserId: (userId: string) => void
   addTask: (task: TaskResponse) => void
-  updateTask: (id: string, updates: Partial<TaskResponse>) => void
+  updateTaskLocal: (id: string, updates: Partial<TaskResponse>) => void
   removeTask: (id: string) => void
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
 
   // API calls (userId now passed as parameter)
-  fetchTasks: (userId: string, filters?: { status?: string; priority?: string }) => Promise<void>
+  fetchTasks: (userId: string, filters?: { status?: string; priority?: string; projectId?: string }) => Promise<void>
   createTask: (userId: string, title: string, details?: Partial<TaskResponse>) => Promise<TaskResponse | null>
+  updateTask: (userId: string, id: string, updates: Partial<TaskResponse>) => Promise<void>
   updateTaskStatus: (userId: string, id: string, status: string) => Promise<void>
   deleteTask: (userId: string, id: string) => Promise<void>
 }
@@ -34,7 +37,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
   setTasks: (tasks) => set({ tasks }),
   setUserId: (userId) => set({ userId }),
   addTask: (task) => set((state) => ({ tasks: [task, ...state.tasks] })),
-  updateTask: (id, updates) =>
+  updateTaskLocal: (id, updates) =>
     set((state) => ({
       tasks: state.tasks.map((t) => (t.id === id ? { ...t, ...updates } : t)),
     })),
@@ -48,8 +51,9 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
       const params = new URLSearchParams()
       if (filters?.status) params.append("status", filters.status)
       if (filters?.priority) params.append("priority", filters.priority)
+      if (filters?.projectId) params.append("projectId", filters.projectId)
 
-      const res = await fetch(`/api/v1/tasks?${params.toString()}`, {
+      const res = await fetch(`${routes.api.tasks.list()}?${params.toString()}`, {
         headers: {
           "x-user-id": userId,
         },
@@ -66,15 +70,27 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
     }
   },
 
-  createTask: async (userId, title, details) => {
+  createTask: async (userId: string, title: string, details?: Partial<TaskResponse>) => {
     try {
-      const res = await fetch("/api/v1/tasks", {
+      // Parse natural language input to extract structured data
+      const parsed = parseNaturalLanguage(title)
+
+      // Merge parsed data with any provided details
+      const taskData = {
+        title: parsed.title || title,
+        dueDate: parsed.dueDate,
+        priority: parsed.priority,
+        tags: parsed.tags,
+        ...details,
+      }
+
+      const res = await fetch(routes.api.tasks.list(), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "x-user-id": userId,
         },
-        body: JSON.stringify({ title, ...details }),
+        body: JSON.stringify(taskData),
       })
 
       if (!res.ok) {
@@ -91,9 +107,31 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
     }
   },
 
+  updateTask: async (userId, id, updates) => {
+    try {
+      const res = await fetch(routes.api.tasks.byId(id), {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": userId,
+        },
+        body: JSON.stringify(updates),
+      })
+
+      if (!res.ok) {
+        throw new Error("Failed to update task")
+      }
+
+      const data = await res.json()
+      get().updateTaskLocal(id, data.data)
+    } catch (err) {
+      set({ error: (err as Error).message })
+    }
+  },
+
   updateTaskStatus: async (userId, id, status) => {
     try {
-      const res = await fetch(`/api/v1/tasks/${id}`, {
+      const res = await fetch(routes.api.tasks.byId(id), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -107,7 +145,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
       }
 
       const data = await res.json()
-      get().updateTask(id, data.data)
+      get().updateTaskLocal(id, data.data)
     } catch (err) {
       set({ error: (err as Error).message })
     }
@@ -115,7 +153,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
 
   deleteTask: async (userId, id) => {
     try {
-      const res = await fetch(`/api/v1/tasks/${id}`, {
+      const res = await fetch(routes.api.tasks.byId(id), {
         method: "DELETE",
         headers: {
           "x-user-id": userId,

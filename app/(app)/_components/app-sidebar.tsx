@@ -20,6 +20,7 @@ import {
   PaletteIcon,
   SettingsIcon,
   ShieldCheckIcon,
+  FolderIcon,
 } from "lucide-react"
 
 import { NavMain, type NavMainItem } from "@/components/nav-main"
@@ -36,6 +37,7 @@ export function AppSidebar({ userId }: Props) {
 
   const isDashboard = pathname === routes.app.dashboard()
   const isTasks = pathname.startsWith(routes.app.tasks())
+  const isProjects = pathname.startsWith(routes.app.projects())
   const isModules = pathname.startsWith(routes.app.modules())
   const isApprovals = pathname.startsWith(routes.app.approvals())
   const isSettings = pathname.startsWith(routes.app.settings.root())
@@ -47,10 +49,11 @@ export function AppSidebar({ userId }: Props) {
       title: "App",
       url: routes.app.root(),
       icon: LayoutDashboardIcon,
-      isActive: isDashboard || isTasks || isModules || isApprovals,
+      isActive: isDashboard || isTasks || isProjects || isModules || isApprovals,
       items: [
         { title: "Dashboard", url: routes.app.dashboard() },
         { title: "Tasks", url: routes.app.tasks() },
+        { title: "Projects", url: routes.app.projects() },
         { title: "Modules", url: routes.app.modules() },
         { title: "Approvals", url: routes.app.approvals() },
       ],
@@ -78,6 +81,7 @@ export function AppSidebar({ userId }: Props) {
 
   const projects: NavProjectItem[] = [
     { name: "Tasks", url: routes.app.tasks(), icon: ListChecksIcon },
+    { name: "Projects", url: routes.app.projects(), icon: FolderIcon },
     { name: "Modules", url: routes.app.modules(), icon: PackageIcon },
     { name: "Approvals", url: routes.app.approvals(), icon: ShieldCheckIcon },
     { name: "Design System", url: routes.app.settings.designSystem(), icon: PaletteIcon },

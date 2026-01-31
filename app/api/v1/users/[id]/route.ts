@@ -2,7 +2,7 @@ import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
-import { headerNames } from "@/lib/constants/headers"
+import { HEADER_NAMES } from "@/lib/constants/headers"
 import { HttpError, NotFound } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
 import { getUserById } from "@/lib/server/db/queries-edge/user.queries"
@@ -10,7 +10,7 @@ import { getUserById } from "@/lib/server/db/queries-edge/user.queries"
 export const runtime = "edge"
 
 export async function GET(_req: Request, ctx: { params: Promise<{ id: string }> }) {
-  const requestId = (await headers()).get(headerNames.requestId) ?? undefined
+  const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
     const { id } = await ctx.params

@@ -2,7 +2,7 @@ import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
-import { headerNames } from "@/lib/constants/headers"
+import { HEADER_NAMES } from "@/lib/constants/headers"
 import { updateTaskRequestSchema } from "@/lib/contracts/tasks"
 import { HttpError, Unauthorized, NotFound } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
@@ -21,7 +21,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const requestId = (await headers()).get(headerNames.requestId) ?? undefined
+  const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
     const { id } = await params
@@ -30,7 +30,7 @@ export async function GET(
     const tenantId = tenant.tenantId ?? auth.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
-    const task = await getTask(tenantId, id)
+    const task = await getTask(auth.userId, id)
     if (!task) throw NotFound("Task not found")
 
     return ok(task)
@@ -48,7 +48,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const requestId = (await headers()).get(headerNames.requestId) ?? undefined
+  const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
     const { id } = await params
@@ -58,13 +58,13 @@ export async function PATCH(
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const body = await parseJson(request, updateTaskRequestSchema)
-    const updated = await updateTask(tenantId, id, {
+    const updated = await updateTask(auth.userId, id, {
       ...body,
       dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
     })
     if (!updated) throw NotFound("Task not found")
 
-    invalidateTag(cacheTags.tasks(tenantId))
+    invalidateTag(cacheTags.tasks(auth.userId))
     return ok(updated)
   } catch (e) {
     if (e instanceof HttpError) return fail(e.toApiError(requestId), e.status)
@@ -80,7 +80,7 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const requestId = (await headers()).get(headerNames.requestId) ?? undefined
+  const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
     const { id } = await params
@@ -89,10 +89,10 @@ export async function DELETE(
     const tenantId = tenant.tenantId ?? auth.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
-    const deleted = await deleteTask(tenantId, id)
+    const deleted = await deleteTask(auth.userId, id)
     if (!deleted) throw NotFound("Task not found")
 
-    invalidateTag(cacheTags.tasks(tenantId))
+    invalidateTag(cacheTags.tasks(auth.userId))
     return ok({ success: true })
   } catch (e) {
     if (e instanceof HttpError) return fail(e.toApiError(requestId), e.status)

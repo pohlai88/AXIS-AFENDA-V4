@@ -1,0 +1,1 @@
+ALTER TABLE "sessions" ALTER COLUMN "user" SET DEFAULT '{}'::jsonb;

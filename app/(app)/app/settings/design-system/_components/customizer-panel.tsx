@@ -552,11 +552,10 @@ export function CustomizerPanel() {
         <Separator />
 
         {/* Actions */}
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
             onClick={resetToDefaults}
             disabled={isSaving}
           >
@@ -566,7 +565,6 @@ export function CustomizerPanel() {
           <Button
             variant="outline"
             size="sm"
-            className="flex-1"
             onClick={revertToSaved}
             disabled={isSaving || !isDirty}
           >
@@ -575,7 +573,6 @@ export function CustomizerPanel() {
           </Button>
           <Button
             size="sm"
-            className="flex-1"
             onClick={saveSettings}
             disabled={isSaving || !isDirty || autoSave || hasErrors}
           >

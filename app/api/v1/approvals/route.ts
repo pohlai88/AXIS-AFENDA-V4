@@ -2,7 +2,7 @@ import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
-import { headerNames } from "@/lib/constants/headers"
+import { HEADER_NAMES } from "@/lib/constants/headers"
 import { CreateApprovalSchema } from "@/lib/contracts/approvals"
 import { HttpError, Unauthorized } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
@@ -17,7 +17,7 @@ import {
 } from "@/lib/server/db/queries/approval.queries"
 
 export async function GET() {
-  const requestId = (await headers()).get(headerNames.requestId) ?? undefined
+  const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
@@ -34,7 +34,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  const requestId = (await headers()).get(headerNames.requestId) ?? undefined
+  const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])

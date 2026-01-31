@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import {
   Folder,
   Forward,
@@ -33,6 +34,38 @@ export type NavProjectItem = {
 
 export function NavProjects({ projects }: { projects: NavProjectItem[] }) {
   const { isMobile } = useSidebar()
+  const [isClient, setIsClient] = React.useState(false)
+
+  React.useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  // Prevent hydration mismatch by only rendering DropdownMenu after client mount
+  if (!isClient) {
+    return (
+      <SidebarGroup className="group-data-[collapsible=icon]:hidden">
+        <SidebarGroupLabel>Projects</SidebarGroupLabel>
+        <SidebarMenu>
+          {projects.map((item) => (
+            <SidebarMenuItem key={item.name}>
+              <SidebarMenuButton asChild>
+                <a href={item.url}>
+                  <item.icon />
+                  <span>{item.name}</span>
+                </a>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+          <SidebarMenuItem>
+            <SidebarMenuButton className="text-sidebar-foreground/70">
+              <MoreHorizontal className="text-sidebar-foreground/70" />
+              <span>More</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarGroup>
+    )
+  }
 
   return (
     <SidebarGroup className="group-data-[collapsible=icon]:hidden">

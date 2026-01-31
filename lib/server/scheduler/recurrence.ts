@@ -5,7 +5,7 @@ import { eq, and, lte, isNotNull } from "drizzle-orm"
 
 import { getDb } from "@/lib/server/db/client"
 import { tasks, recurrenceRules, taskHistory } from "@/lib/server/db/schema"
-import type { RecurrenceRule } from "@/lib/contracts/tasks"
+import { TASK_HISTORY_ACTION, TASK_STATUS, type RecurrenceRule } from "@/lib/contracts/tasks"
 
 /**
  * Background scheduler: generates next task occurrences from recurrence rules.
@@ -72,7 +72,7 @@ export async function generateNextOccurrences(limit = 100) {
           description: task.description,
           dueDate: nextDue,
           priority: task.priority,
-          status: "todo",
+          status: TASK_STATUS.TODO,
           tags: task.tags,
           isRecurrenceChild: true,
           parentRecurrenceTaskId: task.id,
@@ -93,7 +93,7 @@ export async function generateNextOccurrences(limit = 100) {
       await db.insert(taskHistory).values({
         taskId: newTask.id,
         userId: task.userId,
-        action: "auto_generated",
+        action: TASK_HISTORY_ACTION.AUTO_GENERATED,
         previousValues: JSON.stringify({ parentTaskId: task.id }),
       })
 
@@ -208,7 +208,7 @@ export async function cleanupOverdueTasks() {
     .from(tasks)
     .where(
       and(
-        eq(tasks.status, "todo"),
+        eq(tasks.status, TASK_STATUS.TODO),
         lte(tasks.dueDate, addDays(now, -7)) // Due 7+ days ago
       )
     )
@@ -217,7 +217,7 @@ export async function cleanupOverdueTasks() {
     await db
       .update(tasks)
       .set({
-        status: "cancelled",
+        status: TASK_STATUS.CANCELLED,
         updatedAt: new Date(),
       })
       .where(eq(tasks.id, task.id))
@@ -225,7 +225,7 @@ export async function cleanupOverdueTasks() {
     await db.insert(taskHistory).values({
       taskId: task.id,
       userId: task.userId,
-      action: "auto_cancelled_overdue",
+      action: TASK_HISTORY_ACTION.AUTO_CANCELLED_OVERDUE,
     })
   }
 

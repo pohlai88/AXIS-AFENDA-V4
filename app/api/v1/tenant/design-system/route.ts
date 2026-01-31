@@ -2,7 +2,7 @@ import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
-import { headerNames } from "@/lib/constants/headers"
+import { HEADER_NAMES } from "@/lib/constants/headers"
 import { updateDesignSystemRequestSchema } from "@/lib/contracts/tenant-design-system"
 import { HttpError, Unauthorized } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
@@ -21,7 +21,7 @@ import {
  * Get current tenant's design system settings (or defaults)
  */
 export async function GET() {
-  const requestId = (await headers()).get(headerNames.requestId) ?? undefined
+  const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
@@ -53,7 +53,7 @@ export async function GET() {
  * Update tenant's design system settings
  */
 export async function PUT(request: Request) {
-  const requestId = (await headers()).get(headerNames.requestId) ?? undefined
+  const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])

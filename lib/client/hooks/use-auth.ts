@@ -10,9 +10,14 @@ export function useAuth() {
   const [auth, setAuth] = useState<{ userId: string | null } | null>(null)
 
   useEffect(() => {
-    const fetchAuth = async () => {
+    const controller = new AbortController()
+    const run = async () => {
       try {
-        const res = await fetch("/api/v1/me")
+        const res = await fetch("/api/v1/me", {
+          signal: controller.signal,
+          credentials: "include",
+          cache: "no-store",
+        })
         if (res.ok) {
           const data = await res.json()
           setAuth({ userId: data.data?.userId || null })
@@ -20,11 +25,13 @@ export function useAuth() {
           setAuth({ userId: null })
         }
       } catch {
+        // Ignore abort errors; treat all other failures as unauthenticated.
         setAuth({ userId: null })
       }
     }
 
-    fetchAuth()
+    void run()
+    return () => controller.abort()
   }, [])
 
   return auth

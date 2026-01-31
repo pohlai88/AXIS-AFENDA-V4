@@ -19,6 +19,15 @@ const ServerEnvSchema = z.object({
   ENABLE_DEV_CREDENTIALS: z.coerce.boolean().optional().default(false),
   DEV_AUTH_USERNAME: z.string().min(1).optional(),
   DEV_AUTH_PASSWORD: z.string().min(1).optional(),
+
+  // Neon Auth configuration
+  NEON_DATA_API_URL: z.string().url().optional(),
+  NEON_JWT_SECRET: z.string().min(16).optional(),
+  NEON_PROJECT_ID: z.string().min(1).optional(),
+  NEON_BRANCH_ID: z.string().min(1).optional(),
+  JWKS_URL: z.string().url().optional(),
+  NEON_AUTH_BASE_URL: z.string().url().optional(),
+  NEON_PASSWORDLESS_AUTH: z.string().optional(),
 })
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>

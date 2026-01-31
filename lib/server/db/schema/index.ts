@@ -1,6 +1,8 @@
 import { pgTable, text, timestamp, uuid, boolean, integer, jsonb, varchar, index, foreignKey } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 
+import { TASK_PRIORITY, TASK_STATUS } from "@/lib/contracts/tasks"
+
 /**
  * MagicToDo Drizzle Schema
  *
@@ -13,9 +15,129 @@ export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   displayName: varchar("display_name", { length: 255 }),
+  username: varchar("username", { length: 100 }).unique(),
+  avatar: varchar("avatar", { length: 500 }),
+  role: varchar("role", { length: 20 }).notNull().default("user"),
+  emailVerified: timestamp("email_verified", { withTimezone: true }),
+  password: varchar("password", { length: 255 }),
+  provider: varchar("provider", { length: 50 }).notNull().default("credentials"),
+  providerAccountId: varchar("provider_account_id", { length: 255 }),
+  isActive: boolean("is_active").notNull().default(true),
+  lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+  loginCount: integer("login_count").notNull().default(0),
+  preferences: jsonb("preferences").default({}),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-})
+}, (table) => ({
+  emailIdx: index("users_email_idx").on(table.email),
+  usernameIdx: index("users_username_idx").on(table.username),
+  providerIdx: index("users_provider_idx").on(table.provider),
+  roleIdx: index("users_role_idx").on(table.role),
+}))
+
+// ============ Accounts Table (NextAuth) ============
+export const accounts = pgTable(
+  "accounts",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    type: varchar("type", { length: 50 }).notNull(),
+    provider: varchar("provider", { length: 50 }).notNull(),
+    providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
+    refresh_token: varchar("refresh_token", { length: 1000 }),
+    access_token: varchar("access_token", { length: 1000 }),
+    expires_at: integer("expires_at"),
+    token_type: varchar("token_type", { length: 50 }),
+    scope: varchar("scope", { length: 500 }),
+    id_token: varchar("id_token", { length: 2000 }),
+    session_state: varchar("session_state", { length: 500 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("accounts_user_id_idx").on(table.userId),
+    providerIdx: index("accounts_provider_idx").on(table.provider),
+    providerAccountIdx: index("accounts_provider_account_idx").on(table.providerAccountId),
+  })
+)
+
+// ============ Sessions Table (NextAuth) ============
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    sessionToken: varchar("session_token", { length: 255 }).notNull().unique(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    expires: timestamp("expires", { withTimezone: true }).notNull(),
+    // NextAuth's AdapterSession doesn't include a user snapshot; we store it for optional debugging/auditing.
+    // Default keeps inserts simple and schema compatible with the adapter.
+    user: jsonb("user").notNull().default({}),
+    ipAddress: varchar("ip_address", { length: 45 }),
+    userAgent: varchar("user_agent", { length: 500 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    sessionTokenIdx: index("sessions_session_token_idx").on(table.sessionToken),
+    userIdIdx: index("sessions_user_id_idx").on(table.userId),
+    expiresIdx: index("sessions_expires_idx").on(table.expires),
+  })
+)
+
+// ============ Verification Tokens Table ============
+export const verificationTokens = pgTable(
+  "verification_tokens",
+  {
+    identifier: varchar("identifier", { length: 255 }).notNull(),
+    token: varchar("token", { length: 255 }).notNull().unique(),
+    expires: timestamp("expires", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    identifierIdx: index("verification_tokens_identifier_idx").on(table.identifier),
+    tokenIdx: index("verification_tokens_token_idx").on(table.token),
+    expiresIdx: index("verification_tokens_expires_idx").on(table.expires),
+  })
+)
+
+// ============ Password Reset Tokens Table ============
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    token: varchar("token", { length: 255 }).notNull().unique(),
+    expires: timestamp("expires", { withTimezone: true }).notNull(),
+    used: boolean("used").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("password_reset_tokens_user_id_idx").on(table.userId),
+    tokenIdx: index("password_reset_tokens_token_idx").on(table.token),
+    expiresIdx: index("password_reset_tokens_expires_idx").on(table.expires),
+  })
+)
+
+// ============ User Activity Log Table ============
+export const userActivityLog = pgTable(
+  "user_activity_log",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    action: varchar("action", { length: 50 }).notNull(),
+    resource: varchar("resource", { length: 100 }),
+    resourceId: varchar("resource_id", { length: 255 }),
+    ipAddress: varchar("ip_address", { length: 45 }),
+    userAgent: varchar("user_agent", { length: 500 }),
+    metadata: jsonb("metadata").default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userIdIdx: index("user_activity_log_user_id_idx").on(table.userId),
+    actionIdx: index("user_activity_log_action_idx").on(table.action),
+    createdAtIdx: index("user_activity_log_created_at_idx").on(table.createdAt),
+  })
+)
 
 // ============ Projects Table ============
 export const projects = pgTable(
@@ -68,8 +190,8 @@ export const tasks = pgTable(
     parentTaskId: uuid("parent_task_id"),
     title: varchar("title", { length: 255 }).notNull(),
     description: text("description"),
-    status: varchar("status", { length: 20 }).notNull().default("todo"),
-    priority: varchar("priority", { length: 10 }).notNull().default("medium"),
+    status: varchar("status", { length: 20 }).notNull().default(TASK_STATUS.TODO),
+    priority: varchar("priority", { length: 10 }).notNull().default(TASK_PRIORITY.MEDIUM),
     dueDate: timestamp("due_date", { withTimezone: true }),
     completedAt: timestamp("completed_at", { withTimezone: true }),
     tags: jsonb("tags").default([]),
@@ -116,6 +238,26 @@ export const usersRelations = relations(users, ({ many }) => ({
   tasks: many(tasks),
   recurrenceRules: many(recurrenceRules),
   taskHistory: many(taskHistory),
+  accounts: many(accounts),
+  sessions: many(sessions),
+  passwordResetTokens: many(passwordResetTokens),
+  userActivityLog: many(userActivityLog),
+}))
+
+export const accountsRelations = relations(accounts, ({ one }) => ({
+  user: one(users, { fields: [accounts.userId], references: [users.id] }),
+}))
+
+export const sessionsRelations = relations(sessions, ({ one }) => ({
+  user: one(users, { fields: [sessions.userId], references: [users.id] }),
+}))
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, { fields: [passwordResetTokens.userId], references: [users.id] }),
+}))
+
+export const userActivityLogRelations = relations(userActivityLog, ({ one }) => ({
+  user: one(users, { fields: [userActivityLog.userId], references: [users.id] }),
 }))
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
