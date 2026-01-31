@@ -3,13 +3,13 @@
  * POST /api/v1/sync/push
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { parseJson } from "@/lib/server/api/validate"
 import { z } from "zod"
 import { ok, fail } from "@/lib/server/api/response"
-import { db, withTransaction } from "@/lib/server/db"
+import { withTransaction } from "@/lib/server/db"
 import { tasks, projects } from "@/lib/server/db/schema"
-import { eq, and, isNull } from "drizzle-orm"
+import { eq, and } from "drizzle-orm"
 import { logger } from "@/lib/server/logger"
 import { HEADER_NAMES, SYNC_STATUS, SYNC_OPERATION } from "@/lib/constants"
 import { nanoid } from "nanoid"
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await parseJson(req, pushSchema)
-    const { operations } = body
+    const { operations } = body as { operations: Array<{ entityType: string; operation: string; data: Record<string, unknown>; clientGeneratedId?: string; clientVersion: number }> }
 
     logger.info({ message: "Processing sync push", userId, operationCount: operations.length, requestId })
 
@@ -91,8 +91,10 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TransactionType = any
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processOperation(
   tx: TransactionType,
   operation: {
@@ -100,7 +102,7 @@ async function processOperation(
     operation: string
     data: Record<string, unknown>
     clientGeneratedId?: string
-    clientVersion?: number
+    clientVersion: number
   },
   userId: string
 ): Promise<Record<string, unknown>> {
@@ -115,6 +117,7 @@ async function processOperation(
   throw new Error(`Unknown entity type: ${entityType}`)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processTaskOperation(
   tx: TransactionType,
   operation: string,

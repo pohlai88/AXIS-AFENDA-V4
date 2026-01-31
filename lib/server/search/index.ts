@@ -89,17 +89,34 @@ export class TaskFilterService {
       const [{ count: total }] = await countQueryWithFilters
 
       // Apply sorting and pagination
-      query = this.applySorting(query, filters.sortBy || TASK_FILTERING.DEFAULTS.SORT_BY, filters.sortOrder || TASK_FILTERING.DEFAULTS.SORT_ORDER)
-      query = query.limit(limit).offset(offset)
+      query = this.applySorting(query as any, filters.sortBy || TASK_FILTERING.DEFAULTS.SORT_BY, filters.sortOrder || TASK_FILTERING.DEFAULTS.SORT_ORDER)
+      query = (query as any).limit(limit).offset(offset)
 
       // Execute query
       const filteredTasks = await query
+
+      // Transform tasks to match expected types
+      const transformedTasks = filteredTasks.map(task => ({
+        ...task,
+        priority: task.priority as "low" | "medium" | "high" | "urgent",
+        status: task.status as "todo" | "in_progress" | "done" | "cancelled",
+        tags: Array.isArray(task.tags) ? task.tags.filter((tag): tag is string => typeof tag === 'string') : [],
+        createdAt: task.createdAt.toISOString(),
+        updatedAt: task.updatedAt.toISOString(),
+        dueDate: task.dueDate?.toISOString() || undefined,
+        completedAt: task.completedAt?.toISOString() || undefined,
+        nextOccurrenceDate: task.nextOccurrenceDate?.toISOString() || undefined,
+        description: task.description || undefined,
+        projectId: task.projectId || undefined,
+        parentTaskId: task.parentTaskId || undefined,
+        recurrenceRuleId: task.recurrenceRuleId || undefined,
+      }))
 
       // Get facets for UI
       const facets = await this.getFacets(userId, filters)
 
       return {
-        items: filteredTasks,
+        items: transformedTasks,
         total,
         limit,
         offset,
