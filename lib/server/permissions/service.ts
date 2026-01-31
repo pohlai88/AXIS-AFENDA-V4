@@ -1,6 +1,17 @@
 import "@/lib/server/only"
-import { PERMISSIONS, ORGANIZATION, TEAM } from "@/lib/constants"
+import { PERMISSIONS } from "@/lib/constants"
 import type { PermissionValue } from "@/lib/constants"
+import { db } from "@/lib/server/db"
+import { memberships, resourceShares } from "@/lib/server/db/schema"
+import { eq, and } from "drizzle-orm"
+import { logger } from "@/lib/server/logger"
+import {
+  BASE_USER_PERMISSIONS,
+  getOrganizationRolePermissions,
+  getTeamRolePermissions,
+  isValidOrganizationRole,
+  isValidTeamRole,
+} from "./roles"
 
 /**
  * Permission service for calculating and checking user permissions
@@ -18,13 +29,10 @@ export class PermissionService {
     resourceType?: string
   }): Promise<Set<string>> {
     const permissions = new Set<string>()
-    
-    // 1. Base permissions - everyone gets basic permissions
-    permissions.add(PERMISSIONS.TASK_CREATE)
-    permissions.add(PERMISSIONS.PROJECT_CREATE)
-    permissions.add(PERMISSIONS.TASK_READ)
-    permissions.add(PERMISSIONS.PROJECT_READ)
-    
+
+    // 1. Base permissions - everyone gets basic permissions (Focalboard-inspired)
+    BASE_USER_PERMISSIONS.forEach(p => permissions.add(p))
+
     // 2. Add organization-specific permissions if in org context
     if (context.organizationId) {
       const orgPermissions = await this.getOrganizationPermissions(
@@ -33,7 +41,7 @@ export class PermissionService {
       )
       orgPermissions.forEach(p => permissions.add(p))
     }
-    
+
     // 3. Add team-specific permissions if in team context
     if (context.teamId) {
       const teamPermissions = await this.getTeamPermissions(
@@ -42,7 +50,7 @@ export class PermissionService {
       )
       teamPermissions.forEach(p => permissions.add(p))
     }
-    
+
     // 4. Add resource-specific permissions from shares
     if (context.resourceId && context.resourceType) {
       const sharePermissions = await this.getSharePermissions(
@@ -52,10 +60,10 @@ export class PermissionService {
       )
       sharePermissions.forEach(p => permissions.add(p))
     }
-    
+
     return permissions
   }
-  
+
   /**
    * Check if a user has a specific permission in a given context
    */
@@ -73,10 +81,10 @@ export class PermissionService {
       userId,
       ...context
     })
-    
+
     return permissions.has(permission)
   }
-  
+
   /**
    * Get organization permissions based on membership role
    */
@@ -84,22 +92,51 @@ export class PermissionService {
     userId: string,
     organizationId: string
   ): Promise<string[]> {
-    // TODO: Query database for membership
-    // For now, return basic org member permissions
-    const permissions = [
-      PERMISSIONS.ORG_READ,
-      PERMISSIONS.TEAM_READ,
-      PERMISSIONS.TEAM_CREATE,
-    ]
-    
-    // TODO: Add role-specific permissions based on membership role
-    // - Owner: all permissions
-    // - Admin: member management, team management
-    // - Member: basic permissions
-    
-    return permissions
+    try {
+      // Query membership
+      const [membership] = await db
+        .select()
+        .from(memberships)
+        .where(
+          and(
+            eq(memberships.userId, userId),
+            eq(memberships.organizationId, organizationId),
+            eq(memberships.isActive, true)
+          )
+        )
+        .limit(1)
+
+      if (!membership) {
+        return []
+      }
+
+      // Get role-based permissions from mapping
+      const rolePermissions = getOrganizationRolePermissions(membership.role)
+      const permissions: string[] = [...rolePermissions]
+
+      // Validate role
+      if (!isValidOrganizationRole(membership.role)) {
+        logger.warn({ userId, organizationId, role: membership.role }, "Invalid organization role")
+        return []
+      }
+
+      // Add explicit permission overrides from membership.permissions JSONB
+      if (membership.permissions && typeof membership.permissions === 'object') {
+        const explicitPerms = membership.permissions as Record<string, boolean>
+        Object.entries(explicitPerms).forEach(([perm, granted]) => {
+          if (granted && !permissions.includes(perm)) {
+            permissions.push(perm)
+          }
+        })
+      }
+
+      return permissions
+    } catch (error) {
+      logger.error({ error, userId, organizationId }, "Error getting organization permissions")
+      return []
+    }
   }
-  
+
   /**
    * Get team permissions based on membership role
    */
@@ -107,38 +144,169 @@ export class PermissionService {
     userId: string,
     teamId: string
   ): Promise<string[]> {
-    // TODO: Query database for team membership
-    // For now, return basic team member permissions
-    const permissions = [
-      PERMISSIONS.TEAM_READ,
-    ]
-    
-    // TODO: Add role-specific permissions
-    // - Manager: can invite, manage members
-    // - Member: read-only
-    
-    return permissions
+    try {
+      // Query team membership
+      const [membership] = await db
+        .select()
+        .from(memberships)
+        .where(
+          and(
+            eq(memberships.userId, userId),
+            eq(memberships.teamId, teamId),
+            eq(memberships.isActive, true)
+          )
+        )
+        .limit(1)
+
+      if (!membership) {
+        return []
+      }
+
+      // Get role-based permissions from mapping
+      const rolePermissions = getTeamRolePermissions(membership.role)
+      const permissions: string[] = [...rolePermissions]
+
+      // Validate role
+      if (!isValidTeamRole(membership.role)) {
+        logger.warn({ userId, teamId, role: membership.role }, "Invalid team role")
+        return []
+      }
+
+      // Add explicit permission overrides
+      if (membership.permissions && typeof membership.permissions === 'object') {
+        const explicitPerms = membership.permissions as Record<string, boolean>
+        Object.entries(explicitPerms).forEach(([perm, granted]) => {
+          if (granted && !permissions.includes(perm)) {
+            permissions.push(perm)
+          }
+        })
+      }
+
+      return permissions
+    } catch (error) {
+      logger.error({ error, userId, teamId }, "Error getting team permissions")
+      return []
+    }
   }
-  
+
   /**
-   * Get permissions from resource shares
+   * Get permissions from resource shares (Nextcloud-style cross-boundary sharing)
    */
   private async getSharePermissions(
     userId: string,
     resourceId: string,
     resourceType: string
   ): Promise<string[]> {
-    // TODO: Query resource_shares table
-    // For now, return empty array
-    const permissions: string[] = []
-    
-    // TODO: Check if resource is shared with user directly
-    // TODO: Check if resource is shared with user's teams
-    // TODO: Check if resource is shared with user's organization
-    
-    return permissions
+    try {
+      const permissions: string[] = []
+
+      // Query direct user shares
+      const userShares = await db
+        .select()
+        .from(resourceShares)
+        .where(
+          and(
+            eq(resourceShares.resourceId, resourceId),
+            eq(resourceShares.resourceType, resourceType),
+            eq(resourceShares.sharedWithUserId, userId)
+          )
+        )
+
+      // Add permissions from direct shares
+      userShares.forEach(share => {
+        if (share.permissions && typeof share.permissions === 'object') {
+          const sharePerms = share.permissions as Record<string, boolean>
+          Object.entries(sharePerms).forEach(([perm, granted]) => {
+            if (granted && !permissions.includes(perm)) {
+              permissions.push(perm)
+            }
+          })
+        }
+      })
+
+      // Query team shares
+      const userTeams = await db
+        .select({ teamId: memberships.teamId })
+        .from(memberships)
+        .where(
+          and(
+            eq(memberships.userId, userId),
+            eq(memberships.isActive, true)
+          )
+        )
+
+      if (userTeams.length > 0) {
+        const teamIds = userTeams.map(t => t.teamId).filter((id): id is string => id !== null)
+
+        if (teamIds.length > 0) {
+          const teamShares = await db
+            .select()
+            .from(resourceShares)
+            .where(
+              and(
+                eq(resourceShares.resourceId, resourceId),
+                eq(resourceShares.resourceType, resourceType)
+              )
+            )
+
+          teamShares.forEach(share => {
+            if (share.sharedWithTeamId && teamIds.includes(share.sharedWithTeamId) && share.permissions && typeof share.permissions === 'object') {
+              const sharePerms = share.permissions as Record<string, boolean>
+              Object.entries(sharePerms).forEach(([perm, granted]) => {
+                if (granted && !permissions.includes(perm)) {
+                  permissions.push(perm)
+                }
+              })
+            }
+          })
+        }
+      }
+
+      // Query organization shares
+      const userOrgs = await db
+        .select({ organizationId: memberships.organizationId })
+        .from(memberships)
+        .where(
+          and(
+            eq(memberships.userId, userId),
+            eq(memberships.isActive, true)
+          )
+        )
+
+      if (userOrgs.length > 0) {
+        const orgIds = userOrgs.map(o => o.organizationId).filter((id): id is string => id !== null)
+
+        if (orgIds.length > 0) {
+          const orgShares = await db
+            .select()
+            .from(resourceShares)
+            .where(
+              and(
+                eq(resourceShares.resourceId, resourceId),
+                eq(resourceShares.resourceType, resourceType)
+              )
+            )
+
+          orgShares.forEach(share => {
+            if (share.sharedWithOrganizationId && orgIds.includes(share.sharedWithOrganizationId) && share.permissions && typeof share.permissions === 'object') {
+              const sharePerms = share.permissions as Record<string, boolean>
+              Object.entries(sharePerms).forEach(([perm, granted]) => {
+                if (granted && !permissions.includes(perm)) {
+                  permissions.push(perm)
+                }
+              })
+            }
+          })
+        }
+      }
+
+      return permissions
+    } catch (error) {
+      logger.error({ error, userId, resourceId, resourceType }, "Error getting share permissions")
+      return []
+    }
   }
-  
+
   /**
    * Check if user can access a resource (read access)
    */
@@ -153,7 +321,7 @@ export class PermissionService {
   ): Promise<boolean> {
     // Owner always has access
     // TODO: Check if user is the owner
-    
+
     // Check shared permissions
     const hasShareAccess = await this.hasPermission(
       userId,
@@ -164,9 +332,9 @@ export class PermissionService {
         ...context
       }
     )
-    
+
     if (hasShareAccess) return true
-    
+
     // Check organization/team access
     if (context?.organizationId) {
       const hasOrgAccess = await this.hasPermission(
@@ -176,10 +344,10 @@ export class PermissionService {
       )
       if (hasOrgAccess) return true
     }
-    
+
     return false
   }
-  
+
   /**
    * Check if user can modify a resource (write access)
    */
@@ -194,7 +362,7 @@ export class PermissionService {
   ): Promise<boolean> {
     // Owner always has access
     // TODO: Check if user is the owner
-    
+
     // Check shared permissions
     const hasShareAccess = await this.hasPermission(
       userId,
@@ -205,9 +373,9 @@ export class PermissionService {
         ...context
       }
     )
-    
+
     if (hasShareAccess) return true
-    
+
     // Check organization/team admin permissions
     if (context?.organizationId) {
       const hasOrgAccess = await this.hasPermission(
@@ -217,7 +385,7 @@ export class PermissionService {
       )
       if (hasOrgAccess) return true
     }
-    
+
     if (context?.teamId) {
       const hasTeamAccess = await this.hasPermission(
         userId,
@@ -226,7 +394,7 @@ export class PermissionService {
       )
       if (hasTeamAccess) return true
     }
-    
+
     return false
   }
 }
