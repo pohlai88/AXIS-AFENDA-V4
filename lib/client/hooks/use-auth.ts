@@ -1,38 +1,45 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useAuth as useNeonAuth } from "@/lib/client/hooks/useAuth"
+import { authClient } from "@/lib/auth/client"
+import { useRouter } from "next/navigation"
+import { useCallback } from "react"
 
 /**
- * Client-side hook to get authenticated user info from server session.
- * Reads from /api/v1/me endpoint which is auth-protected.
+ * Legacy compatibility hook for modules that only need a userId.
+ * Delegates to Neon Auth session hook.
+ * Now includes signOut capability.
  */
 export function useAuth() {
-  const [auth, setAuth] = useState<{ userId: string | null } | null>(null)
+  const router = useRouter()
+  const { user, isAuthenticated, isLoading } = useNeonAuth()
 
-  useEffect(() => {
-    const controller = new AbortController()
-    const run = async () => {
-      try {
-        const res = await fetch("/api/v1/me", {
-          signal: controller.signal,
-          credentials: "include",
-          cache: "no-store",
-        })
-        if (res.ok) {
-          const data = await res.json()
-          setAuth({ userId: data.data?.auth?.userId ?? null })
-        } else {
-          setAuth({ userId: null })
-        }
-      } catch {
-        // Ignore abort errors; treat all other failures as unauthenticated.
-        setAuth({ userId: null })
-      }
+  const signOut = useCallback(async () => {
+    try {
+      // Call logout API endpoint
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      })
+
+      // Sign out via Neon Auth client
+      await authClient.signOut()
+
+      // Redirect to login
+      router.push('/login')
+    } catch (error) {
+      console.error('Logout error:', error)
+      // Still redirect even if API call fails
+      router.push('/login')
     }
+  }, [router])
 
-    void run()
-    return () => controller.abort()
-  }, [])
+  if (isLoading) return null
 
-  return auth
+  return {
+    userId: user?.id ?? null,
+    isAuthenticated,
+    isLoading,
+    signOut,
+  }
 }

@@ -302,6 +302,7 @@ export const organizations = pgTable(
     description: text("description"),
     logo: varchar("logo", { length: 500 }),
     settings: jsonb("settings").default({}),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
     isActive: boolean("is_active").notNull().default(true),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

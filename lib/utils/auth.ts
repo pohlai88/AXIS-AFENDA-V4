@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation"
+
 import { REGEX_PATTERNS, STORAGE_KEYS, TIME_INTERVALS } from "@/lib/constants"
 
 export type UserRole = "user" | "admin" | "moderator"
@@ -10,6 +12,9 @@ export interface AuthUser {
   username?: string | null
   role?: UserRole
 }
+
+// Note: Server-side auth is handled via lib/server/auth/context.ts (getAuthContext)
+// This file contains client-side utilities and validation helpers
 
 export function hasRole(user: AuthUser, requiredRole: UserRole): boolean {
   const roleHierarchy = {
@@ -35,21 +40,6 @@ export function canAccessResource(user: AuthUser, resource: string): boolean {
     default:
       return true
   }
-}
-
-// Client-side auth utilities
-export function getAuthHeaders(): Record<string, string> {
-  if (typeof window !== "undefined") {
-    const userId = localStorage.getItem(STORAGE_KEYS.USER.ID)
-    const userRole = localStorage.getItem(STORAGE_KEYS.USER.ROLE)
-    
-    return {
-      "x-user-id": userId || "",
-      "x-user-role": userRole || "user",
-    }
-  }
-  
-  return {}
 }
 
 // Password validation
@@ -132,54 +122,3 @@ export function generateSecureToken(length: number = 32): string {
   
   return result
 }
-
-// Rate limiting utilities
-export class RateLimiter {
-  private attempts: Map<string, { count: number; resetTime: number }> = new Map()
-
-  constructor(
-    private maxAttempts: number = 5,
-    private windowMs: number = 15 * TIME_INTERVALS.MINUTE
-  ) {}
-
-  isAllowed(identifier: string): boolean {
-    const now = Date.now()
-    const record = this.attempts.get(identifier)
-
-    if (!record || now > record.resetTime) {
-      this.attempts.set(identifier, {
-        count: 1,
-        resetTime: now + this.windowMs,
-      })
-      return true
-    }
-
-    if (record.count >= this.maxAttempts) {
-      return false
-    }
-
-    record.count++
-    return true
-  }
-
-  getRemainingAttempts(identifier: string): number {
-    const record = this.attempts.get(identifier)
-    if (!record || Date.now() > record.resetTime) {
-      return this.maxAttempts
-    }
-    return Math.max(0, this.maxAttempts - record.count)
-  }
-
-  getResetTime(identifier: string): number | null {
-    const record = this.attempts.get(identifier)
-    if (!record || Date.now() > record.resetTime) {
-      return null
-    }
-    return record.resetTime
-  }
-}
-
-// Global rate limiters
-export const loginRateLimiter = new RateLimiter(5, 15 * TIME_INTERVALS.MINUTE) // 5 attempts per 15 minutes
-export const registerRateLimiter = new RateLimiter(3, TIME_INTERVALS.HOUR) // 3 attempts per hour
-export const passwordResetRateLimiter = new RateLimiter(3, TIME_INTERVALS.HOUR) // 3 attempts per hour

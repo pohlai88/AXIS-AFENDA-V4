@@ -8,7 +8,6 @@ import {
   createTeamSchema,
   teamQuerySchema
 } from "@/lib/contracts/organizations"
-import type { CreateTeamInput } from "@/lib/contracts/organizations"
 
 export async function GET(req: Request) {
   try {

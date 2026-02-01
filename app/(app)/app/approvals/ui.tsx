@@ -104,7 +104,7 @@ export function ApprovalsClient() {
         </p>
       </div>
 
-      <Card size="sm">
+      <Card>
         <CardHeader className="border-b">
           <CardTitle>Create approval</CardTitle>
           <CardDescription>Create → approve/reject → audit later.</CardDescription>
@@ -134,7 +134,7 @@ export function ApprovalsClient() {
         </Alert>
       ) : null}
 
-      <Card size="sm">
+      <Card>
         <CardHeader className="border-b">
           <CardTitle>Queue</CardTitle>
           <CardDescription>Pending approvals for this tenant.</CardDescription>

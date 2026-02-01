@@ -18,6 +18,12 @@ const ServerEnvSchema = z.object({
   NEON_AUTH_BASE_URL: z.string().url().optional(),
   NEON_AUTH_COOKIE_SECRET: z.string().min(32).optional(),
   NEON_PASSWORDLESS_AUTH: z.string().optional(),
+
+  // Email service configuration
+  RESEND_API_KEY: z.string().min(1).optional(),
+
+  // Public URLs accessible in server context
+  NEXT_PUBLIC_APP_URL: z.string().url().optional(),
 })
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>

@@ -21,7 +21,7 @@ export default function AppDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle>Modules</CardTitle>
             <CardDescription>
@@ -36,7 +36,7 @@ export default function AppDashboardPage() {
           </CardContent>
         </Card>
 
-        <Card size="sm">
+        <Card>
           <CardHeader>
             <CardTitle>Approvals</CardTitle>
             <CardDescription>

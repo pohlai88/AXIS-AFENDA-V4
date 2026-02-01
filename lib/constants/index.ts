@@ -6,6 +6,8 @@
 // Re-export from other constant files
 export { HEADER_NAMES, type HeaderNameKey, type HeaderNameValue } from './headers'
 export { STORAGE_KEYS, type StorageKeyPath } from './storage'
+
+// Re-export offline and sync constants
 export {
   OFFLINE_STATUS,
   SYNC_STATUS,
@@ -28,6 +30,27 @@ export {
   type IdbStoreKey,
 } from './offline'
 
+// Re-export business domain constants
+export {
+  ORGANIZATION,
+  TEAM,
+  PERMISSIONS,
+  RESOURCE_SHARING,
+  TASK_FILTERING,
+  TASK_FILTERING_UI,
+  CIRCUIT_BREAKER,
+  type OrganizationRoleKey,
+  type OrganizationRoleValue,
+  type TeamRoleKey,
+  type TeamRoleValue,
+  type PermissionKey,
+  type PermissionValue,
+  type ResourceTypeKey,
+  type ResourceTypeValue,
+  type TargetTypeKey,
+  type TargetTypeValue,
+} from './business'
+
 /**
  * Cookie names used throughout the application.
  */
@@ -38,6 +61,8 @@ export const COOKIE_NAMES = {
   THEME: "theme",
   /** UI state persistence cookie */
   UI_STATE: "ui-state",
+  /** Neon Auth session cookie */
+  NEON_AUTH: "__Secure-neon-auth",
 } as const
 
 export type CookieNameKey = keyof typeof COOKIE_NAMES
@@ -236,37 +261,6 @@ export type EnvironmentKey = keyof typeof ENVIRONMENTS
 export type EnvironmentValue = (typeof ENVIRONMENTS)[EnvironmentKey]
 
 /**
- * Logging defaults (server).
- *
- * Primary configuration uses env vars:
- * - LOG_LEVEL (trace|debug|info|warn|error|fatal)
- */
-export const LOGGER = {
-  /** Default level in development */
-  DEFAULT_LEVEL_DEV: "debug",
-  /** Default level in production */
-  DEFAULT_LEVEL_PROD: "info",
-  /** Redaction placeholder */
-  REDACTION_CENSOR: "[redacted]",
-} as const
-
-/**
- * Circuit breaker defaults for outbound network calls.
- *
- * These are conservative defaults to prevent cascading failures.
- */
-export const CIRCUIT_BREAKER = {
-  /** Failures before opening the circuit */
-  FAILURE_THRESHOLD: 5,
-  /** Sliding window size for failures (number of attempts) */
-  WINDOW_SIZE: 20,
-  /** How long to stay open before allowing half-open probes (ms) */
-  OPEN_DURATION_MS: 30 * TIME_INTERVALS.SECOND,
-  /** Max probe calls allowed in half-open before closing/opening (count) */
-  HALF_OPEN_MAX_PROBES: 2,
-} as const
-
-/**
  * Common MIME types.
  */
 export const MIME_TYPES = {
@@ -328,258 +322,3 @@ export const FILE_UPLOAD = {
   /** Maximum filename length */
   MAX_FILENAME_LENGTH: 255,
 } as const
-
-/**
- * Task filtering constants.
- */
-export const TASK_FILTERING = {
-  /** Sort options for task filtering */
-  SORT_OPTIONS: {
-    CREATED_AT: "createdAt",
-    UPDATED_AT: "updatedAt",
-    DUE_DATE: "dueDate",
-    PRIORITY: "priority",
-    TITLE: "title",
-    STATUS: "status",
-    COMPLETED_AT: "completedAt",
-  },
-  /** Sort order options */
-  SORT_ORDER: {
-    ASC: "asc",
-    DESC: "desc",
-  },
-  /** Search match types */
-  SEARCH_MATCH_TYPES: {
-    CONTAINS: "contains",
-    EXACT: "exact",
-    FUZZY: "fuzzy",
-  },
-  /** Search field options */
-  SEARCH_FIELDS: {
-    TITLE: "title",
-    DESCRIPTION: "description",
-    TAGS: "tags",
-    ALL: "all",
-  },
-  /** Filter include modes */
-  INCLUDE_MODES: {
-    ANY: "any",
-    ALL: "all",
-    NONE: "none",
-  },
-  /** Relative date range options */
-  DATE_RANGES: {
-    TODAY: "today",
-    YESTERDAY: "yesterday",
-    THIS_WEEK: "this_week",
-    LAST_WEEK: "last_week",
-    THIS_MONTH: "this_month",
-    LAST_MONTH: "last_month",
-    THIS_QUARTER: "this_quarter",
-    LAST_QUARTER: "last_quarter",
-    THIS_YEAR: "this_year",
-    LAST_YEAR: "last_year",
-    OVERDUE: "overdue",
-    DUE_TODAY: "due_today",
-    DUE_THIS_WEEK: "due_this_week",
-    DUE_THIS_MONTH: "due_this_month",
-  },
-  /** Default filter values */
-  DEFAULTS: {
-    SORT_BY: "createdAt",
-    SORT_ORDER: "desc",
-    SEARCH_FIELDS: ["all"],
-    SEARCH_MATCH_TYPE: "contains",
-    INCLUDE_MODE: "any",
-  },
-} as const
-
-export type TaskFilteringKey = keyof typeof TASK_FILTERING
-export type TaskFilteringValue = (typeof TASK_FILTERING)[TaskFilteringKey]
-
-/**
- * UI display constants for task filtering.
- */
-export const TASK_FILTERING_UI = {
-  /** Filter section labels */
-  SECTION_LABELS: {
-    SEARCH: "Search",
-    DATE_RANGES: "Date Ranges",
-    STATUS: "Status",
-    PRIORITY: "Priority",
-    PROJECTS: "Projects",
-    QUICK_FILTERS: "Quick Filters",
-    SORT_BY: "Sort By",
-  },
-  /** Filter option labels */
-  OPTION_LABELS: {
-    ALL: "All",
-    TODAY: "Today",
-    THIS_WEEK: "This Week",
-    THIS_MONTH: "This Month",
-    OVERDUE: "Overdue",
-    DUE_TODAY: "Due Today",
-    DUE_THIS_WEEK: "Due This Week",
-    DUE_THIS_MONTH: "Due This Month",
-    NEWEST_FIRST: "Newest First",
-    OLDEST_FIRST: "Oldest First",
-    MATCH_ANY: "Match Any",
-    MATCH_ALL: "Match All",
-    EXCLUDE_ALL: "Exclude All",
-    CONTAINS: "Contains",
-    EXACT: "Exact",
-    FUZZY: "Fuzzy",
-    ALL_FIELDS: "All Fields",
-  },
-  /** Accessibility labels */
-  ARIA_LABELS: {
-    FILTER_PANEL: "Advanced task filters",
-    CLEAR_FILTERS: "Clear all filters",
-    TOGGLE_FILTERS: "Toggle filter panel",
-    ACTIVE_FILTER_COUNT: "Active filters count",
-  },
-  /** Filter descriptions */
-  DESCRIPTIONS: {
-    SEARCH: "Search across task title, description, and tags",
-    DATE_RANGE: "Filter tasks by date range",
-    STATUS_FILTER: "Filter by task status",
-    PRIORITY_FILTER: "Filter by task priority",
-    PROJECT_FILTER: "Filter by project assignment",
-    QUICK_FILTERS: "Quick access filters",
-    SORT_OPTIONS: "Sort tasks by selected field",
-  },
-} as const
-
-export type TaskFilteringUiKey = keyof typeof TASK_FILTERING_UI
-export type TaskFilteringUiValue = (typeof TASK_FILTERING_UI)[TaskFilteringUiKey]
-
-/**
- * Organization and team management constants.
- */
-export const ORGANIZATION = {
-  /** Default organization role */
-  DEFAULT_ROLE: "member",
-  /** Organization roles */
-  ROLES: {
-    OWNER: "owner",
-    ADMIN: "admin",
-    MEMBER: "member",
-  },
-  /** Maximum name length */
-  MAX_NAME_LENGTH: 255,
-  /** Maximum slug length */
-  MAX_SLUG_LENGTH: 100,
-  /** Maximum description length */
-  MAX_DESCRIPTION_LENGTH: 1000,
-} as const
-
-export type OrganizationRoleKey = keyof typeof ORGANIZATION.ROLES
-export type OrganizationRoleValue = (typeof ORGANIZATION.ROLES)[OrganizationRoleKey]
-
-/**
- * Team management constants.
- */
-export const TEAM = {
-  /** Default team role */
-  DEFAULT_ROLE: "member",
-  /** Team roles */
-  ROLES: {
-    MANAGER: "manager",
-    MEMBER: "member",
-  },
-  /** Maximum name length */
-  MAX_NAME_LENGTH: 255,
-  /** Maximum slug length */
-  MAX_SLUG_LENGTH: 100,
-  /** Maximum description length */
-  MAX_DESCRIPTION_LENGTH: 1000,
-} as const
-
-export type TeamRoleKey = keyof typeof TEAM.ROLES
-export type TeamRoleValue = (typeof TEAM.ROLES)[TeamRoleKey]
-
-/**
- * Permission system constants.
- */
-export const PERMISSIONS = {
-  // System permissions
-  SYSTEM_ADMIN: "system:admin",
-  SYSTEM_USER_MANAGE: "system:user:manage",
-
-  // Organization permissions
-  ORG_CREATE: "organization:create",
-  ORG_READ: "organization:read",
-  ORG_UPDATE: "organization:update",
-  ORG_DELETE: "organization:delete",
-  ORG_MANAGE: "organization:manage",
-  ORG_MEMBER_INVITE: "organization:member:invite",
-  ORG_MEMBER_MANAGE: "organization:member:manage",
-  ORG_MEMBER_REMOVE: "organization:member:remove",
-  ORG_TEAM_CREATE: "organization:team:create",
-  ORG_TEAM_MANAGE: "organization:team:manage",
-  ORG_SETTINGS_MANAGE: "organization:settings:manage",
-
-  // Team permissions
-  TEAM_CREATE: "team:create",
-  TEAM_READ: "team:read",
-  TEAM_UPDATE: "team:update",
-  TEAM_DELETE: "team:delete",
-  TEAM_MANAGE: "team:manage",
-  TEAM_MEMBER_INVITE: "team:member:invite",
-  TEAM_MEMBER_MANAGE: "team:member:manage",
-  TEAM_MEMBER_REMOVE: "team:member:remove",
-  TEAM_SETTINGS_MANAGE: "team:settings:manage",
-
-  // Resource permissions (projects/tasks)
-  PROJECT_CREATE: "project:create",
-  PROJECT_READ: "project:read",
-  PROJECT_UPDATE: "project:update",
-  PROJECT_DELETE: "project:delete",
-  PROJECT_SHARE: "project:share",
-  PROJECT_ADMIN: "project:admin",
-
-  TASK_CREATE: "task:create",
-  TASK_READ: "task:read",
-  TASK_UPDATE: "task:update",
-  TASK_DELETE: "task:delete",
-  TASK_ASSIGN: "task:assign",
-  TASK_COMMENT: "task:comment",
-
-  // Sharing permissions
-  SHARE_READ: "share:read",
-  SHARE_WRITE: "share:write",
-  SHARE_ADMIN: "share:admin",
-} as const
-
-export type PermissionKey = keyof typeof PERMISSIONS
-export type PermissionValue = (typeof PERMISSIONS)[PermissionKey]
-
-/**
- * Resource sharing constants.
- */
-export const RESOURCE_SHARING = {
-  /** Resource types */
-  RESOURCE_TYPES: {
-    PROJECT: "project",
-    TASK: "task",
-  },
-  /** Share target types */
-  TARGET_TYPES: {
-    USER: "user",
-    TEAM: "team",
-    ORGANIZATION: "organization",
-  },
-  /** Permission levels */
-  PERMISSION_LEVELS: {
-    READ: "read",
-    WRITE: "write",
-    ADMIN: "admin",
-  },
-} as const
-
-export type ResourceShareTypeKey = keyof typeof RESOURCE_SHARING.RESOURCE_TYPES
-export type ResourceShareTypeValue = (typeof RESOURCE_SHARING.RESOURCE_TYPES)[ResourceShareTypeKey]
-export type ShareTargetTypeKey = keyof typeof RESOURCE_SHARING.TARGET_TYPES
-export type ShareTargetTypeValue = (typeof RESOURCE_SHARING.TARGET_TYPES)[ShareTargetTypeKey]
-export type PermissionLevelKey = keyof typeof RESOURCE_SHARING.PERMISSION_LEVELS
-export type PermissionLevelValue = (typeof RESOURCE_SHARING.PERMISSION_LEVELS)[PermissionLevelKey]

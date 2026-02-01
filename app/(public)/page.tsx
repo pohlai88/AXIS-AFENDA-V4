@@ -31,7 +31,10 @@ export default function HomePage() {
 
       <section className="flex flex-wrap gap-4">
         <Button asChild size="lg">
-          <Link href={routes.app.root()}>Open App Shell</Link>
+          <Link href={routes.public.login()}>Sign In</Link>
+        </Button>
+        <Button asChild size="lg">
+          <Link href={routes.public.register()}>Create Account</Link>
         </Button>
         <Button variant="outline" asChild size="lg">
           <Link href={routes.components()}>Component Playground</Link>
@@ -49,7 +52,7 @@ export default function HomePage() {
           </CardHeader>
           <CardContent>
             <Button asChild className="w-full">
-              <Link href={routes.login()}>Get Started</Link>
+              <Link href={routes.app.root()}>Get Started</Link>
             </Button>
           </CardContent>
         </Card>

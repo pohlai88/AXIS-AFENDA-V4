@@ -172,7 +172,7 @@ export default function AnalyticsPage() {
       {/* Quick Stats */}
       {quickStats && (
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-4">
-          <Card size="sm">
+          <Card>
             <CardContent className="p-3 sm:p-6">
               <div className="flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
@@ -182,7 +182,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <Card size="sm">
+          <Card>
             <CardContent className="p-3 sm:p-6">
               <div className="flex items-center gap-2">
                 <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
@@ -192,7 +192,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <Card size="sm">
+          <Card>
             <CardContent className="p-3 sm:p-6">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600" />
@@ -202,7 +202,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <Card size="sm">
+          <Card>
             <CardContent className="p-3 sm:p-6">
               <div className="flex items-center gap-2">
                 <Target className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
@@ -212,7 +212,7 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <Card size="sm">
+          <Card>
             <CardContent className="p-3 sm:p-6">
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
@@ -267,7 +267,7 @@ export default function AnalyticsPage() {
               <>
                 {/* Task Metrics */}
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Card size="sm">
+                  <Card>
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
                         <BarChart3 className="h-5 w-5" />
@@ -318,7 +318,7 @@ export default function AnalyticsPage() {
                     </CardContent>
                   </Card>
 
-                  <Card size="sm">
+                  <Card>
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center gap-2">
                         <Clock className="h-5 w-5" />
@@ -377,7 +377,7 @@ export default function AnalyticsPage() {
 
             {/* Trends Tab */}
             {activeTab === "trends" && analytics.productivityTrends.length > 0 && (
-              <Card size="sm">
+              <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <LineChartIcon className="h-5 w-5" />
@@ -427,7 +427,7 @@ export default function AnalyticsPage() {
 
             {/* Projects Tab */}
             {activeTab === "projects" && analytics.projectAnalytics.length > 0 && (
-              <Card size="sm">
+              <Card>
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <PieChartIcon className="h-5 w-5" />

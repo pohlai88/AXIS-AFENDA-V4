@@ -1,18 +1,6 @@
-import "@/lib/server/only"
+import { auth } from "@/lib/auth/server"
 
-import { getNeonAuth } from "@/lib/auth/server"
-
-export async function GET(
-  request: Request,
-  ctx: { params: Promise<{ path: string[] }> }
-) {
-  return getNeonAuth().handler().GET(request, ctx)
-}
-
-export async function POST(
-  request: Request,
-  ctx: { params: Promise<{ path: string[] }> }
-) {
-  return getNeonAuth().handler().POST(request, ctx)
-}
+// Export the GET and POST handlers from the auth server instance
+// This automatically handles all auth endpoints (/sign-in, /sign-out, /session, etc.)
+export const { GET, POST } = auth.handler()
 

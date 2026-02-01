@@ -1,132 +1,57 @@
+import { getServerEnv } from "@/lib/env/server"
 import { NextRequest, NextResponse } from "next/server"
-import { z } from "zod"
-import { db } from "@/lib/server/db"
-import { users, passwordResetTokens } from "@/lib/server/db/schema"
-import { eq, and } from "drizzle-orm"
-import { nanoid } from "nanoid"
-import bcrypt from "bcryptjs"
-import { logger } from "@/lib/server/logger"
 
-const forgotPasswordSchema = z.object({
-  email: z.string().email("Invalid email address"),
-})
-
-const resetPasswordSchema = z.object({
-  token: z.string().min(1, "Token is required"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-})
+const env = getServerEnv()
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { searchParams } = new URL(request.url)
-    const action = searchParams.get("action")
+    const { token, password } = await request.json()
 
-    if (action === "forgot") {
-      // Handle forgot password request
-      const validatedData = forgotPasswordSchema.parse(body)
+    if (!token || !password) {
+      return NextResponse.json(
+        { error: "Missing token or password" },
+        { status: 400 }
+      )
+    }
 
-      const user = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, validatedData.email))
-        .limit(1)
+    if (password.length < 8) {
+      return NextResponse.json(
+        { error: "Password must be at least 8 characters" },
+        { status: 400 }
+      )
+    }
 
-      if (!user[0]) {
-        // Don't reveal if email exists or not
-        return NextResponse.json({
-          message: "If an account with that email exists, a password reset link has been sent.",
-        })
-      }
+    // Call Neon Auth API to reset password
+    const authUrl = new URL(
+      "/auth/reset-password",
+      env.NEON_AUTH_BASE_URL || "https://localhost:3000"
+    )
 
-      // Generate reset token
-      const token = nanoid(32)
-      const expires = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
-
-      // Delete any existing tokens for this user
-      await db
-        .delete(passwordResetTokens)
-        .where(eq(passwordResetTokens.userId, user[0].id))
-
-      // Create new reset token
-      await db.insert(passwordResetTokens).values({
-        userId: user[0].id,
+    const response = await fetch(authUrl.toString(), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
         token,
-        expires,
-      })
+        password,
+      }),
+    })
 
-      // TODO: Send email with reset link
-      // For now, just return success
-      logger.info({ email: user[0].email }, "[auth] password reset token generated (email sending not implemented)")
-
-      return NextResponse.json({
-        message: "If an account with that email exists, a password reset link has been sent.",
-      })
-
-    } else if (action === "reset") {
-      // Handle password reset
-      const validatedData = resetPasswordSchema.parse(body)
-
-      // Find valid token
-      const resetToken = await db
-        .select()
-        .from(passwordResetTokens)
-        .where(
-          and(
-            eq(passwordResetTokens.token, validatedData.token),
-            eq(passwordResetTokens.used, false)
-          )
-        )
-        .limit(1)
-
-      if (!resetToken[0] || resetToken[0].expires < new Date()) {
-        return NextResponse.json(
-          { message: "Invalid or expired reset token" },
-          { status: 400 }
-        )
-      }
-
-      // Hash new password
-      const hashedPassword = await bcrypt.hash(validatedData.password, 12)
-
-      // Update user password
-      await db
-        .update(users)
-        .set({
-          password: hashedPassword,
-          updatedAt: new Date(),
-        })
-        .where(eq(users.id, resetToken[0].userId))
-
-      // Mark token as used
-      await db
-        .update(passwordResetTokens)
-        .set({ used: true })
-        .where(eq(passwordResetTokens.id, resetToken[0].id))
-
-      return NextResponse.json({
-        message: "Password reset successfully",
-      })
-
-    } else {
+    if (!response.ok) {
+      const error = await response.json()
       return NextResponse.json(
-        { message: "Invalid action" },
-        { status: 400 }
+        { error: error.message || "Failed to reset password" },
+        { status: response.status }
       )
     }
 
+    const data = await response.json()
+    return NextResponse.json(data)
   } catch (error) {
-    logger.error({ error }, "[auth] reset-password failed")
-    
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { message: "Invalid input", errors: error.issues },
-        { status: 400 }
-      )
-    }
-
+    console.error("Reset password error:", error)
     return NextResponse.json(
-      { message: "Internal server error" },
+      { error: "An unexpected error occurred" },
       { status: 500 }
     )
   }

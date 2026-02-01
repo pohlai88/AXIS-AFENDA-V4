@@ -2,13 +2,11 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono, Figtree, Inter } from "next/font/google"
 import "./globals.css"
 
-import { AuthProvider } from "@/app/auth-provider"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { siteConfig } from "@/lib/config/site"
 import { OfflineStatusIndicator } from "@/components/offline-status-indicator"
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
-import { ConflictResolutionModal } from "@/components/conflict-resolution-modal"
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree" })
 
@@ -60,13 +58,10 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} bg-background text-foreground min-h-svh antialiased font-sans`}
       >
         <ThemeProvider>
-          <AuthProvider>
-            {children}
-            <Toaster />
-            <OfflineStatusIndicator />
-            <PWAInstallPrompt />
-            <ConflictResolutionModal isOpen={false} onClose={() => { }} />
-          </AuthProvider>
+          {children}
+          <Toaster />
+          <OfflineStatusIndicator />
+          <PWAInstallPrompt />
         </ThemeProvider>
         <script
           dangerouslySetInnerHTML={{

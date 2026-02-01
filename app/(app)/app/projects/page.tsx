@@ -128,7 +128,7 @@ export default function ProjectsPage() {
         </p>
       </div>
 
-      <Card size="sm">
+      <Card>
         <CardHeader className="border-b px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg">Projects</CardTitle>
@@ -193,13 +193,13 @@ export default function ProjectsPage() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    
+
                     {project.description && (
                       <p className="mt-2 text-sm text-muted-foreground line-clamp-2">
                         {project.description}
                       </p>
                     )}
-                    
+
                     <div className="mt-3 flex items-center justify-between">
                       <Badge variant="secondary" className="text-xs">
                         {project.taskCount || 0} tasks

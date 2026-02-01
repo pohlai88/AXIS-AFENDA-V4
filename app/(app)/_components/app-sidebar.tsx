@@ -21,15 +21,25 @@ import {
   SettingsIcon,
   ShieldCheckIcon,
   FolderIcon,
+  Building2Icon,
 } from "lucide-react"
+import type { Icon } from "@tabler/icons-react"
 
-import { NavMain, type NavMainItem } from "@/components/nav-main"
+import { NavMain } from "@/components/nav-main"
 import { NavProjects, type NavProjectItem } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
 
 type Props = {
   userId: string
+}
+
+type NavMainItem = {
+  title: string
+  url: string
+  icon?: Icon
+  isActive?: boolean
+  items?: { title: string; url: string }[]
 }
 
 export function AppSidebar({ userId }: Props) {
@@ -44,12 +54,13 @@ export function AppSidebar({ userId }: Props) {
   const isSettings = pathname.startsWith(routes.app.settings.root())
   const isHome = pathname === routes.home()
   const isComponents = pathname.startsWith(routes.components())
+  const isOrganization = pathname.startsWith(routes.organization.root())
 
   const navMain: NavMainItem[] = [
     {
       title: "App",
       url: routes.app.root(),
-      icon: LayoutDashboardIcon,
+      icon: LayoutDashboardIcon as unknown as Icon,
       isActive: isDashboard || isTasks || isProjects || isModules || isApprovals || isAnalytics,
       items: [
         { title: "Dashboard", url: routes.app.dashboard() },
@@ -61,18 +72,28 @@ export function AppSidebar({ userId }: Props) {
       ],
     },
     {
+      title: "Organization",
+      url: routes.organization.root(),
+      icon: Building2Icon as unknown as Icon,
+      isActive: isOrganization,
+      items: [
+        { title: "Overview", url: routes.organization.root() },
+        { title: "Teams", url: routes.teams.root() },
+      ],
+    },
+    {
       title: "Settings",
       url: routes.app.settings.root(),
-      icon: SettingsIcon,
+      icon: SettingsIcon as unknown as Icon,
       isActive: isSettings,
       items: [
         { title: "Design System", url: routes.app.settings.designSystem() },
       ],
     },
     {
-      title: "Public",
+      title: "Home",
       url: routes.home(),
-      icon: HomeIcon,
+      icon: HomeIcon as unknown as Icon,
       isActive: isHome || isComponents,
       items: [
         { title: "Home", url: routes.home() },

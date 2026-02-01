@@ -6,7 +6,7 @@ import { AlertCircleIcon } from "lucide-react"
 
 export default function Error({ error }: { error: Error & { digest?: string } }) {
   return (
-    <Card size="sm">
+    <Card>
       <CardHeader className="border-b">
         <CardTitle>Something went wrong</CardTitle>
       </CardHeader>

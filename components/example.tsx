@@ -35,7 +35,7 @@ function Example({
       )}
       {...props}
     >
-      <Card size="sm" className="min-w-0 flex-1">
+      <Card className="min-w-0 flex-1">
         {title ? (
           <CardHeader className="border-b py-3">
             <CardTitle className="text-muted-foreground text-xs font-medium">

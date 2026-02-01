@@ -29,6 +29,7 @@ export function PWAInstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   // Check sessionStorage on initial render
   const [showPrompt, setShowPrompt] = useState(() => {
+    if (typeof window === "undefined") return false
     const dismissed = sessionStorage.getItem("pwa-install-dismissed")
     return !dismissed
   })

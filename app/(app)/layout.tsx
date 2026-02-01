@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation"
-
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { siteConfig } from "@/lib/config/site"
@@ -15,12 +14,16 @@ type Props = {
 }
 
 export default async function AppShellLayout({ children }: Props) {
-  const auth = await getAuthContext()
-  if (!auth.userId) redirect(routes.login({ callbackUrl: routes.app.root() }))
+  // Check authentication
+  const authContext = await getAuthContext()
+  
+  if (!authContext.isAuthenticated || !authContext.userId) {
+    redirect(routes.public.login())
+  }
 
   return (
     <SidebarProvider defaultOpen>
-      <AppSidebar userId={auth.userId} />
+      <AppSidebar userId={authContext.userId} />
       <SidebarInset>
         <header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b px-4">
           <SidebarTrigger />

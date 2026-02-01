@@ -164,7 +164,7 @@ export default function TasksPage() {
         </p>
       </div>
 
-      <Card size="sm">
+      <Card>
         <CardHeader className="border-b px-4 sm:px-6 py-3 sm:py-4">
           <CardTitle className="text-lg">Quick add</CardTitle>
         </CardHeader>
@@ -261,7 +261,7 @@ export default function TasksPage() {
         </TabsList>
       </Tabs>
 
-      <Card size="sm">
+      <Card>
         <CardHeader className="border-b px-4 sm:px-6 py-3 sm:py-4">
           <CardTitle className="text-lg">Task list</CardTitle>
         </CardHeader>

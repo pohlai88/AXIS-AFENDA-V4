@@ -1,82 +1,141 @@
 import "@/lib/server/only"
 
 import { headers } from "next/headers"
+import { logger } from "@/lib/server/logger"
+import { HEADER_NAMES, COOKIE_NAMES } from "@/lib/constants"
+import { verifyNeonJwt } from "@/lib/server/auth/jwt"
+import { syncUserFromAuth } from "@/lib/server/auth/user-sync"
+import { logLogin, extractIpAddress, extractUserAgent } from "@/lib/server/auth/audit-log"
 
-import { getServerEnv } from "@/lib/env/server"
-import { getNeonAuth } from "@/lib/auth/server"
-import { getTenantContext } from "@/lib/server/tenant/context"
-import { getNeonAuthConfig, validateNeonAuthToken } from "./neon-integration"
-import { decodeNeonJWT, extractUserIdFromJWT, extractUserRoleFromJWT } from "./jwt-utils"
-import { HEADER_NAMES } from "@/lib/constants/headers"
-
-export type AuthContext = {
-  userId: string | null
+export interface AuthContext {
+  userId: string
+  sessionId?: string
+  email?: string
   roles: string[]
-  tenantId: string | null
-  authSource: "header" | "neon" | "none"
+  authSource: "neon-auth" | "header" | "anonymous"
+  isAuthenticated: boolean
 }
 
 export async function getAuthContext(): Promise<AuthContext> {
-  const [tenant, headersList] = await Promise.all([getTenantContext(), headers()])
+  try {
+    const headersList = await headers()
+    const authHeader = headersList.get("authorization")
+    const tokenFromHeader = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null
+    const tokenFromCookie = extractNeonAuthCookie(headersList.get("cookie"))
+    const token = tokenFromHeader ?? tokenFromCookie
 
-  // Primary: Neon Auth session (cookie-based, via Neon Auth proxy route).
-  // Fallback: x-user-id header (set by proxy middleware for existing API tenancy).
-  // Fallback: Neon Auth Bearer token (used for Data API auth).
-
-  let userId: string | null = null
-  const userRoleHeader = headersList.get(HEADER_NAMES.USER_ROLE)
-  let roles: string[] = []
-  let authSource: AuthContext["authSource"] = "none"
-
-  const env = getServerEnv()
-  const neonSessionEnabled = Boolean(env.NEON_AUTH_BASE_URL && env.NEON_AUTH_COOKIE_SECRET)
-
-  if (neonSessionEnabled) {
-    try {
-      const { data } = await getNeonAuth().getSession()
-      const sessionUserId = data?.user?.id ?? null
-      if (sessionUserId) {
-        userId = sessionUserId
-        authSource = "neon"
+    if (!token) {
+      return {
+        userId: "",
+        roles: [],
+        authSource: "anonymous",
+        isAuthenticated: false,
       }
-    } catch {
-      // If session lookup fails, fall back to header/token.
     }
-  }
 
-  // Fallback: proxy-injected header (keeps existing API tenancy working)
-  if (!userId) {
-    userId = headersList.get(HEADER_NAMES.USER_ID)
-    if (userId) authSource = "header"
-  }
+    const verified = await verifyNeonJwt(token)
 
-  if (userRoleHeader && roles.length === 0) roles = [userRoleHeader]
-
-  // Try Neon Auth as fallback (Bearer token)
-  if (!userId) {
-    const neonConfig = getNeonAuthConfig()
-    if (neonConfig.enabled) {
-      const authHeader = headersList.get("Authorization")
-
-      if (authHeader && authHeader.startsWith("Bearer ")) {
-        const token = authHeader.substring(7)
-        if (await validateNeonAuthToken(token)) {
-          const payload = await decodeNeonJWT(token)
-          if (payload) {
-            userId = extractUserIdFromJWT(payload)
-            roles = userId ? [extractUserRoleFromJWT(payload)] : []
-            authSource = userId ? "neon" : "none"
-          }
+    if (!verified) {
+      const headerUserId = headersList.get(HEADER_NAMES.USER_ID)
+      if (headerUserId) {
+        return {
+          userId: headerUserId,
+          sessionId: token,
+          roles: ["user"],
+          authSource: "header",
+          isAuthenticated: true,
         }
       }
-    }
-  }
 
-  return {
-    userId,
-    roles,
-    tenantId: tenant.tenantId,
-    authSource,
+      return {
+        userId: "",
+        roles: [],
+        authSource: "anonymous",
+        isAuthenticated: false,
+      }
+    }
+
+    const payload = verified.payload
+    const claims = payload as Record<string, unknown>
+    const userId = (payload.sub ?? claims.user_id ?? claims.userId) as string | undefined
+
+    if (!userId) {
+      return {
+        userId: "",
+        roles: [],
+        authSource: "anonymous",
+        isAuthenticated: false,
+      }
+    }
+
+    const email = (payload.email ?? claims.email_address) as string | undefined
+    const name = (payload.name ?? claims.preferred_username) as string | undefined
+    const avatar = (payload.picture ?? claims.avatar_url) as string | undefined
+    const provider = (claims.provider ?? payload.iss) as string | undefined
+    const emailVerified = Boolean(claims.email_verified)
+
+    let syncResult: Awaited<ReturnType<typeof syncUserFromAuth>> | null = null
+
+    try {
+      syncResult = await syncUserFromAuth({
+        id: userId,
+        email,
+        name,
+        avatar,
+        provider,
+        emailVerified,
+      })
+    } catch (syncError) {
+      logger.warn({ err: syncError, userId }, "Failed to sync user from Neon Auth")
+    }
+
+    const role = syncResult?.role ?? "user"
+    const roles = Array.isArray(claims.roles)
+      ? (claims.roles as string[])
+      : claims.role
+        ? [String(claims.role)]
+        : [role]
+
+    // Log successful login (fire and forget)
+    if (syncResult?.created) {
+      // New user signup
+      logLogin(userId, {
+        provider,
+        sessionId: token,
+        ipAddress: extractIpAddress(headersList),
+        userAgent: extractUserAgent(headersList),
+      }).catch((err) => logger.warn({ err }, "Failed to log signup event"))
+    }
+
+    return {
+      userId,
+      sessionId: token,
+      email: syncResult?.email ?? email,
+      roles,
+      authSource: "neon-auth",
+      isAuthenticated: true,
+    }
+  } catch (error) {
+    logger.error("Error getting auth context:", error)
+    return {
+      userId: "",
+      roles: [],
+      authSource: "anonymous",
+      isAuthenticated: false,
+    }
   }
 }
 
+function extractNeonAuthCookie(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null
+
+  const cookies = cookieHeader.split(";").map((cookie) => cookie.trim())
+  const neonCookie = cookies.find((cookie) => cookie.startsWith(COOKIE_NAMES.NEON_AUTH))
+
+  if (!neonCookie) return null
+
+  const value = neonCookie.split("=")[1]
+  if (!value) return null
+
+  return decodeURIComponent(value)
+}

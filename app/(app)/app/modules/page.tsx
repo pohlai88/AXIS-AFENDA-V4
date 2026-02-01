@@ -26,7 +26,7 @@ export default function ModulesPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {enabledModules.map((m) => (
-          <Card key={m.slug} size="sm">
+          <Card key={m.slug}>
             <CardHeader className="border-b">
               <CardTitle>{m.name}</CardTitle>
               <CardDescription>

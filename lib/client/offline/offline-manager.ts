@@ -136,7 +136,9 @@ class OfflineManager {
       // Get current user ID (this should come from auth context)
       const userId = await this.getCurrentUserId()
       if (!userId) {
-        throw new Error("User not authenticated")
+        // User not authenticated - skip sync silently
+        this.setStatus("online")
+        return
       }
 
       // Process sync queue

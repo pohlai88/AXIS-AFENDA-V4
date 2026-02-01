@@ -12,7 +12,7 @@ import type { UpdateOrganizationInput } from "@/lib/contracts/organizations"
 import { requireOrganizationAdmin } from "@/lib/server/permissions/middleware"
 
 interface Context {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export async function GET(req: Request, context: Context) {
@@ -22,7 +22,8 @@ export async function GET(req: Request, context: Context) {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
     }
 
-    const { id } = organizationParamsSchema.parse(context.params)
+    const params = await context.params
+    const { id } = organizationParamsSchema.parse(params)
 
     // Check if user is member of the organization
     const isMember = await organizationService.isMember(auth.userId, id)
@@ -49,7 +50,8 @@ export async function PATCH(req: Request, context: Context) {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
     }
 
-    const { id } = organizationParamsSchema.parse(context.params)
+    const params = await context.params
+    const { id } = organizationParamsSchema.parse(params)
     const data = await parseJson(req, updateOrganizationSchema)
 
     // Check admin permissions
@@ -74,7 +76,8 @@ export async function DELETE(req: Request, context: Context) {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
     }
 
-    const { id } = organizationParamsSchema.parse(context.params)
+    const params = await context.params
+    const { id } = organizationParamsSchema.parse(params)
 
     // Check admin permissions
     await requireOrganizationAdmin()(req)
