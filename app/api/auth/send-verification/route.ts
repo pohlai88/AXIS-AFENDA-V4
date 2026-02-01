@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       .limit(1)
 
     if (!user) {
-      logger.error('User not found for verification email', { userId, email })
+      logger.error({ userId, email }, 'User not found for verification email')
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
     // Check if already verified
     if (user.emailVerified) {
-      logger.info('User already verified', { userId })
+      logger.info({ userId }, 'User already verified')
       return NextResponse.json({
         success: true,
         alreadyVerified: true,
@@ -87,29 +87,29 @@ export async function POST(request: NextRequest) {
     )
 
     if (!result.success) {
-      logger.error('Failed to send verification email', {
+      logger.error({
         userId,
         email,
         error: result.error,
-      })
+      }, 'Failed to send verification email')
       return NextResponse.json(
         { error: 'Failed to send verification email' },
         { status: 500 }
       )
     }
 
-    logger.info('Verification email sent', {
+    logger.info({
       userId,
       email,
       messageId: result.messageId,
-    })
+    }, 'Verification email sent')
 
     return NextResponse.json({
       success: true,
       message: 'Verification email sent',
     })
   } catch (error) {
-    logger.error('Error sending verification email', { error })
+    logger.error({ error }, 'Error sending verification email')
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

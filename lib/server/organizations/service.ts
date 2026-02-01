@@ -92,6 +92,7 @@ export class OrganizationService {
   async listForUser(userId: string, query: OrganizationQuery) {
     const offset = (query.page - 1) * query.limit
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let whereClause: any = eq(memberships.userId, userId)
 
     if (query.search) {
@@ -236,6 +237,7 @@ export class OrganizationService {
   async getMembers(organizationId: string, query: OrganizationQuery) {
     const offset = (query.page - 1) * query.limit
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let whereClause: any = and(
       eq(memberships.organizationId, organizationId),
       eq(memberships.isActive, true)

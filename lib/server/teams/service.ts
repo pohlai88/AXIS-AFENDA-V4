@@ -130,6 +130,7 @@ export class TeamService {
 
     const offset = (query.page - 1) * query.limit
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let whereClause: any = eq(teams.organizationId, organizationId)
 
     if (query.search) {
@@ -189,6 +190,7 @@ export class TeamService {
   async listForUser(userId: string, query: TeamQuery) {
     const offset = (query.page - 1) * query.limit
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let whereClause: any = eq(memberships.userId, userId)
 
     if (query.search) {

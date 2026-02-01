@@ -27,7 +27,7 @@ export async function GET() {
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
-    const tenantId = tenant.tenantId ?? auth.tenantId
+    const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const result = await getTenantDesignSystem(tenantId)
@@ -41,10 +41,10 @@ export async function GET() {
   } catch (e) {
     if (e instanceof HttpError) return fail(e.toApiError(requestId), e.status)
     logger.error({ error: e, requestId }, "[design-system] GET error")
-    return fail({ 
-      code: "INTERNAL", 
-      message: e instanceof Error ? e.message : "Internal error", 
-      requestId 
+    return fail({
+      code: "INTERNAL",
+      message: e instanceof Error ? e.message : "Internal error",
+      requestId
     }, 500)
   }
 }
@@ -59,7 +59,7 @@ export async function PUT(request: Request) {
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
-    const tenantId = tenant.tenantId ?? auth.tenantId
+    const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const body = await parseJson(request, updateDesignSystemRequestSchema)
@@ -77,10 +77,10 @@ export async function PUT(request: Request) {
   } catch (e) {
     if (e instanceof HttpError) return fail(e.toApiError(requestId), e.status)
     logger.error({ error: e, requestId }, "[design-system] PUT error")
-    return fail({ 
-      code: "INTERNAL", 
-      message: e instanceof Error ? e.message : "Internal error", 
-      requestId 
+    return fail({
+      code: "INTERNAL",
+      message: e instanceof Error ? e.message : "Internal error",
+      requestId
     }, 500)
   }
 }

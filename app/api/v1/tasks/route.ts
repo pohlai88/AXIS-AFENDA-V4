@@ -24,7 +24,7 @@ export async function GET(request: Request) {
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
-    const tenantId = tenant.tenantId ?? auth.tenantId
+    const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     // Parse query parameters
@@ -77,7 +77,7 @@ export async function POST(request: Request) {
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
-    const tenantId = tenant.tenantId ?? auth.tenantId
+    const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const body = await parseJson(request, createTaskRequestSchema)

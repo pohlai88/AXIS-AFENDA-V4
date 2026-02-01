@@ -28,6 +28,7 @@ const ServerEnvSchema = z.object({
 
   // Public URLs accessible in server context
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
+  NEXT_PUBLIC_NEON_AUTH_URL: z.string().url().optional(),
 })
 
 export type ServerEnv = z.infer<typeof ServerEnvSchema>

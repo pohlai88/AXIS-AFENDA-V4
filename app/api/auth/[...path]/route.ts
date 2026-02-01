@@ -6,12 +6,11 @@ import { verifyCaptchaToken } from "@/lib/server/auth/captcha"
 import { createUnlockToken } from "@/lib/server/auth/unlock"
 import { sendSuspiciousLoginAlert } from "@/lib/server/auth/emails/suspicious-login"
 
-const authHandlers = auth.handler()
 const RATE_LIMIT_EMAIL_LOCKOUT_THRESHOLD = 5
 
 // Export the GET handler from the auth server instance
 // This automatically handles all auth endpoints (/sign-in, /sign-out, /session, etc.)
-export const { GET } = authHandlers
+export const { GET } = auth.handler()
 
 function isSignInRequest(request: NextRequest): boolean {
 	return request.nextUrl.pathname.includes("/sign-in")
@@ -52,9 +51,12 @@ async function extractAuthPayload(request: NextRequest): Promise<{ email?: strin
 	return {}
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(
+	request: NextRequest,
+	context: { params: Promise<{ path: string[] }> }
+) {
 	if (!isSignInRequest(request)) {
-		return authHandlers.POST(request)
+		return auth.handler().POST(request, context)
 	}
 
 	const { email, captchaToken } = await extractAuthPayload(request)
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
 		}
 	}
 
-	const response = await authHandlers.POST(request)
+	const response = await auth.handler().POST(request, context)
 
 	if (!response.ok) {
     const result = await recordFailedLoginAttempt({ email, ipAddress })

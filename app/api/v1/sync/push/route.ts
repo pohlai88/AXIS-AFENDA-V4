@@ -94,7 +94,7 @@ export async function POST(req: NextRequest) {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type TransactionType = any
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 async function processOperation(
   tx: TransactionType,
   operation: {
@@ -117,7 +117,7 @@ async function processOperation(
   throw new Error(`Unknown entity type: ${entityType}`)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+ 
 async function processTaskOperation(
   tx: TransactionType,
   operation: string,

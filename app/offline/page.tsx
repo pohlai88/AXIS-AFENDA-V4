@@ -1,3 +1,5 @@
+"use client"
+
 /**
  * Offline page - shown when no network connection
  */

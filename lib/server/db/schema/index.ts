@@ -354,6 +354,7 @@ export const teams = pgTable(
     uniqueTeamSlug: index("teams_unique_slug").on(table.organizationId, table.slug),
     isActiveIdx: index("teams_is_active_idx").on(table.isActive),
   })
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 ) as any
 
 // ============ Memberships Table ============

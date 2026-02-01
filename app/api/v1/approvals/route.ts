@@ -22,7 +22,7 @@ export async function GET() {
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
-    const tenantId = tenant.tenantId ?? auth.tenantId
+    const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const rows = await listApprovals(tenantId)
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   try {
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
-    const tenantId = tenant.tenantId ?? auth.tenantId
+    const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const { title } = await parseJson(req, CreateApprovalSchema)

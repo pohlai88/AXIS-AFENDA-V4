@@ -371,10 +371,13 @@ export const offlineUtils = {
    */
   async isStorageAvailable(): Promise<boolean> {
     try {
+      if (typeof window === "undefined" || typeof indexedDB === "undefined") {
+        return false
+      }
       await offlineDb.open()
       return true
     } catch (error) {
-      console.error("IndexedDB not available:", error)
+      console.warn("IndexedDB not available:", error)
       return false
     }
   },

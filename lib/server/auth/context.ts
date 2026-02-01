@@ -132,7 +132,7 @@ export async function getAuthContext(): Promise<AuthContext> {
       shouldRefresh,
     }
   } catch (error) {
-    logger.error("Error getting auth context:", error)
+    logger.error({ err: error }, "Error getting auth context")
     return {
       userId: "",
       roles: [],

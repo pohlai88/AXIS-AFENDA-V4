@@ -270,6 +270,7 @@ export class FeatureFlagService {
         return
       }
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const preferences = (user.preferences as Record<string, any>) || {}
       delete preferences.featureFlags
 

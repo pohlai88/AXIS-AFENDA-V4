@@ -26,7 +26,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
       getTenantContext(),
     ])
     if (!auth.userId) throw Unauthorized()
-    const tenantId = tenant.tenantId ?? auth.tenantId
+    const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const { status } = await parseJson(req, UpdateApprovalStatusSchema)

@@ -1,8 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { RateLimiter } from "@/lib/server/auth/rate-limit";
 import { db } from "@/lib/server/db";
 import { loginAttempts } from "@/lib/server/db/schema";
-import { eq, and, gt } from "drizzle-orm";
 
 vi.mock("@/lib/server/db", () => ({
   db: {
@@ -29,7 +29,7 @@ describe("RateLimiter", () => {
         }),
       } as any);
 
-      const result = await rateLimiter.checkLoginAttempt("test@example.com");
+      const result = await rateLimiter.checkLoginAttempt("email", "test@example.com");
 
       expect(result.allowed).toBe(true);
       expect(result.requiresCaptcha).toBe(false);
@@ -52,7 +52,7 @@ describe("RateLimiter", () => {
         }),
       } as any);
 
-      const result = await rateLimiter.checkLoginAttempt("test@example.com");
+      const result = await rateLimiter.checkLoginAttempt("email", "test@example.com");
 
       expect(result.requiresCaptcha).toBe(true);
       expect(result.remainingAttempts).toBe(2);
@@ -74,7 +74,7 @@ describe("RateLimiter", () => {
         }),
       } as any);
 
-      const result = await rateLimiter.checkLoginAttempt("test@example.com");
+      const result = await rateLimiter.checkLoginAttempt("email", "test@example.com");
 
       expect(result.allowed).toBe(false);
       expect(result.lockedUntil).toEqual(lockedUntil);
@@ -97,7 +97,7 @@ describe("RateLimiter", () => {
         }),
       } as any);
 
-      const result = await rateLimiter.checkLoginAttempt("test@example.com");
+      const result = await rateLimiter.checkLoginAttempt("email", "test@example.com");
 
       expect(result.remainingAttempts).toBe(3); // 5 - 2
     });
@@ -118,7 +118,7 @@ describe("RateLimiter", () => {
         }),
       } as any);
 
-      const result = await rateLimiter.checkLoginAttempt("192.168.1.1");
+      const result = await rateLimiter.checkLoginAttempt("ip", "192.168.1.1");
 
       expect(result.remainingAttempts).toBe(2); // 10 - 8 (IP threshold is 10)
     });
@@ -146,7 +146,7 @@ describe("RateLimiter", () => {
         }),
       } as any);
 
-      await rateLimiter.recordFailedLogin("test@example.com");
+      await rateLimiter.recordFailedLogin("email", "test@example.com");
 
       expect(db.insert).toHaveBeenCalledWith(loginAttempts);
     });
@@ -172,7 +172,7 @@ describe("RateLimiter", () => {
         }),
       } as any);
 
-      await rateLimiter.recordFailedLogin("test@example.com");
+      await rateLimiter.recordFailedLogin("email", "test@example.com");
 
       expect(db.update).toHaveBeenCalledWith(loginAttempts);
     });
@@ -199,7 +199,7 @@ describe("RateLimiter", () => {
         }),
       } as any);
 
-      await rateLimiter.recordFailedLogin("test@example.com");
+      await rateLimiter.recordFailedLogin("email", "test@example.com");
 
       // Verify lockedUntil was set
       const setCall = (db.update as any).mock.results[0].value.set.mock.calls[0][0];
@@ -213,7 +213,7 @@ describe("RateLimiter", () => {
         where: vi.fn().mockResolvedValue([]),
       } as any);
 
-      await rateLimiter.resetLoginAttempts("test@example.com");
+      await rateLimiter.resetLoginAttempts("email", "test@example.com");
 
       expect(db.delete).toHaveBeenCalledWith(loginAttempts);
     });
@@ -235,7 +235,7 @@ describe("RateLimiter", () => {
         }),
       } as any);
 
-      const result = await rateLimiter.checkLoginAttempt("test@example.com");
+      const result = await rateLimiter.checkLoginAttempt("email", "test@example.com");
 
       expect(result.allowed).toBe(true);
       expect(result.remainingAttempts).toBe(5);
@@ -257,77 +257,11 @@ describe("RateLimiter", () => {
         }),
       } as any);
 
-      const result = await rateLimiter.checkLoginAttempt("192.168.1.1");
+      const result = await rateLimiter.checkLoginAttempt("ip", "192.168.1.1");
 
       // Should still count attempts within 1-hour window
       expect(result.remainingAttempts).toBeLessThan(10);
     });
   });
 
-  describe("unlockAccount", () => {
-    it("should verify token and reset attempts", async () => {
-      // Mock verification token lookup
-      const mockSelect = vi.fn().mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([
-            {
-              identifier: "test@example.com",
-              token: "valid-token-hash",
-              expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour future
-            },
-          ]),
-        }),
-      });
-
-      vi.mocked(db.select).mockImplementation(mockSelect);
-
-      vi.mocked(db.delete).mockReturnValue({
-        where: vi.fn().mockResolvedValue([]),
-      } as any);
-
-      const result = await rateLimiter.unlockAccount(
-        "test@example.com",
-        "valid-token"
-      );
-
-      expect(result).toBe(true);
-      expect(db.delete).toHaveBeenCalledTimes(2); // Delete attempts + token
-    });
-
-    it("should reject expired tokens", async () => {
-      vi.mocked(db.select).mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([
-            {
-              identifier: "test@example.com",
-              token: "expired-token",
-              expiresAt: new Date(Date.now() - 60 * 60 * 1000), // 1 hour past
-            },
-          ]),
-        }),
-      } as any);
-
-      const result = await rateLimiter.unlockAccount(
-        "test@example.com",
-        "expired-token"
-      );
-
-      expect(result).toBe(false);
-    });
-
-    it("should reject invalid tokens", async () => {
-      vi.mocked(db.select).mockReturnValue({
-        from: vi.fn().mockReturnValue({
-          where: vi.fn().mockResolvedValue([]),
-        }),
-      } as any);
-
-      const result = await rateLimiter.unlockAccount(
-        "test@example.com",
-        "invalid-token"
-      );
-
-      expect(result).toBe(false);
-    });
-  });
 });

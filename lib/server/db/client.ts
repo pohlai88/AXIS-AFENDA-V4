@@ -31,11 +31,13 @@ let cachedClient: postgres.Sql | null = null
 function createDb(): { db: Db; client: postgres.Sql } {
   const connectionString = requireServerEnv("DATABASE_URL")
 
+  const sslRequired = /sslmode=require/i.test(connectionString)
+
   // Create connection pool
   const client = postgres(connectionString, {
     ...DB_CONFIG,
-    // Enable SSL in production
-    ssl: process.env.NODE_ENV === 'production' ? 'require' : false,
+    // Enable SSL when required by connection string or in production
+    ssl: sslRequired || process.env.NODE_ENV === 'production' ? 'require' : false,
   })
 
   const db = drizzle(client, {

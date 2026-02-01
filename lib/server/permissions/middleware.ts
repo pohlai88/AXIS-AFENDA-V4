@@ -9,6 +9,7 @@ import { getAuthContext } from "@/lib/server/auth/context"
  * Create a middleware that checks for a specific permission
  */
 export function requirePermission(permission: PermissionValue) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return async (req: Request, context?: { params?: any }) => {
     const auth = await getAuthContext()
     if (!auth.userId) {
@@ -36,6 +37,7 @@ export function requirePermission(permission: PermissionValue) {
  * Create a middleware that checks if user can read a resource
  */
 export function requireReadAccess(resourceType: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return async (req: Request, context?: { params?: any }) => {
     const auth = await getAuthContext()
     if (!auth.userId) {
@@ -71,6 +73,7 @@ export function requireReadAccess(resourceType: string) {
  * Create a middleware that checks if user can modify a resource
  */
 export function requireWriteAccess(resourceType: string) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return async (req: Request, context?: { params?: any }) => {
     const auth = await getAuthContext()
     if (!auth.userId) {

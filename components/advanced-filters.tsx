@@ -280,7 +280,7 @@ export function AdvancedFilters({
 
                 <Separator className="-mx-6" />
 
-                {/* Status */
+                {/* Status */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Status</Label>
                   <div className="space-y-2">
@@ -375,7 +375,7 @@ export function AdvancedFilters({
 
                 <Separator className="-mx-6" />
 
-                {/* Priority */
+                {/* Projects */}
                 {projects.length > 0 && (
                   <div className="space-y-2">
                     <Label className="text-sm font-medium flex items-center gap-2">
@@ -420,7 +420,7 @@ export function AdvancedFilters({
 
                 <Separator className="-mx-6" />
 
-                {/* Boolean Filters */
+                {/* Boolean Filters */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium flex items-center gap-2">
                     <MoreHorizontal className="h-4 w-4" />

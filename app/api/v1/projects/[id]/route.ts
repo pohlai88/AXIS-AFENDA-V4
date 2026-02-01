@@ -23,7 +23,7 @@ export async function GET(
     const { id } = await params
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
-    const tenantId = tenant.tenantId ?? auth.tenantId
+    const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const project = await getProject(auth.userId, id)
@@ -46,7 +46,7 @@ export async function PATCH(
     const { id } = await params
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
-    const tenantId = tenant.tenantId ?? auth.tenantId
+    const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const body = await parseJson(request, updateProjectRequestSchema)
@@ -71,7 +71,7 @@ export async function DELETE(
     const { id } = await params
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
-    const tenantId = tenant.tenantId ?? auth.tenantId
+    const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const deleted = await deleteProject(auth.userId, id)
