@@ -120,11 +120,25 @@ Read [](file:///c%3A/AI-BOS/NEXIS-AFENDA-V4/NEON-AUTH-QUICK-REFERENCE.md#1-1), l
    - ✅ Active session tracking with IP, device, browser, OS, last activity
    - ✅ **Post-Audit Fixes**: Cookie constant (COOKIE_NAMES.NEON_AUTH), optimized WHERE clause filters
 
-### ⏳ Phase 3.3 - Session Refresh (TODO)
-   - ⏳ Automatic token refresh on near-expiry
-   - ⏳ Background refresh without user interruption
-   - ⏳ Refresh token rotation strategy
-   - ⏳ Session invalidation on suspicious activity
+### ✅ Phase 3.3 - Session Refresh (COMPLETE - Feb 1, 2026)
+   - ✅ Automatic token refresh on near-expiry (<15 minutes remaining)
+   - ✅ Background refresh without user interruption (1-minute interval check)
+   - ✅ Token rotation with 30-second grace period for in-flight requests
+   - ✅ Client-side hook (useTokenRefresh) with route change detection
+   - ✅ Server-side endpoint (POST /api/auth/refresh) with JWT rotation
+   - ✅ shouldRefresh() helper in AuthContext for expiry detection
+   - ✅ Integrated in app layout via TokenRefreshProvider
+   - ✅ E2E test scaffolding created
+   
+   **Files Created**:
+   - `app/api/auth/refresh/route.ts` - Refresh endpoint with token rotation
+   - `lib/client/hooks/use-token-refresh.ts` - Client hook for auto-refresh
+   - `app/(app)/_components/token-refresh-provider.tsx` - Layout integration
+   - `tests/e2e/token-refresh.spec.ts` - E2E test suite
+   
+   **Files Modified**:
+   - `lib/server/auth/context.ts` - Added tokenExpiresAt, shouldRefresh fields
+   - `app/(app)/layout.tsx` - Integrated TokenRefreshProvider
 
 ### ✅ Phase 4.1 - Audit Logging (COMPLETE)
    - ✅ Comprehensive audit system in lib/server/auth/audit-log.ts
@@ -140,12 +154,37 @@ Read [](file:///c%3A/AI-BOS/NEXIS-AFENDA-V4/NEON-AUTH-QUICK-REFERENCE.md#1-1), l
    - ⏳ Real-time activity feed
    - ⏳ Security alerts for suspicious patterns
 
-### ⏳ Phase 4.3 - Failed Login Protection (TODO)
-   - ⏳ Rate limiting in middleware.ts using sliding window
-   - ⏳ Account lockout after 5 failed attempts within 15 minutes
-   - ⏳ IP-based throttling (10 attempts per IP per hour)
-   - ⏳ Email alerts on suspicious activity
-   - ⏳ CAPTCHA after 3 failed attempts
+### ✅ Phase 4.3 - Failed Login Protection (COMPLETE - Feb 1, 2026)
+   - ✅ Sliding window rate limiting (15-min email, 1-hour IP windows)
+   - ✅ Account lockout after 5 failed attempts within 15 minutes
+   - ✅ IP-based throttling (10 attempts per IP per hour)
+   - ✅ Email alerts on suspicious activity with unlock links
+   - ✅ CAPTCHA requirement after 3 failed attempts (hCaptcha)
+   - ✅ User unlock mechanism via email token (1-hour expiry)
+   - ✅ Admin manual unlock endpoint with role verification
+   - ✅ Timing-safe token comparison for security
+   - ✅ Audit logging for account_locked and account_unlocked events
+   
+   **Files Created**:
+   - `drizzle/0004_add_login_attempts.sql` - Login attempts tracking table
+   - `lib/server/auth/rate-limit.ts` - Rate limiter with sliding window algorithm
+   - `lib/server/auth/captcha.ts` - hCaptcha server-side verification
+   - `lib/server/auth/unlock.ts` - Secure unlock token generation/verification
+   - `lib/server/auth/emails/suspicious-login.ts` - Suspicious activity email template
+   - `app/api/auth/unlock/route.ts` - User unlock endpoint (GET/POST)
+   - `app/api/admin/unlock-account/route.ts` - Admin manual unlock endpoint
+   - `tests/unit/rate-limit.test.ts` - Unit tests for rate limiting logic
+   - `tests/integration/login-protection.test.ts` - Integration tests for lockout flow
+   - `tests/e2e/brute-force.spec.ts` - E2E tests for brute force protection
+   
+   **Files Modified**:
+   - `lib/server/db/schema/index.ts` - Added loginAttempts table schema
+   - `app/api/auth/[...path]/route.ts` - Integrated rate limiting and lockout logic
+   - `app/(public)/login/page.tsx` - Added hCaptcha component
+   - `lib/env/server.ts` - Added CAPTCHA_SECRET_KEY, CAPTCHA_PROVIDER
+   - `lib/env/public.ts` - Added NEXT_PUBLIC_HCAPTCHA_SITE_KEY
+   - `lib/server/email/service.ts` - Added generic sendEmail() helper
+   - `lib/server/auth/audit-log.ts` - Added account_locked/unlocked event types
 
 ### ⏳ Phase 4.4 - Health Monitoring (TODO)
    - ⏳ Health check endpoints for auth services

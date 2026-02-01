@@ -22,6 +22,10 @@ const ServerEnvSchema = z.object({
   // Email service configuration
   RESEND_API_KEY: z.string().min(1).optional(),
 
+  // CAPTCHA configuration
+  CAPTCHA_SECRET_KEY: z.string().min(1).optional(),
+  CAPTCHA_PROVIDER: z.enum(["hcaptcha", "recaptcha"]).optional(),
+
   // Public URLs accessible in server context
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
 })

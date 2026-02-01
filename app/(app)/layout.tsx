@@ -8,6 +8,7 @@ import { getAuthContext } from "@/lib/server/auth/context"
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 import { AppBreadcrumbs } from "./_components/app-breadcrumbs"
 import { AppSidebar } from "./_components/app-sidebar"
+import { TokenRefreshProvider } from "./_components/token-refresh-provider"
 
 type Props = {
   children: React.ReactNode
@@ -23,6 +24,7 @@ export default async function AppShellLayout({ children }: Props) {
 
   return (
     <SidebarProvider defaultOpen>
+      <TokenRefreshProvider />
       <AppSidebar userId={authContext.userId} />
       <SidebarInset>
         <header className="bg-background sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b px-4">

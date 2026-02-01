@@ -20,6 +20,8 @@ export type AuthEventAction =
   | 'login'
   | 'logout'
   | 'login_failed'
+  | 'account_locked'
+  | 'account_unlocked'
   | 'signup'
   | 'email_verified'
   | 'password_reset_requested'

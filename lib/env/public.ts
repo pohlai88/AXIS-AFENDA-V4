@@ -5,6 +5,7 @@ const PublicEnvSchema = z.object({
   NEXT_PUBLIC_SITE_NAME: z.string().min(1).optional(),
   NEXT_PUBLIC_SITE_DESCRIPTION: z.string().min(1).optional(),
   NEXT_PUBLIC_NEON_AUTH_URL: z.string().url().optional(),
+  NEXT_PUBLIC_HCAPTCHA_SITE_KEY: z.string().min(1).optional(),
 })
 
 export type PublicEnv = z.infer<typeof PublicEnvSchema>
@@ -18,6 +19,7 @@ export function getPublicEnv(): PublicEnv {
     NEXT_PUBLIC_SITE_NAME: process.env.NEXT_PUBLIC_SITE_NAME,
     NEXT_PUBLIC_SITE_DESCRIPTION: process.env.NEXT_PUBLIC_SITE_DESCRIPTION,
     NEXT_PUBLIC_NEON_AUTH_URL: process.env.NEXT_PUBLIC_NEON_AUTH_URL,
+    NEXT_PUBLIC_HCAPTCHA_SITE_KEY: process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY,
   })
   return cached
 }

@@ -5,12 +5,14 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { authClient } from "@/lib/auth/client"
 import { routes } from "@/lib/routes"
+import { getPublicEnv } from "@/lib/env/public"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { GitHubLogoIcon } from "@radix-ui/react-icons"
+import HCaptcha from "@hcaptcha/react-hcaptcha"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -18,23 +20,48 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [requiresCaptcha, setRequiresCaptcha] = useState(false)
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const { NEXT_PUBLIC_HCAPTCHA_SITE_KEY } = getPublicEnv()
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
+
+    if (requiresCaptcha && !captchaToken) {
+      toast({
+        variant: "destructive",
+        title: "Verification Required",
+        description: "Please complete the CAPTCHA verification.",
+      })
+      setIsLoading(false)
+      return
+    }
 
     try {
       const { error, data } = await authClient.signIn.email({
         email,
         password,
         callbackURL: routes.app.root(),
+        fetchOptions: captchaToken
+          ? {
+              headers: {
+                "x-captcha-token": captchaToken,
+              },
+            }
+          : undefined,
       })
 
       if (error) {
+        const message = error.message || "Invalid email or password"
+        const requiresCaptchaNext = message.toLowerCase().includes("captcha") || message.toLowerCase().includes("too many")
+        if (requiresCaptchaNext) {
+          setRequiresCaptcha(true)
+        }
         toast({
           variant: "destructive",
           title: "Login Failed",
-          description: error.message || "Invalid email or password",
+          description: message,
         })
         return
       }
@@ -108,6 +135,16 @@ export default function LoginPage() {
               {isLoading ? "Signing In..." : "Sign In"}
             </Button>
           </form>
+
+          {requiresCaptcha && NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
+            <div className="rounded-md border border-muted-foreground/20 p-3">
+              <HCaptcha
+                sitekey={NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
+                onVerify={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken(null)}
+              />
+            </div>
+          )}
 
           {/* Divider */}
           <div className="relative">

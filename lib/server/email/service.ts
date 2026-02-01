@@ -31,6 +31,41 @@ export interface EmailResult {
   error?: string
 }
 
+export interface SendEmailParams {
+  to: string
+  subject: string
+  html: string
+  replyTo?: string
+}
+
+/**
+ * Send a transactional email (generic helper)
+ */
+export async function sendEmail(params: SendEmailParams): Promise<EmailResult> {
+  try {
+    const { data, error } = await resend.emails.send({
+      from: EMAIL_CONFIG.from,
+      to: params.to,
+      subject: params.subject,
+      html: params.html,
+      replyTo: params.replyTo ?? EMAIL_CONFIG.replyTo,
+    })
+
+    if (error) {
+      logger.error({ email: params.to, error }, 'Failed to send email')
+      return { success: false, error: error.message }
+    }
+
+    return { success: true, messageId: data?.id }
+  } catch (error) {
+    logger.error({ email: params.to, error }, 'Unexpected error sending email')
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    }
+  }
+}
+
 /**
  * Send email verification link
  */

@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, uuid, boolean, integer, jsonb, varchar, index, foreignKey } from "drizzle-orm/pg-core"
+import { pgTable, text, timestamp, uuid, boolean, integer, jsonb, varchar, index, foreignKey, serial } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 
 import { TASK_PRIORITY, TASK_STATUS } from "@/lib/contracts/tasks"
@@ -82,6 +82,24 @@ export const sessions = pgTable(
     sessionTokenIdx: index("sessions_session_token_idx").on(table.sessionToken),
     userIdIdx: index("sessions_user_id_idx").on(table.userId),
     expiresIdx: index("sessions_expires_idx").on(table.expires),
+  })
+)
+
+// ============ Login Attempts Table (rate limiting) ============
+export const loginAttempts = pgTable(
+  "login_attempts",
+  {
+    id: serial("id").primaryKey(),
+    identifier: text("identifier").notNull(),
+    attempts: integer("attempts").notNull().default(1),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    identifierIdx: index("login_attempts_identifier_idx").on(table.identifier),
+    lockedIdx: index("login_attempts_locked_idx").on(table.lockedUntil),
   })
 )
 

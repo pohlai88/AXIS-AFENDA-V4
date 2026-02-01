@@ -14,6 +14,16 @@ export interface AuthContext {
   roles: string[]
   authSource: "neon-auth" | "header" | "anonymous"
   isAuthenticated: boolean
+  tokenExpiresAt?: Date
+  shouldRefresh?: boolean
+}
+
+/**
+ * Check if a token should be refreshed (< 15 minutes remaining)
+ */
+export function shouldRefreshToken(expiresAt: number): boolean {
+  const expiresIn = expiresAt - Math.floor(Date.now() / 1000)
+  return expiresIn < 900 // Refresh if < 15 minutes (900 seconds)
 }
 
 export async function getAuthContext(): Promise<AuthContext> {
@@ -96,6 +106,10 @@ export async function getAuthContext(): Promise<AuthContext> {
         ? [String(claims.role)]
         : [role]
 
+    // Extract token expiration
+    const tokenExpiresAt = payload.exp ? new Date(payload.exp * 1000) : undefined
+    const shouldRefresh = payload.exp ? shouldRefreshToken(payload.exp) : false
+
     // Log successful login (fire and forget)
     if (syncResult?.created) {
       // New user signup
@@ -114,6 +128,8 @@ export async function getAuthContext(): Promise<AuthContext> {
       roles,
       authSource: "neon-auth",
       isAuthenticated: true,
+      tokenExpiresAt,
+      shouldRefresh,
     }
   } catch (error) {
     logger.error("Error getting auth context:", error)
