@@ -1,240 +1,269 @@
-# AFENDA — Architecture & Repository Layout (Future Reference)
+# AFENDA — Domain-first Architecture (Authoritative)
 
-This document defines **where code should live** and the **rules of composition** so the repo stays predictable over time.
+This document is the **single source of truth** for where code lives and how domains interact.
 
-If you’re adding something new and you’re unsure where it belongs, start here.
+It replaces any prior “where should this go?” guidance and is designed to prevent drift, mixed ownership, and route/API chaos.
 
----
-
-## Guiding principles
-
-1. **One source of truth** per concern (avoid `*-enhanced`, `*-v2`, duplicated hooks, etc.).
-2. **Clear boundaries**: server-only vs client-only code is enforced.
-3. **Contracts first**: API request/response schemas and constants are centralized.
-4. **Shallow routing**: no duplicate URLs and no accidental route collisions.
-5. **Green checks**: keep `pnpm lint`, `pnpm typecheck`, `pnpm build` green.
+Reference (Next.js App Router conventions): `https://nextjs.org/docs/app/getting-started/project-structure`
 
 ---
 
-## High-level directory map (what lives where)
+## Non-negotiable principles
 
-### `app/` — Next.js App Router (routes + UI entrypoints)
-
-- **Pages & layouts**: `app/**/page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`
-- **Route handlers**: `app/api/**/route.ts`
-- **Route groups**: `app/(public)/*`, `app/(app)/*`
-  - Route groups **do not** affect the URL; they only organize code.
-  - **Never create two pages that resolve to the same URL path.**
-
-**Recommended structure**
-- `app/(public)/*`: public pages (marketing, login/register)
-- `app/(app)/app/*`: authenticated app shell pages
-
-### `components/` — Shared UI components
-
-- **Reusable UI primitives** (shadcn/base-ui wrappers): `components/ui/*`
-- **App-level shared components** used across routes: `components/*`
-
-Rules:
-- UI components should be **pure** and avoid business logic.
-- If a component needs business logic, extract it into `lib/` and pass data/handlers in.
-
-### `lib/` — Shared logic (the “platform layer”)
-
-This is where reusable non-route code lives.
-
-**Subfolders**
-- `lib/constants/*`: string constants, header/cookie names, storage keys, etc.
-- `lib/contracts/*`: Zod request/response schemas (API contracts)
-- `lib/api/*`: API client utilities (fetch wrapper, endpoints)
-- `lib/server/*`: server-only logic (auth context, db, caching, API helpers)
-- `lib/client/*`: client-only logic (zustand stores, client hooks)
-- `lib/shared/*`: code shared by server + client (pure utilities)
-- `lib/utils.ts`: shared helpers (keep it curated; don’t dump everything here)
-
-### `lib/server/db/*` — Database and migrations
-
-- Schema: `lib/server/db/schema/index.ts`
-- DB entrypoint (preferred import): `import { db, getDb, withTransaction } from "@/lib/server/db"`
-- SQL migrations: `drizzle/*.sql`
-
-Rules:
-- **Do not** import `lib/server/db/client.ts` directly from random modules; use the barrel `@/lib/server/db`.
-- Schema changes require a migration:
-  - `pnpm db:generate`
-  - `pnpm db:migrate`
-
-### `scripts/` — Operational scripts (devops / migrations / validation)
-
-- One-off utilities, migrations runners, diagnostics scripts.
-- Keep them isolated; don’t let scripts drive app architecture.
-
-### `tests/` — Unit/integration test code (typed separately)
-
-- Typechecked via `pnpm typecheck:tests`
-- Typechecked in full suite via `pnpm typecheck:all`
+1. **Domain ownership is absolute**: every feature belongs to exactly one domain.
+2. **No mixing**: domains must not import other domains’ internal files.
+3. **URL stability + clarity**: authenticated UI is under `/app/*`, tenancy is under `/app/tenancy/*`.
+4. **Contracts first**: request/response schemas live in `lib/contracts/**` and are reused on server + client.
+5. **Envelope always**: API responses use the `{ data, error }` envelope via `ok()` / `fail()`.
+6. **Boundaries enforced**:
+   - server-only modules import `@/lib/server/only` at the top
+   - client modules start with `"use client"`
+   - shared modules are deterministic and environment-agnostic
+7. **No magic strings**: route and endpoint paths are imported from `lib/routes.ts`.
 
 ---
 
-## Server vs client boundaries (hard rules)
+## Domain taxonomy (only these domains)
 
-### Server-only code
+- **marketing**: public informational pages and marketing UI.
+- **auth**: login/register/reset/verify flows + auth APIs + auth/session utilities.
+- **orchestra**: authenticated app shell + orchestration/system coordination (shell layout, module registry, integration/sync/scheduler concerns when needed).
+- **magictodo**: product core: **tasks + projects only**.
+- **tenancy**: multi-tenancy governance: tenant/org/team/membership + tenant theming.
 
-Any server-only module must start with:
+---
 
-```ts
-import "@/lib/server/only"
+## Cross-domain dependencies (allowed direction)
+
+Domains may depend on **shared** (`components/ui`, `lib/shared`, `lib/constants`, `lib/contracts`) freely.
+
+Domain-to-domain rules:
+
+- `marketing` → `shared`
+- `auth` → `shared`
+- `magictodo` → `shared`, `auth` (read-only auth context), `tenancy` (read-only tenancy context)
+- `tenancy` → `shared`, `auth` (read-only auth context)
+- `orchestra` → `shared`, `auth` (read-only auth context), `tenancy` (read-only tenancy context), `magictodo` (**only via public registries/barrels**, never internals)
+
+Hard rule:
+- **No imports from another domain’s `_components`, `_lib`, `_actions`, or non-barrel modules.**
+
+---
+
+## Repository structure (authoritative)
+
+### `app/` — Next.js App Router (routes + API entrypoints)
+
+- UI routes: `app/**/page.tsx`, `layout.tsx`, `loading.tsx`, `error.tsx`
+- API routes: `app/api/**/route.ts`
+- Organize without changing URLs using route groups: `app/(group)/**`
+- Colocate non-routable code with private folders: `_components`, `_lib`, `_actions`
+
+### `components/` — shared UI only
+
+Allowed:
+- `components/ui/*` primitives (shadcn-style)
+- domain-agnostic presentational components that have **no auth/tenant/permissions** dependency
+
+Not allowed:
+- permission guards, feature flags, shell navigation, tenant/user switchers, session/tenant state
+  - those are **app-shell owned** under `app/(app)/_components/**` or domain route `_components/**`
+
+### `lib/` — layered by runtime, then by domain
+
+Canonical layers:
+- `lib/contracts/<domain>/**` (Zod schemas and types)
+- `lib/server/<domain>/**` (server-only services/queries; must `import "@/lib/server/only"`)
+- `lib/client/<domain>/**` (client-only hooks/stores; must start with `"use client"`)
+- `lib/shared/<domain>/**` (pure shared utilities)
+- `lib/constants/**` (headers/cookies/status codes/etc.)
+- `lib/api/**` (API client utilities; validates envelopes)
+- `lib/routes.ts` (the one canonical path registry)
+
+---
+
+## Canonical URL policy (hard-delete, no legacy aliases)
+
+### Public URLs
+- `/` (marketing home)
+- `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`, `/auth/callback`
+- `/terms`, `/privacy`, `/security`, `/infrastructure`
+- `/components` (UI playground, optional)
+
+### Authenticated URLs (canonical)
+All authenticated UI routes MUST live under:
+
+- **`/app/*`**
+
+### Tenancy URLs (canonical)
+All tenancy governance UI MUST live under:
+
+- **`/app/tenancy/*`**
+
+Examples:
+- `/app/tenancy/organizations`
+- `/app/tenancy/teams`
+- `/app/tenancy/memberships`
+- `/app/tenancy/design-system`
+
+Hard-delete policy:
+- legacy authenticated routes outside `/app/*` are removed (no redirects)
+
+---
+
+## Routing structure (domain-owned, URL-stable)
+
+Use route groups for domain organization; groups do not affect the URL.
+
+### Public
+
+```
+app/
+  (public)/
+    (marketing)/
+      page.tsx
+      terms/page.tsx
+      privacy/page.tsx
+      security/page.tsx
+      infrastructure/page.tsx
+      components/page.tsx
+      _components/*
+      _lib/*
+    (auth)/
+      login/page.tsx
+      register/page.tsx
+      forgot-password/page.tsx
+      reset-password/page.tsx
+      verify-email/page.tsx
+      auth/callback/page.tsx
+      _components/*
+      _lib/*
 ```
 
-Typical server-only modules:
-- `lib/server/**`
-- route handlers: `app/api/**/route.ts`
+### Authenticated
 
-### Client-only code
-
-Any client module must start with:
-
-```ts
-"use client"
+```
+app/
+  (app)/
+    layout.tsx
+    _components/*         # app-shell owned (auth/tenant allowed)
+    app/
+      (orchestra)/
+        page.tsx          # /app
+        modules/page.tsx  # /app/modules
+      (magictodo)/
+        tasks/page.tsx    # /app/tasks
+        projects/page.tsx # /app/projects
+      tenancy/
+        organizations/page.tsx
+        teams/page.tsx
+        memberships/page.tsx
+        design-system/page.tsx
+      settings/
+        page.tsx
+        sessions/page.tsx
 ```
 
-Typical client-only modules:
-- `lib/client/**`
-- client components under `app/**` that use hooks/state
-
-### Shared code
-
-Shared code lives in `lib/shared/**` and must be:
-- deterministic
-- environment-agnostic
-- no direct access to `next/headers`, DB clients, Node-only APIs
+Rule:
+- Route-local UI belongs in `app/**/_components/**`.
+- Route-local helpers belong in `app/**/_lib/**`.
 
 ---
 
-## Where to put new code (decision table)
+## API architecture (strict, minimal v1)
 
-- **New route/page** → `app/(public)/*` or `app/(app)/app/*`
-- **New API endpoint** → `app/api/.../route.ts`
-  - put parsing/validation schema in `lib/contracts/*`
-  - put reusable logic in `lib/server/*` or `lib/shared/*`
-- **New shared UI** → `components/*` or `components/ui/*`
-- **New feature state** (client) → `lib/client/store/*` (zustand) + `lib/client/hooks/*`
-- **New DB query** → `lib/server/db/queries/*` (and `queries-edge/*` if edge runtime)
-- **New “constants”** → `lib/constants/*` (then import from there everywhere)
-- **New auth behavior** → `lib/server/auth/*` (Neon Auth integration + helpers)
-- **New tenancy / request context** → `proxy.ts` + constants + `lib/server/tenant/*`
+### Minimal v1 surface (anti-drift)
+Keep `/api/v1` limited to endpoints with clear ownership and active consumers:
+
+- **auth**: `/api/v1/me`, `/api/v1/users/*`, `/api/v1/sessions/*`
+- **tenancy**: `/api/v1/organizations/*`, `/api/v1/teams/*`, `/api/v1/tenant/*`
+- **magictodo**: `/api/v1/tasks/*`, `/api/v1/projects/*`
+
+Orchestra APIs (sync/scheduler/integrations) must be explicit and owned:
+- preferred: `/api/orchestra/*` (internal, not part of v1)
+- only use `/api/v1/*` if the endpoint is truly public + stable + has active consumers
+
+Debug-only endpoints must never be in v1:
+- `/api/debug/*`
+
+### Domain ownership without changing URLs
+Use route groups inside `app/api/**` to keep code domain-owned while preserving paths.
+
+Example:
+
+```
+app/api/
+  auth/(auth)/*/route.ts
+  v1/
+    (auth)/*
+    (tenancy)/*
+    (magictodo)/*
+```
+
+### Response envelope (mandatory)
+All API routes return:
+- success: `{ data: T, error: null }`
+- failure: `{ data: null, error: { code, message, details?, requestId? } }`
+
+Server helpers are in `lib/server/api/response.ts` (`ok`, `fail`).
 
 ---
 
-## File naming & conventions
+## Tenancy context (how it works)
 
-- **Route handler** files are always `route.ts`
-- **React components**: `kebab-case.tsx` for shared components; route files follow Next conventions.
-- **Avoid duplicate implementations**: if you create a replacement, delete the old one in the same PR.
-- Prefer **named exports** unless Next requires default export (e.g., page components).
+Tenancy is **cookie/header** based (not URL-based):
+- middleware `proxy.ts` propagates tenant cookie → tenant header
+- server reads tenancy from `lib/server/tenant/context.ts`
 
----
-
-## API conventions (shape + errors)
-
-Route handlers should:
-- validate inputs with Zod schemas in `lib/contracts/*`
-- return consistent envelopes via `lib/server/api/*`
-- include request IDs when available (`HEADER_NAMES.REQUEST_ID`)
-- use constants from `lib/constants/*` (no magic headers/cookies)
+Tenancy UI lives under `/app/tenancy/*`, but tenancy resolution does not depend on the path.
 
 ---
 
-## Cross-cutting helpers (must be centralized)
+## Canonical route registry (no path strings)
 
-These are shared primitives intended to prevent drift and avoid “everyone rolls their own” patterns.
+**All** UI route paths and API endpoint paths must come from:
 
-### Logger
-
-- **Server logger**: `lib/server/logger.ts` (pino)
-- **Shared interface**: `lib/shared/logger.ts`
+- `lib/routes.ts`
 
 Rules:
-- Do not add new direct `console.*` usage in server modules; use `logger.*`.
-- Attach context at boundaries: `logger.child({ requestId, tenantId, userId })`.
+- do not write `"/app/..."` or `"/api/..."` in components/pages/services
+- if you need a new route, add it to `lib/routes.ts` first
 
-### Circuit breaker (network boundaries)
+---
 
-- Circuit breaker implementation: `lib/shared/circuit-breaker.ts`
-- Defaults: `CIRCUIT_BREAKER` in `lib/constants/index.ts`
+## File envelope header (mandatory on domain modules)
+
+Every domain-owned module (and any shared module that is part of the public surface) must start with:
+
+```ts
+/**
+ * @domain magictodo
+ * @layer server
+ * @responsibility Task read/write operations.
+ * @dependencies
+ * - shared
+ * - contracts
+ * @exports
+ * - createTask()
+ * - updateTask()
+ */
+```
 
 Rules:
-- Use circuit breaker at **outbound network edges** (HTTP to external services), not inside DB transactions.
-- Approved integration points:
-  - `lib/api/client.ts` (outbound fetch via `apiFetch`)
-  - `lib/server/neon/data-api.ts`
-  - `lib/server/auth/neon-integration-enhanced.ts` (JWKS key fetch)
+- keep it short (5–12 lines)
+- the header must match the folder it’s in (no lying)
+- do not add headers to generated files
 
 ---
 
-## Routing + Contracts (anti-mess standard)
+## Quality gates (must stay green)
 
-### Routing standard
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm build`
 
-Default to REST resources:
-- Collection: `app/api/v1/<resource>/route.ts` → `GET` (list), `POST` (create)
-- Item: `app/api/v1/<resource>/[id]/route.ts` → `GET` (read), `PATCH` (update), `DELETE` (delete)
-
-State transitions:
-- Prefer `PATCH` on the resource (e.g., `{ status: "done" }`) rather than creating new action endpoints.
-
-True actions (rare):
-- Use `POST /api/v1/<resource>/<id>/actions/<action>` if it does not model cleanly as state.
-
-Operational/framework routes:
-- Keep system jobs under `app/api/cron/*`
-- Keep framework-required routes under their conventions (e.g. auth provider routes under `app/api/auth/*`)
-
-### Zod + types standard
-
-Contracts:
-- Define schemas in `lib/contracts/*` and derive types via `z.infer`.
-
-Server validation:
-- Body: `parseJson(req, Schema)` in `lib/server/api/validate.ts`
-- Query: `parseSearchParams(searchParams, Schema)`
-
-Responses:
-- Always return the standard envelope via `lib/server/api/response.ts` (`ok` / `fail`).
-
-Client:
-- Prefer `apiFetch(url, init, DataSchema)` which validates the envelope and returns typed data.
-
----
-
-## Auth / Session conventions
-
-- NextAuth has been removed; auth is being consolidated around Neon Auth.
-- Auth context: `lib/server/auth/context.ts` is the canonical “who am I?” server lookup
-
-Session note:
-- The DB `sessions.user` JSONB exists for optional debugging/auditing and has a DB default (`{}`).
-
----
-
-## Typecheck strategy (prevents “.next” drift)
-
-Use these scripts:
-- `pnpm typecheck` → app code, stable (no `.next` dependency)
-- `pnpm typecheck:tests` → tests
-- `pnpm typecheck:next` → Next.js config including `.next/types` (useful in CI or after build)
-- `pnpm typecheck:all` → everything
-
----
-
-## “Green PR” checklist
-
-Before merging:
-- [ ] No route collisions (no two pages resolve to the same URL)
-- [ ] `pnpm lint` is clean
-- [ ] `pnpm typecheck` is clean
-- [ ] `pnpm build` is clean
-- [ ] DB changes include a migration in `drizzle/*.sql`
-- [ ] New strings are added to `lib/constants/*` (no drift)
-- [ ] API changes include Zod contracts in `lib/contracts/*`
+Also ensure:
+- no route collisions (Next.js rule)
+- no cross-domain internal imports
+- no API endpoints outside the strict v1 registry
 

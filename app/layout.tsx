@@ -5,7 +5,6 @@ import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/sonner"
 import { siteConfig } from "@/lib/config/site"
-import { OfflineStatusIndicator } from "@/components/offline-status-indicator"
 import { PWAInstallPrompt } from "@/components/pwa-install-prompt"
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-figtree" })
@@ -60,7 +59,6 @@ export default function RootLayout({
         <ThemeProvider>
           {children}
           <Toaster />
-          <OfflineStatusIndicator />
           <PWAInstallPrompt />
         </ThemeProvider>
         <script

@@ -3,6 +3,7 @@
 import { useEffect, useCallback, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { COOKIE_NAMES } from "@/lib/constants"
+import { routes } from "@/lib/routes"
 
 interface RefreshResponse {
   token: string
@@ -84,7 +85,7 @@ export function useTokenRefresh() {
     isRefreshingRef.current = true
 
     try {
-      const response = await fetch("/api/auth/refresh", {
+      const response = await fetch(routes.api.auth.refresh(), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -128,7 +129,7 @@ export function useTokenRefresh() {
     if (expiresAt.getTime() <= Date.now()) {
       // Token already expired, redirect to login
       console.warn("Token expired, redirecting to login")
-      router.push("/login")
+      router.push(routes.ui.auth.login())
       return
     }
 
@@ -138,7 +139,7 @@ export function useTokenRefresh() {
       if (!success) {
         // Refresh failed, redirect to login
         console.warn("Token refresh failed, redirecting to login")
-        router.push("/login")
+        router.push(routes.ui.auth.login())
       }
     }
   }, [getTokenExpiry, shouldRefresh, refreshToken, router])

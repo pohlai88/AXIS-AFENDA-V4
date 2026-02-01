@@ -21,9 +21,9 @@ export const dynamic = "force-dynamic"
 export default async function AppShellLayout({ children }: Props) {
   // Check authentication
   const authContext = await getAuthContext()
-  
+
   if (!authContext.isAuthenticated || !authContext.userId) {
-    redirect(routes.public.login())
+    redirect(routes.ui.auth.login())
   }
 
   return (

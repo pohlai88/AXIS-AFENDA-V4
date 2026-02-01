@@ -109,7 +109,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
       if (filters?.projectId) queryParams.set('projectId', filters.projectId)
 
       const tasks = await apiFetch(
-        `${routes.api.tasks.list()}?${queryParams.toString()}`,
+        `${routes.api.v1.magictodo.tasks.list()}?${queryParams.toString()}`,
         { headers: { "x-user-id": userId } },
         passthroughSchema
       ) as { items: TaskResponse[] }
@@ -125,7 +125,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const filteredTasks = await apiFetch(
-        `${routes.api.tasks.filter()}`,
+        `${routes.api.v1.magictodo.tasks.filter()}`,
         {
           method: 'POST',
           headers: { "x-user-id": userId, "Content-Type": "application/json" },
@@ -149,7 +149,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
   fetchFacets: async (userId) => {
     try {
       const facets = await apiFetch(
-        `${routes.api.tasks.filter()}?facets=true`,
+        `${routes.api.v1.magictodo.tasks.filter()}?facets=true`,
         { headers: { "x-user-id": userId } },
         passthroughSchema
       ) as { statusCounts: Record<string, number>; priorityCounts: Record<string, number>; projectCounts: Record<string, number>; tagCounts: Record<string, number>; totalCount: number }
@@ -186,7 +186,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
       }
 
       const task = await apiFetch(
-        routes.api.tasks.list(),
+        routes.api.v1.magictodo.tasks.list(),
         {
           method: 'POST',
           headers: { "x-user-id": userId, "Content-Type": "application/json" },
@@ -208,7 +208,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
     set({ loading: true, error: null })
     try {
       await apiFetch(
-        routes.api.tasks.byId(id),
+        routes.api.v1.magictodo.tasks.byId(id),
         {
           method: 'PATCH',
           headers: { "x-user-id": userId, "Content-Type": "application/json" },
@@ -235,7 +235,7 @@ export const useTasksStore = create<TasksStore>((set, get) => ({
     set({ loading: true, error: null })
     try {
       await apiFetch(
-        routes.api.tasks.byId(id),
+        routes.api.v1.magictodo.tasks.byId(id),
         {
           method: 'DELETE',
           headers: { "x-user-id": userId },

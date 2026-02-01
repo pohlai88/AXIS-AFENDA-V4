@@ -27,8 +27,8 @@ import type { Icon } from "@tabler/icons-react"
 
 import { NavMain } from "@/components/nav-main"
 import { NavProjects, type NavProjectItem } from "@/components/nav-projects"
-import { NavUser } from "@/components/nav-user"
-import { TeamSwitcher } from "@/components/team-switcher"
+import { NavUser } from "./nav-user"
+import { TeamSwitcher } from "./team-switcher"
 
 type Props = {
   userId: string
@@ -45,69 +45,69 @@ type NavMainItem = {
 export function AppSidebar({ userId }: Props) {
   const pathname = usePathname()
 
-  const isDashboard = pathname === routes.app.dashboard()
-  const isTasks = pathname.startsWith(routes.app.tasks())
-  const isProjects = pathname.startsWith(routes.app.projects())
-  const isModules = pathname.startsWith(routes.app.modules())
-  const isApprovals = pathname.startsWith(routes.app.approvals())
-  const isAnalytics = pathname.startsWith(routes.app.analytics())
-  const isSettings = pathname.startsWith(routes.app.settings.root())
-  const isHome = pathname === routes.home()
-  const isComponents = pathname.startsWith(routes.components())
-  const isOrganization = pathname.startsWith(routes.organization.root())
+  const isDashboard = pathname === routes.ui.orchestra.dashboard()
+  const isTasks = pathname.startsWith(routes.ui.magictodo.tasks())
+  const isProjects = pathname.startsWith(routes.ui.magictodo.projects())
+  const isModules = pathname.startsWith(routes.ui.orchestra.modules())
+  const isApprovals = pathname.startsWith(routes.ui.orchestra.approvals())
+  const isAnalytics = pathname.startsWith(routes.ui.orchestra.analytics())
+  const isSettings = pathname.startsWith(routes.ui.settings.root())
+  const isHome = pathname === routes.ui.marketing.home()
+  const isComponents = pathname.startsWith(routes.ui.marketing.components())
+  const isTenancy = pathname.startsWith(routes.ui.tenancy.root())
 
   const navMain: NavMainItem[] = [
     {
       title: "App",
-      url: routes.app.root(),
+      url: routes.ui.orchestra.root(),
       icon: LayoutDashboardIcon as unknown as Icon,
       isActive: isDashboard || isTasks || isProjects || isModules || isApprovals || isAnalytics,
       items: [
-        { title: "Dashboard", url: routes.app.dashboard() },
-        { title: "Tasks", url: routes.app.tasks() },
-        { title: "Projects", url: routes.app.projects() },
-        { title: "Analytics", url: routes.app.analytics() },
-        { title: "Modules", url: routes.app.modules() },
-        { title: "Approvals", url: routes.app.approvals() },
+        { title: "Dashboard", url: routes.ui.orchestra.dashboard() },
+        { title: "Tasks", url: routes.ui.magictodo.tasks() },
+        { title: "Projects", url: routes.ui.magictodo.projects() },
+        { title: "Analytics", url: routes.ui.orchestra.analytics() },
+        { title: "Modules", url: routes.ui.orchestra.modules() },
+        { title: "Approvals", url: routes.ui.orchestra.approvals() },
       ],
     },
     {
-      title: "Organization",
-      url: routes.organization.root(),
+      title: "Tenancy",
+      url: routes.ui.tenancy.organizations.list(),
       icon: Building2Icon as unknown as Icon,
-      isActive: isOrganization,
+      isActive: isTenancy,
       items: [
-        { title: "Overview", url: routes.organization.root() },
-        { title: "Teams", url: routes.teams.root() },
+        { title: "Organizations", url: routes.ui.tenancy.organizations.list() },
+        { title: "Teams", url: routes.ui.tenancy.teams.list() },
       ],
     },
     {
       title: "Settings",
-      url: routes.app.settings.root(),
+      url: routes.ui.settings.root(),
       icon: SettingsIcon as unknown as Icon,
       isActive: isSettings,
       items: [
-        { title: "Design System", url: routes.app.settings.designSystem() },
+        { title: "Design System", url: routes.ui.settings.designSystem() },
       ],
     },
     {
       title: "Home",
-      url: routes.home(),
+      url: routes.ui.marketing.home(),
       icon: HomeIcon as unknown as Icon,
       isActive: isHome || isComponents,
       items: [
-        { title: "Home", url: routes.home() },
-        { title: "Components", url: routes.components() },
+        { title: "Home", url: routes.ui.marketing.home() },
+        { title: "Components", url: routes.ui.marketing.components() },
       ],
     },
   ]
 
   const projects: NavProjectItem[] = [
-    { name: "Tasks", url: routes.app.tasks(), icon: ListChecksIcon },
-    { name: "Projects", url: routes.app.projects(), icon: FolderIcon },
-    { name: "Modules", url: routes.app.modules(), icon: PackageIcon },
-    { name: "Approvals", url: routes.app.approvals(), icon: ShieldCheckIcon },
-    { name: "Design System", url: routes.app.settings.designSystem(), icon: PaletteIcon },
+    { name: "Tasks", url: routes.ui.magictodo.tasks(), icon: ListChecksIcon },
+    { name: "Projects", url: routes.ui.magictodo.projects(), icon: FolderIcon },
+    { name: "Modules", url: routes.ui.orchestra.modules(), icon: PackageIcon },
+    { name: "Approvals", url: routes.ui.orchestra.approvals(), icon: ShieldCheckIcon },
+    { name: "Design System", url: routes.ui.settings.designSystem(), icon: PaletteIcon },
   ]
 
   return (

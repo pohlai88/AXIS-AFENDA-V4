@@ -2,6 +2,7 @@
 
 import { useAuth as useNeonAuth } from "@/lib/client/hooks/useAuth"
 import { authClient } from "@/lib/auth/client"
+import { routes } from "@/lib/routes"
 import { useRouter } from "next/navigation"
 import { useCallback } from "react"
 
@@ -17,20 +18,20 @@ export function useAuth() {
   const signOut = useCallback(async () => {
     try {
       // Call logout API endpoint
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
+      await fetch(routes.api.auth.logout(), {
+        method: "POST",
+        credentials: "include",
       })
 
       // Sign out via Neon Auth client
       await authClient.signOut()
 
       // Redirect to login
-      router.push('/login')
+      router.push(routes.ui.auth.login())
     } catch (error) {
-      console.error('Logout error:', error)
+      console.error("Logout error:", error)
       // Still redirect even if API call fails
-      router.push('/login')
+      router.push(routes.ui.auth.login())
     }
   }, [router])
 

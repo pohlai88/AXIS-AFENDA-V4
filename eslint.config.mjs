@@ -135,6 +135,32 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+
+  // 4) Anti-drift: forbid raw "/app" and "/api" strings outside lib/routes.ts
+  //    Use `routes.ui.*` and `routes.api.*` from `lib/routes.ts` instead.
+  {
+    files: ["**/*.{ts,tsx,js,jsx}"],
+    ignores: [
+      "lib/routes.ts",
+      // Non-module runtime assets (cannot import routes)
+      "public/**",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Literal[value=/^\\/(app|api)(\\/|$)/]",
+          message:
+            "Do not hardcode '/app' or '/api' paths. Import from `@/lib/routes` (routes.ui.* / routes.api.*).",
+        },
+        {
+          selector: "TemplateElement[value.raw=/^\\/(app|api)(\\/|$)/]",
+          message:
+            "Do not hardcode '/app' or '/api' paths in template literals. Import from `@/lib/routes` (routes.ui.* / routes.api.*).",
+        },
+      ],
+    },
+  },
 ]);
 
 export default eslintConfig;

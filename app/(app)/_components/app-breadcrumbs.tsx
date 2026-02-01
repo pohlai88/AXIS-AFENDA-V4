@@ -22,18 +22,18 @@ export function AppBreadcrumbs({ appName }: Props) {
   const pathname = usePathname()
 
   const crumbs: Array<{ label: string; href?: string }> = [
-    { label: appName, href: routes.app.root() },
+    { label: appName, href: routes.ui.orchestra.root() },
   ]
 
-  if (pathname === routes.app.dashboard()) {
+  if (pathname === routes.ui.orchestra.dashboard()) {
     crumbs.push({ label: "Dashboard" })
-  } else if (pathname.startsWith(routes.app.tasks())) {
+  } else if (pathname.startsWith(routes.ui.magictodo.tasks())) {
     crumbs.push({ label: "Tasks" })
-  } else if (pathname.startsWith(routes.app.modules())) {
-    crumbs.push({ label: "Modules", href: routes.app.modules() })
+  } else if (pathname.startsWith(routes.ui.orchestra.modules())) {
+    crumbs.push({ label: "Modules", href: routes.ui.orchestra.modules() })
     const slug = pathname.split("/").filter(Boolean)[2]
     if (slug) crumbs.push({ label: getModuleBySlug(slug)?.name ?? slug })
-  } else if (pathname.startsWith(routes.app.approvals())) {
+  } else if (pathname.startsWith(routes.ui.orchestra.approvals())) {
     crumbs.push({ label: "Approvals" })
   } else {
     crumbs.push({ label: "App Shell" })

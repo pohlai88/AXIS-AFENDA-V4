@@ -5,5 +5,5 @@ import { routes } from "@/lib/routes"
  * Settings index page - redirects to Design System by default
  */
 export default function SettingsPage() {
-  redirect(routes.app.settings.designSystem())
+  redirect(routes.ui.settings.designSystem())
 }

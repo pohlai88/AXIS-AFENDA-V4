@@ -12,6 +12,7 @@ import {
 
 import { logger } from "@/lib/server/logger"
 import { getDb } from "@/lib/server/db"
+import { routes } from "@/lib/routes"
 import { tasks, projects } from "@/lib/server/db/schema"
 import {
   AnalyticsTimeRange,
@@ -130,7 +131,7 @@ export class AnalyticsService {
           severity: quickStats.overdueTasksCount > 5 ? "high" : "medium",
           actionable: true,
           actionText: "Review Overdue Tasks",
-          actionUrl: "/app/tasks?filter=overdue",
+          actionUrl: `${routes.ui.magictodo.tasks()}?filter=overdue`,
           createdAt: new Date().toISOString()
         })
       }
@@ -145,7 +146,7 @@ export class AnalyticsService {
           severity: "medium",
           actionable: true,
           actionText: "View Analytics",
-          actionUrl: "/app/analytics",
+          actionUrl: routes.ui.orchestra.analytics(),
           createdAt: new Date().toISOString()
         })
       }
@@ -161,7 +162,7 @@ export class AnalyticsService {
           severity: "medium",
           actionable: true,
           actionText: "Review Tasks",
-          actionUrl: "/app/tasks?filter=in_progress",
+          actionUrl: `${routes.ui.magictodo.tasks()}?filter=in_progress`,
           createdAt: new Date().toISOString()
         })
       }

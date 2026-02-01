@@ -61,7 +61,7 @@ export const useDesignSystemStore = create<DesignSystemState>((set, get) => ({
   fetchSettings: async () => {
     set({ isLoading: true, error: null })
     try {
-      const res = await fetch(routes.api.tenant.designSystem())
+      const res = await fetch(routes.api.v1.tenancy.tenant.designSystem())
       if (!res.ok) throw new Error("Failed to fetch settings")
       const json = await res.json()
       const merged = { ...DEFAULT_DESIGN_SYSTEM, ...json.data?.settings }
@@ -91,7 +91,7 @@ export const useDesignSystemStore = create<DesignSystemState>((set, get) => ({
 
     set({ isSaving: true, error: null })
     try {
-      const res = await fetch(routes.api.tenant.designSystem(), {
+      const res = await fetch(routes.api.v1.tenancy.tenant.designSystem(), {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(settings),

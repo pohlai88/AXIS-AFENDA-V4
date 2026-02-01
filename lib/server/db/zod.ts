@@ -21,10 +21,6 @@ export const TaskCreateSchema = TaskInsertSchema.omit({
     createdAt: true,
     updatedAt: true,
     userId: true, // Added from auth context
-    syncStatus: true,
-    syncVersion: true,
-    lastSyncedAt: true,
-    clientGeneratedId: true,
 }).extend({
     // Add custom validations
     title: z.string().min(1).max(255),
@@ -49,10 +45,6 @@ export const ProjectCreateSchema = ProjectInsertSchema.omit({
     createdAt: true,
     updatedAt: true,
     userId: true, // Added from auth context
-    syncStatus: true,
-    syncVersion: true,
-    lastSyncedAt: true,
-    clientGeneratedId: true,
 }).extend({
     name: z.string().min(1).max(255),
     description: z.string().optional(),

@@ -71,7 +71,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
       }
 
       // Build URL with query parameters
-      const url = new URL(routes.api.analytics(), window.location.origin)
+      const url = new URL(routes.api.orchestra.analytics(), window.location.origin)
       url.searchParams.set('timeRange', analyticsRequest.timeRange)
       if (analyticsRequest.projectId) {
         url.searchParams.set('projectId', analyticsRequest.projectId)
@@ -101,7 +101,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
   fetchQuickStats: async (userId) => {
     try {
       const quickStats = await apiFetch(
-        `${routes.api.analytics()}/quick-stats`,
+        `${routes.api.orchestra.analytics()}/quick-stats`,
         { headers: { "x-user-id": userId } },
         QuickStatsSchema
       ) as QuickStats
@@ -116,7 +116,7 @@ export const useAnalyticsStore = create<AnalyticsStore>((set, get) => ({
   fetchInsights: async (userId) => {
     try {
       const insights = await apiFetch(
-        `${routes.api.analytics()}/insights`,
+        `${routes.api.orchestra.analytics()}/insights`,
         { headers: { "x-user-id": userId } },
         InsightsResponseSchema
       ) as InsightsResponse

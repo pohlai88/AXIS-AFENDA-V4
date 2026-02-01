@@ -1,88 +1,163 @@
 export const routes = {
-  home: () => "/",
-  terms: () => "/terms",
-  privacy: () => "/privacy",
-  components: () => "/components",
-  public: {
-    login: () => "/login",
-    register: () => "/register",
-    forgotPassword: () => "/forgot-password",
-    resetPassword: (token?: string) => token ? `/reset-password?token=${token}` : "/reset-password",
-    /**
-     * Dedicated callback landing page for Neon Auth redirects.
-     * Keeps the UI consistent while the session finalizes.
-     */
-    authCallback: (next?: string) => next ? `/auth/callback?next=${encodeURIComponent(next)}` : "/auth/callback",
-  },
-  app: {
-    root: () => "/app",
-    dashboard: () => "/app",
-    tasks: () => "/app/tasks",
-    projects: () => "/app/projects",
-    analytics: () => "/app/analytics",
-    modules: () => "/app/modules",
-    moduleBySlug: (slug: string) => `/app/modules/${slug}`,
-    approvals: () => "/app/approvals",
+  ui: {
+    marketing: {
+      home: () => "/",
+      terms: () => "/terms",
+      privacy: () => "/privacy",
+      security: () => "/security",
+      infrastructure: () => "/infrastructure",
+      components: () => "/components",
+      offline: () => "/offline",
+    },
+    auth: {
+      login: () => "/login",
+      register: () => "/register",
+      forgotPassword: () => "/forgot-password",
+      resetPassword: (token?: string) =>
+        token ? `/reset-password?token=${token}` : "/reset-password",
+      verifyEmail: () => "/verify-email",
+      /**
+       * Dedicated callback landing page for Neon Auth redirects.
+       * Keeps the UI consistent while the session finalizes.
+       */
+      authCallback: (next?: string) =>
+        next
+          ? `/auth/callback?next=${encodeURIComponent(next)}`
+          : "/auth/callback",
+    },
+    orchestra: {
+      root: () => "/app",
+      dashboard: () => "/app",
+      modules: () => "/app/modules",
+      moduleBySlug: (slug: string) => `/app/modules/${slug}`,
+      analytics: () => "/app/analytics",
+      approvals: () => "/app/approvals",
+    },
+    magictodo: {
+      tasks: () => "/app/tasks",
+      projects: () => "/app/projects",
+    },
+    tenancy: {
+      root: () => "/app/tenancy",
+      organizations: {
+        list: () => "/app/tenancy/organizations",
+        new: () => "/app/tenancy/organizations/new",
+        byId: (id: string) => `/app/tenancy/organizations/${id}`,
+        settings: (id: string) => `/app/tenancy/organizations/${id}/settings`,
+        members: (id: string) => `/app/tenancy/organizations/${id}/members`,
+        teams: (id: string) => `/app/tenancy/organizations/${id}/teams`,
+      },
+      teams: {
+        list: () => "/app/tenancy/teams",
+        new: () => "/app/tenancy/teams/new",
+        byId: (id: string) => `/app/tenancy/teams/${id}`,
+        settings: (id: string) => `/app/tenancy/teams/${id}/settings`,
+        members: (id: string) => `/app/tenancy/teams/${id}/members`,
+      },
+      memberships: {
+        list: () => "/app/tenancy/memberships",
+      },
+      designSystem: () => "/app/tenancy/design-system",
+    },
     settings: {
       root: () => "/app/settings",
       designSystem: () => "/app/settings/design-system",
       sessions: () => "/app/settings/sessions",
     },
   },
-  organization: {
-    root: () => "/organization",
-    new: () => "/organization/new",
-    byId: (id: string) => `/organization/${id}`,
-    settings: (id: string) => `/organization/${id}/settings`,
-    members: (id: string) => `/organization/${id}/members`,
-    teams: (id: string) => `/organization/${id}/teams`,
-  },
-  teams: {
-    root: () => "/teams",
-    new: () => "/teams/new",
-    byId: (id: string) => `/teams/${id}`,
-    members: (id: string) => `/teams/${id}/members`,
-    settings: (id: string) => `/teams/${id}/settings`,
-  },
   api: {
-    me: () => "/api/v1/me",
-    users: {
-      byId: (id: string) => `/api/v1/users/${id}`,
+    auth: {
+      base: () => "/api/auth",
+      /**
+       * Provider auth catch-all route handler.
+       * - Implementation: `app/api/auth/(auth)/[...path]/route.ts`
+       * - Note: Registry uses `*` to represent arbitrary subpaths.
+       */
+      any: () => "/api/auth/*",
+      getSession: () => "/api/auth/get-session",
+      refresh: () => "/api/auth/refresh",
+      logout: () => "/api/auth/logout",
+      resendVerification: () => "/api/auth/resend-verification",
+      sendVerification: () => "/api/auth/send-verification",
+      verifyEmail: () => "/api/auth/verify-email",
+      resetPassword: () => "/api/auth/reset-password",
+      resetPasswordConfirm: () => "/api/auth/reset-password/confirm",
+      unlock: () => "/api/auth/unlock",
+      internal: {
+        refreshSession: () => "/api/auth/refresh-session",
+        email: {
+          resendCode: () => "/api/auth/email/resend-code",
+          sendCode: () => "/api/auth/email/send-code",
+          verify: () => "/api/auth/email/verify",
+        },
+        password: {
+          reset: () => "/api/auth/password/reset",
+          verifyResetToken: () => "/api/auth/password/verify-reset-token",
+          resetPassword: () => "/api/auth/password/reset-password",
+        },
+      },
     },
-    tasks: {
-      list: () => "/api/v1/tasks",
-      byId: (id: string) => `/api/v1/tasks/${id}`,
-      filter: () => "/api/v1/tasks/filter",
+    cron: {
+      generateRecurrence: () => "/api/cron/generate-recurrence",
     },
-    projects: {
-      list: () => "/api/v1/projects",
-      byId: (id: string) => `/api/v1/projects/${id}`,
+    admin: {
+      unlockAccount: () => "/api/admin/unlock-account",
     },
-    analytics: () => "/api/v1/analytics",
-    approvals: {
-      list: () => "/api/v1/approvals",
-      byId: (id: string) => `/api/v1/approvals/${id}`,
+    internal: {
+      /**
+       * Minimal internal env probe used for debugging.
+       * Keep it registered even if it stays internal.
+       */
+      testEnv: () => "/api/test-env",
     },
-    tenant: {
-      designSystem: () => "/api/v1/tenant/design-system",
+    orchestra: {
+      analytics: () => "/api/orchestra/analytics",
+      analyticsQuickStats: () => "/api/orchestra/analytics/quick-stats",
+      analyticsInsights: () => "/api/orchestra/analytics/insights",
+      approvals: {
+        list: () => "/api/orchestra/approvals",
+        byId: (id: string) => `/api/orchestra/approvals/${id}`,
+      },
     },
-    organizations: {
-      list: () => "/api/v1/organizations",
-      byId: (id: string) => `/api/v1/organizations/${id}`,
-      members: (id: string) => `/api/v1/organizations/${id}/members`,
+    debug: {
+      neonAuth: () => "/api/debug/neon-auth",
+      neonConfig: () => "/api/debug/neon-config",
     },
-    teams: {
-      list: () => "/api/v1/teams",
-      byId: (id: string) => `/api/v1/teams/${id}`,
-      members: (id: string) => `/api/v1/teams/${id}/members`,
-    },
-    shares: {
-      list: () => "/api/v1/shares",
-      byId: (id: string) => `/api/v1/shares/${id}`,
-    },
-    sessions: {
-      list: () => "/api/v1/sessions",
-      byId: (id: string) => `/api/v1/sessions/${id}`,
+    v1: {
+      auth: {
+        me: () => "/api/v1/me",
+        users: {
+          byId: (id: string) => `/api/v1/users/${id}`,
+        },
+        sessions: {
+          list: () => "/api/v1/sessions",
+          byId: (id: string) => `/api/v1/sessions/${id}`,
+        },
+      },
+      magictodo: {
+        tasks: {
+          list: () => "/api/v1/tasks",
+          byId: (id: string) => `/api/v1/tasks/${id}`,
+          filter: () => "/api/v1/tasks/filter",
+        },
+        projects: {
+          list: () => "/api/v1/projects",
+          byId: (id: string) => `/api/v1/projects/${id}`,
+        },
+      },
+      tenancy: {
+        tenant: {
+          designSystem: () => "/api/v1/tenant/design-system",
+        },
+        organizations: {
+          list: () => "/api/v1/organizations",
+          byId: (id: string) => `/api/v1/organizations/${id}`,
+        },
+        teams: {
+          list: () => "/api/v1/teams",
+          byId: (id: string) => `/api/v1/teams/${id}`,
+        },
+      },
     },
   },
 } as const

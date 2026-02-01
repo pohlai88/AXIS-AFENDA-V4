@@ -47,7 +47,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
     set({ loading: true, error: null })
     try {
       const res = await fetch(
-        `${routes.api.projects.list()}${includeArchived ? "?includeArchived=true" : ""}`,
+        `${routes.api.v1.magictodo.projects.list()}${includeArchived ? "?includeArchived=true" : ""}`,
         {
           headers: {
             "x-user-id": userId,
@@ -68,7 +68,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
 
   createProject: async (userId, projectData) => {
     try {
-      const res = await fetch(routes.api.projects.list(), {
+      const res = await fetch(routes.api.v1.magictodo.projects.list(), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -93,7 +93,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
 
   updateProjectApi: async (userId, id, updates) => {
     try {
-      const res = await fetch(routes.api.projects.byId(id), {
+      const res = await fetch(routes.api.v1.magictodo.projects.byId(id), {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -115,7 +115,7 @@ export const useProjectsStore = create<ProjectsStore>((set, get) => ({
 
   deleteProject: async (userId, id) => {
     try {
-      const res = await fetch(routes.api.projects.byId(id), {
+      const res = await fetch(routes.api.v1.magictodo.projects.byId(id), {
         method: "DELETE",
         headers: {
           "x-user-id": userId,

@@ -1,6 +1,7 @@
 import { ok, fail } from "@/lib/server/api/response"
 import { generateNextOccurrences, cleanupOverdueTasks } from "@/lib/server/scheduler/recurrence"
 import { logger } from "@/lib/server/logger"
+import { routes } from "@/lib/routes"
 
 /**
  * POST /api/cron/generate-recurrence
@@ -49,7 +50,7 @@ export async function POST(request: Request) {
 export async function GET() {
   return ok({
     status: "ok",
-    endpoint: "/api/cron/generate-recurrence",
+    endpoint: routes.api.cron.generateRecurrence(),
     method: "POST",
     headers_required: ["x-cron-secret"],
     timestamp: new Date().toISOString(),

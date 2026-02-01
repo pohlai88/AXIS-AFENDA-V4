@@ -1,19 +1,22 @@
 import { test, expect } from "@playwright/test"
 
+import { routes } from "@/lib/routes"
+
 test.describe("Token Refresh", () => {
   test.beforeEach(async ({ page }) => {
     // Login before each test
-    await page.goto("/login")
+    await page.goto(routes.ui.auth.login())
     // TODO: Add login flow when credentials are available
   })
 
   test("should refresh token before expiry", async ({ page }) => {
     // Navigate to authenticated page
-    await page.goto("/dashboard")
+    await page.goto(routes.ui.orchestra.root())
 
     // Monitor network for refresh calls
     const refreshPromise = page.waitForRequest(
-      (request) => request.url().includes("/api/auth/refresh") && request.method() === "POST"
+      (request) =>
+        request.url().includes(routes.api.auth.refresh()) && request.method() === "POST"
     )
 
     // TODO: Manipulate token expiry to trigger refresh
@@ -35,12 +38,12 @@ test.describe("Token Refresh", () => {
   })
 
   test("should not refresh token if > 15 minutes remaining", async ({ page }) => {
-    await page.goto("/dashboard")
+    await page.goto(routes.ui.orchestra.root())
 
     // Monitor network - should not see refresh call immediately
     let refreshCalled = false
     page.on("request", (request) => {
-      if (request.url().includes("/api/auth/refresh")) {
+      if (request.url().includes(routes.api.auth.refresh())) {
         refreshCalled = true
       }
     })

@@ -102,7 +102,7 @@ export function Footer() {
               <div className="flex items-start gap-2">
                 <FileText className="h-4 w-4 flex-shrink-0 text-slate-600 mt-0.5" />
                 <Link
-                  href={routes.privacy()}
+                  href={routes.ui.marketing.privacy()}
                   className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Privacy Policy
@@ -111,7 +111,7 @@ export function Footer() {
               <div className="flex items-start gap-2">
                 <Scroll className="h-4 w-4 flex-shrink-0 text-slate-600 mt-0.5" />
                 <Link
-                  href={routes.terms()}
+                  href={routes.ui.marketing.terms()}
                   className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Terms of Service
@@ -181,14 +181,14 @@ export function Footer() {
           </p>
           <nav className="flex flex-wrap items-center justify-center gap-2 text-xs">
             <Link
-              href={routes.privacy()}
+              href={routes.ui.marketing.privacy()}
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
               Privacy
             </Link>
             <span className="text-muted-foreground">•</span>
             <Link
-              href={routes.terms()}
+              href={routes.ui.marketing.terms()}
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
               Terms

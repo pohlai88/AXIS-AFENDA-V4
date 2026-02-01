@@ -5,7 +5,7 @@ import { jwtVerify, createRemoteJWKSet, type JWTPayload } from "jose"
 import { getServerEnv } from "@/lib/env/server"
 import { logger } from "@/lib/server/logger"
 
-let cachedJwks: ReturnType<typeof createRemoteJWKSet> | null = null
+const cachedJwks: ReturnType<typeof createRemoteJWKSet> | null = null
 
 export interface VerifiedToken {
   payload: JWTPayload

@@ -23,7 +23,7 @@ export default function PublicLayout({
   return (
     <div className="flex min-h-screen flex-col">
       <main className="flex-1">{children}</main>
-      
+
       {/* Footer */}
       <footer className="border-t bg-muted/30">
         <div className="mx-auto w-full max-w-7xl px-6 py-12">
@@ -91,13 +91,13 @@ export default function PublicLayout({
               <h3 className="text-sm font-semibold">Resources</h3>
               <nav className="flex flex-col gap-2 text-xs">
                 <Link
-                  href={routes.privacy()}
+                  href={routes.ui.marketing.privacy()}
                   className="text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Privacy Policy
                 </Link>
                 <Link
-                  href={routes.terms()}
+                  href={routes.ui.marketing.terms()}
                   className="text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Terms of Service

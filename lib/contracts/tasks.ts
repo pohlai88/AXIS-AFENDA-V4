@@ -135,8 +135,6 @@ export const UpdateProjectRequestSchema = ProjectBaseSchema.omit({
   createdAt: true,
   updatedAt: true,
   userId: true,
-  clientGeneratedId: true,
-  syncStatus: true,
 }).pick({
   name: true,
   description: true,

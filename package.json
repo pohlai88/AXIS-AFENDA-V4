@@ -18,7 +18,11 @@
     "neon:auth": "neonctl auth",
     "neon:projects": "neonctl projects list",
     "neon:branches": "neonctl branches list",
-    "validate:neon-auth": "node scripts/validate-neon-auth-credentials.mjs"
+    "validate:neon-auth": "node scripts/validate-neon-auth-credentials.mjs",
+    "audit:route-registry": "node scripts/audit-route-registry.mjs",
+    "audit:envelope-headers": "node scripts/audit-envelope-headers.mjs",
+    "dryrun:envelope-headers": "node scripts/audit-envelope-headers.mjs --dry-run",
+    "fix:envelope-headers": "node scripts/audit-envelope-headers.mjs --write"
   },
   "dependencies": {
     "@base-ui/react": "^1.1.0",
