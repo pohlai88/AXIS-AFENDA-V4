@@ -5,6 +5,11 @@ import { createNeonDataApiClient } from "@/lib/server/neon/data-api"
 
 export async function GET() {
   try {
+    // Debug endpoint only; don't expose in production.
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ data: null, error: "Not found" }, { status: 404 })
+    }
+
     const authContext = await getAuthContext()
 
     if (!authContext.userId) {
@@ -14,8 +19,8 @@ export async function GET() {
       )
     }
 
-    // Example: Get users from Neon Data API
-    const neonClient = createNeonDataApiClient(authContext.userId)
+    // Call Neon Data API as the authenticated user (JWT bearer token).
+    const neonClient = createNeonDataApiClient(authContext.sessionId)
 
     // Try to get users from the public schema
     const usersResponse = await neonClient.get("public.users", {
@@ -55,6 +60,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Debug endpoint only; don't expose in production.
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ data: null, error: "Not found" }, { status: 404 })
+    }
+
     const authContext = await getAuthContext()
 
     if (!authContext.userId) {
@@ -65,7 +75,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const neonClient = createNeonDataApiClient(authContext.userId)
+    const neonClient = createNeonDataApiClient(authContext.sessionId)
 
     // Example: Create a new user (if you have the right permissions)
     const createResponse = await neonClient.post("public.users", {

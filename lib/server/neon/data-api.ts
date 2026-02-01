@@ -22,29 +22,22 @@ export class NeonDataApiClient {
   private baseUrl: string
   private headers: Record<string, string>
 
-  constructor(userId?: string) {
+  constructor(options?: { token?: string }) {
     const config = getNeonAuthConfig()
     this.baseUrl = config.dataApiUrl
+    if (!this.baseUrl) {
+      throw new Error("Neon Data API URL is not configured (NEON_DATA_API_URL)")
+    }
 
     this.headers = {
       "Content-Type": "application/json",
       "Accept": "application/json",
     }
 
-    // Add Neon Auth headers if configured
-    if (config.enabled) {
-      // Use the auth base URL for token validation
-      this.headers["Authorization"] = `Bearer ${config.jwtSecret}`
-      if (userId) {
-        this.headers["X-User-ID"] = userId
-      }
-      // Add project context for Neon Auth
-      if (config.projectId) {
-        this.headers["X-Project-ID"] = config.projectId
-      }
-      if (config.branchId) {
-        this.headers["X-Branch-ID"] = config.branchId
-      }
+    // IMPORTANT: Neon Data API expects a *user JWT* (Neon Auth) as the bearer token.
+    // Never send secrets (JWKS, cookie secret, HMAC secret) as Authorization.
+    if (options?.token) {
+      this.headers["Authorization"] = `Bearer ${options.token}`
     }
   }
 
@@ -91,9 +84,10 @@ export class NeonDataApiClient {
       )
 
       if (!response.ok) {
+        const body = await response.text().catch(() => "")
         return {
           data: [],
-          error: `HTTP ${response.status}: ${response.statusText}`,
+          error: `HTTP ${response.status}: ${response.statusText}${body ? ` - ${body}` : ""}`,
           status: response.status,
         }
       }
@@ -125,9 +119,10 @@ export class NeonDataApiClient {
       )
 
       if (!response.ok) {
+        const body = await response.text().catch(() => "")
         return {
           data: [],
-          error: `HTTP ${response.status}: ${response.statusText}`,
+          error: `HTTP ${response.status}: ${response.statusText}${body ? ` - ${body}` : ""}`,
           status: response.status,
         }
       }
@@ -170,9 +165,10 @@ export class NeonDataApiClient {
       )
 
       if (!response.ok) {
+        const body = await response.text().catch(() => "")
         return {
           data: [],
-          error: `HTTP ${response.status}: ${response.statusText}`,
+          error: `HTTP ${response.status}: ${response.statusText}${body ? ` - ${body}` : ""}`,
           status: response.status,
         }
       }
@@ -212,9 +208,10 @@ export class NeonDataApiClient {
       )
 
       if (!response.ok) {
+        const body = await response.text().catch(() => "")
         return {
           data: [],
-          error: `HTTP ${response.status}: ${response.statusText}`,
+          error: `HTTP ${response.status}: ${response.statusText}${body ? ` - ${body}` : ""}`,
           status: response.status,
         }
       }
@@ -236,6 +233,6 @@ export class NeonDataApiClient {
   }
 }
 
-export function createNeonDataApiClient(userId?: string): NeonDataApiClient {
-  return new NeonDataApiClient(userId)
+export function createNeonDataApiClient(token?: string): NeonDataApiClient {
+  return new NeonDataApiClient({ token })
 }

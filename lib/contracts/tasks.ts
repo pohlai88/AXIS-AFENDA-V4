@@ -74,11 +74,6 @@ export const TaskBaseSchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   completedAt: z.date().nullable().optional(),
-  // Sync fields
-  clientGeneratedId: z.string().nullable().optional(),
-  syncStatus: z.enum(["synced", "pending", "conflict", "deleted"]),
-  syncVersion: z.number(),
-  lastSyncedAt: z.date().nullable().optional(),
 })
 
 export const ProjectBaseSchema = z.object({
@@ -90,11 +85,6 @@ export const ProjectBaseSchema = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   archived: z.boolean().default(false),
-  // Sync fields
-  clientGeneratedId: z.string().nullable().optional(),
-  syncStatus: z.enum(["synced", "pending", "conflict", "deleted"]),
-  syncVersion: z.number(),
-  lastSyncedAt: z.date().nullable().optional(),
 })
 
 // ============ Request Schemas ============
@@ -104,10 +94,6 @@ export const CreateTaskRequestSchema = TaskBaseSchema.omit({
   updatedAt: true,
   userId: true,
   completedAt: true,
-  clientGeneratedId: true,
-  syncStatus: true,
-  syncVersion: true,
-  lastSyncedAt: true,
 }).extend({
   title: z.string().min(1).max(255),
   description: z.string().optional(),
@@ -123,10 +109,6 @@ export const UpdateTaskRequestSchema = TaskBaseSchema.omit({
   updatedAt: true,
   userId: true,
   completedAt: true,
-  clientGeneratedId: true,
-  syncStatus: true,
-  syncVersion: true,
-  lastSyncedAt: true,
 }).pick({
   title: true,
   description: true,
@@ -142,10 +124,6 @@ export const CreateProjectRequestSchema = ProjectBaseSchema.omit({
   updatedAt: true,
   userId: true,
   archived: true,
-  clientGeneratedId: true,
-  syncStatus: true,
-  syncVersion: true,
-  lastSyncedAt: true,
 }).extend({
   name: z.string().min(1).max(255),
   description: z.string().optional(),
@@ -159,8 +137,6 @@ export const UpdateProjectRequestSchema = ProjectBaseSchema.omit({
   userId: true,
   clientGeneratedId: true,
   syncStatus: true,
-  syncVersion: true,
-  lastSyncedAt: true,
 }).pick({
   name: true,
   description: true,
@@ -169,19 +145,9 @@ export const UpdateProjectRequestSchema = ProjectBaseSchema.omit({
 }).partial()
 
 // ============ Response Schemas ============
-export const TaskResponseSchema = TaskBaseSchema.omit({
-  // Don't expose sync fields in API responses
-  syncStatus: true,
-  syncVersion: true,
-  lastSyncedAt: true,
-})
+export const TaskResponseSchema = TaskBaseSchema
 
-export const ProjectResponseSchema = ProjectBaseSchema.omit({
-  // Don't expose sync fields in API responses
-  syncStatus: true,
-  syncVersion: true,
-  lastSyncedAt: true,
-})
+export const ProjectResponseSchema = ProjectBaseSchema
 
 // ============ List Response Schemas ============
 export const TaskListResponseSchema = z.object({
@@ -204,60 +170,14 @@ export const ProjectListResponseSchema = z.object({
   }),
 })
 
-// ============ Sync Schemas ============
-export const TaskSyncSchema = TaskBaseSchema
-
-export const ProjectSyncSchema = ProjectBaseSchema
-
-export const SyncPullRequestSchema = z.object({
-  since: z.date().optional(),
-  limit: z.number().min(1).max(1000).default(100),
-})
-
-export const SyncPullResponseSchema = z.object({
-  tasks: z.array(TaskSyncSchema),
-  projects: z.array(ProjectSyncSchema),
-  deleted: z.object({
-    tasks: z.array(z.string()),
-    projects: z.array(z.string()),
-  }),
-  lastSyncAt: z.date(),
-})
-
-export const SyncPushRequestSchema = z.object({
-  operations: z.array(z.object({
-    entityType: z.enum(["task", "project"]),
-    operation: z.enum(["create", "update", "delete"]),
-    data: z.any(), // Will be validated per entity type
-    clientVersion: z.number().optional(),
-  })),
-  lastSyncAt: z.date().optional(),
-})
-
-export const SyncPushResponseSchema = z.object({
-  processed: z.array(z.object({
-    type: z.enum(["created", "updated", "deleted"]),
-    id: z.string(),
-    version: z.number().optional(),
-  })),
-  conflicts: z.array(z.object({
-    type: z.literal("conflict"),
-    entityType: z.enum(["task", "project"]),
-    entityId: z.string(),
-    reason: z.string(),
-  })),
-})
-
 // ============ Export Types ============
 export type Task = z.infer<typeof TaskResponseSchema>
 export type TaskCreate = z.infer<typeof CreateTaskRequestSchema>
 export type TaskUpdate = z.infer<typeof UpdateTaskRequestSchema>
-export type TaskSync = z.infer<typeof TaskSyncSchema>
 
 export type Project = z.infer<typeof ProjectResponseSchema>
 export type ProjectCreate = z.infer<typeof CreateProjectRequestSchema>
 export type ProjectUpdate = z.infer<typeof UpdateProjectRequestSchema>
-export type ProjectSync = z.infer<typeof ProjectSyncSchema>
 
 export type TaskListResponse = z.infer<typeof TaskListResponseSchema>
 export type ProjectListResponse = z.infer<typeof ProjectListResponseSchema>

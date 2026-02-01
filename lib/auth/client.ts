@@ -2,6 +2,15 @@
 
 import { createAuthClient } from "@neondatabase/auth/next"
 
-// The auth client uses the Next.js API routes (/api/auth) which
-// are handled by the auth.handler() in app/api/auth/[...path]/route.ts
+/**
+ * Neon Auth Client
+ * 
+ * Client-side authentication SDK that communicates with the Neon Auth API
+ * via the Next.js route handler at /api/auth/[...path].
+ * 
+ * Usage:
+ *   authClient.signIn.email({ email, password })
+ *   authClient.session.get()
+ *   authClient.signOut()
+ */
 export const authClient = createAuthClient()

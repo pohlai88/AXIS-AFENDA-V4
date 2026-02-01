@@ -168,20 +168,12 @@ export const projects = pgTable(
     description: text("description"),
     color: varchar("color", { length: 7 }),
     archived: boolean("archived").notNull().default(false),
-    // Sync fields for offline support
-    clientGeneratedId: varchar("client_generated_id", { length: 255 }).unique(),
-    syncStatus: varchar("sync_status", { length: 20 }).notNull().default("synced"),
-    syncVersion: integer("sync_version").notNull().default(1),
-    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     userIdIdx: index("projects_user_id_idx").on(table.userId),
     archivedIdx: index("projects_archived_idx").on(table.archived),
-    clientGeneratedIdIdx: index("projects_client_generated_id_idx").on(table.clientGeneratedId),
-    syncStatusIdx: index("projects_sync_status_idx").on(table.syncStatus),
-    lastSyncedAtIdx: index("projects_last_synced_at_idx").on(table.lastSyncedAt),
   })
 )
 
@@ -226,11 +218,6 @@ export const tasks = pgTable(
     isRecurrenceChild: boolean("is_recurrence_child").notNull().default(false),
     parentRecurrenceTaskId: uuid("parent_recurrence_task_id"),
     nextOccurrenceDate: timestamp("next_occurrence_date", { withTimezone: true }),
-    // Sync fields for offline support
-    clientGeneratedId: varchar("client_generated_id", { length: 255 }).unique(),
-    syncStatus: varchar("sync_status", { length: 20 }).notNull().default("synced"),
-    syncVersion: integer("sync_version").notNull().default(1),
-    lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -240,9 +227,6 @@ export const tasks = pgTable(
     statusIdx: index("tasks_status_idx").on(table.status),
     dueDateIdx: index("tasks_due_date_idx").on(table.dueDate),
     priorityIdx: index("tasks_priority_idx").on(table.priority),
-    clientGeneratedIdIdx: index("tasks_client_generated_id_idx").on(table.clientGeneratedId),
-    syncStatusIdx: index("tasks_sync_status_idx").on(table.syncStatus),
-    lastSyncedAtIdx: index("tasks_last_synced_at_idx").on(table.lastSyncedAt),
     parentTaskFk: foreignKey({
       columns: [table.parentTaskId],
       foreignColumns: [table.id],

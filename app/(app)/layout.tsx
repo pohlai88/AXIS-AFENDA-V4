@@ -14,6 +14,10 @@ type Props = {
   children: React.ReactNode
 }
 
+// This layout reads request headers/cookies to resolve auth.
+// Force dynamic rendering so Next doesn't attempt to prerender it at build time.
+export const dynamic = "force-dynamic"
+
 export default async function AppShellLayout({ children }: Props) {
   // Check authentication
   const authContext = await getAuthContext()

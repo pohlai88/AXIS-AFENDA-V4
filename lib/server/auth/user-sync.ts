@@ -4,11 +4,24 @@ import { eq, and } from "drizzle-orm"
 import { nanoid } from "nanoid"
 
 import { db } from "@/lib/server/db"
-import { users, memberships } from "@/lib/server/db/schema"
+import { memberships } from "@/lib/server/db/schema"
 import { logger } from "@/lib/server/logger"
 import { OrganizationService } from "@/lib/server/organizations/service"
 import { TeamService } from "@/lib/server/teams/service"
 import { ORGANIZATION } from "@/lib/constants"
+
+/**
+ * IMPORTANT: User data is now managed entirely by Neon Auth (neon_auth.user)
+ * This sync function only ensures organizational setup and membership.
+ * DO NOT create/update users in custom tables - this breaks Neon Auth best practices.
+ */
+
+/**
+ * IMPORTANT: User data is now managed entirely by Neon Auth (neon_auth.user)
+ * This sync function should NOT create/update users in custom tables.
+ * Only ensure organizational memberships and defaults.
+ * @deprecated User creation is handled by Neon Auth only
+ */
 
 export interface NeonAuthIdentity {
   id: string
@@ -35,68 +48,31 @@ export async function syncUserFromAuth(identity: NeonAuthIdentity): Promise<User
     return null
   }
 
-  const now = new Date()
-  const [byId] = await db.select().from(users).where(eq(users.id, identity.id)).limit(1)
-  const [byEmail] = byId ? [null] : await db.select().from(users).where(eq(users.email, identity.email)).limit(1)
+  /**
+   * NEON AUTH BEST PRACTICE:
+   * User data is managed by Neon Auth (neon_auth.user table).
+   * This function only ensures organizational setup and membership.
+   * DO NOT create/update users in custom tables - this breaks Neon Auth.
+   */
+  const userId = identity.id
+  const email = identity.email
 
-  const existing = byId ?? byEmail
-
-  if (!existing) {
-    await db.insert(users).values({
-      id: identity.id,
-      email: identity.email,
-      displayName: identity.name,
-      avatar: identity.avatar,
-      role: "user",
-      emailVerified: identity.emailVerified ? now : undefined,
-      provider: identity.provider ?? "neon-auth",
-      isActive: true,
-      lastLoginAt: now,
-      loginCount: 1,
-      createdAt: now,
-      updatedAt: now,
-    })
-
-    await ensureDefaultOrganization(identity)
-
-    return {
-      userId: identity.id,
-      email: identity.email,
-      role: "user",
-      created: true,
-    }
-  }
-
-  await db
-    .update(users)
-    .set({
-      email: existing.email || identity.email,
-      displayName: identity.name ?? existing.displayName,
-      avatar: identity.avatar ?? existing.avatar,
-      provider: existing.provider || identity.provider || "neon-auth",
-      emailVerified: existing.emailVerified ?? (identity.emailVerified ? now : undefined),
-      isActive: true,
-      lastLoginAt: now,
-      loginCount: (existing.loginCount ?? 0) + 1,
-      updatedAt: now,
-    })
-    .where(eq(users.id, existing.id))
-
-  const hasMembership = await hasAnyMembership(existing.id)
+  // Ensure default organization for new users
+  const hasMembership = await hasAnyMembership(userId)
   if (!hasMembership) {
     await ensureDefaultOrganization({
       ...identity,
-      id: existing.id,
-      email: identity.email ?? existing.email,
-      name: identity.name ?? existing.displayName ?? undefined,
-      avatar: identity.avatar ?? existing.avatar ?? undefined,
+      id: userId,
+      email: email,
+      name: identity.name,
+      avatar: identity.avatar,
     })
   }
 
   return {
-    userId: existing.id,
-    email: existing.email,
-    role: existing.role,
+    userId: userId,
+    email: email,
+    role: "user",
     created: false,
   }
 }

@@ -7,29 +7,6 @@
 export { HEADER_NAMES, type HeaderNameKey, type HeaderNameValue } from './headers'
 export { STORAGE_KEYS, type StorageKeyPath } from './storage'
 
-// Re-export offline and sync constants
-export {
-  OFFLINE_STATUS,
-  SYNC_STATUS,
-  SYNC_OPERATION,
-  CONFLICT_STRATEGY,
-  OFFLINE_STORAGE_KEYS,
-  IDB_STORES,
-  SYNC_CONFIG,
-  PWA_CONFIG,
-  OFFLINE_EVENTS,
-  type OfflineStatusKey,
-  type OfflineStatusValue,
-  type SyncStatusKey,
-  type SyncStatusValue,
-  type SyncOperationKey,
-  type SyncOperationValue,
-  type ConflictStrategyKey,
-  type ConflictStrategyValue,
-  type OfflineStorageKeyPath,
-  type IdbStoreKey,
-} from './offline'
-
 // Re-export business domain constants
 export {
   ORGANIZATION,

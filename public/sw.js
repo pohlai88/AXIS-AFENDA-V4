@@ -345,7 +345,7 @@ self.addEventListener("notificationclick", (event) => {
 /**
  * IndexedDB helpers for background sync
  */
-async function storeForBackgroundSync(syncRequest: Record<string, unknown>) {
+async function storeForBackgroundSync(syncRequest) {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("AfendaBackgroundSync", 1)
 

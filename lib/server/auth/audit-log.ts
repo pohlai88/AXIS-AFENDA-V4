@@ -32,6 +32,8 @@ export type AuthEventAction =
   | 'token_refresh'
   | 'oauth_signup'
   | 'oauth_login'
+  | 'verification_email_sent'
+  | 'verification_email_resent'
 
 /**
  * Authentication event data

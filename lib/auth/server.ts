@@ -1,10 +1,16 @@
 import { createNeonAuth } from "@neondatabase/auth/next/server"
+import { requireServerEnv } from "@/lib/env/server"
 
-// Create and export the auth instance
+/**
+ * Neon Auth Instance
+ * 
+ * Manages authentication via Neon's managed auth service.
+ * All user/session data is stored in the neon_auth schema
+ * and branches with your database.
+ */
 export const auth = createNeonAuth({
-  baseUrl: process.env.NEON_AUTH_BASE_URL!,
+  baseUrl: requireServerEnv("NEON_AUTH_BASE_URL"),
   cookies: {
-    secret: process.env.NEON_AUTH_COOKIE_SECRET!,
-    sessionDataTtl: 300, // 5 minutes
+    secret: requireServerEnv("NEON_AUTH_COOKIE_SECRET"),
   },
 })

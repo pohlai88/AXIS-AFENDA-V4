@@ -1,32 +1,60 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { authClient } from "@/lib/auth/client"
 import { routes } from "@/lib/routes"
 import { getPublicEnv } from "@/lib/env/public"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { GitHubLogoIcon } from "@radix-ui/react-icons"
 import HCaptcha from "@hcaptcha/react-hcaptcha"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AuthShell } from "@/components/auth/auth-shell"
+import { Spinner } from "@/components/ui/spinner"
+import { useAuth } from "@/lib/client/hooks/useAuth"
+
+type Status = "idle" | "submitting" | "redirecting"
+
+function isSafeInternalPath(next: string | null): next is string {
+  if (!next) return false
+  return next.startsWith("/") && !next.startsWith("//")
+}
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
-  const [isLoading, setIsLoading] = useState(false)
+  const { isLoading: isSessionLoading, isAuthenticated } = useAuth()
+  const [status, setStatus] = useState<Status>("idle")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [requiresCaptcha, setRequiresCaptcha] = useState(false)
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const { NEXT_PUBLIC_HCAPTCHA_SITE_KEY } = getPublicEnv()
+
+  const next = useMemo(() => {
+    const param = searchParams.get("next")
+    return isSafeInternalPath(param) ? param : routes.app.root()
+  }, [searchParams])
+
+  useEffect(() => {
+    if (isSessionLoading) return
+    if (isAuthenticated) {
+      router.replace(next)
+    }
+  }, [isAuthenticated, isSessionLoading, next, router])
+
+  const isBusy = status !== "idle"
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    setErrorMessage(null)
+    setStatus("submitting")
 
     if (requiresCaptcha && !captchaToken) {
       toast({
@@ -34,7 +62,7 @@ export default function LoginPage() {
         title: "Verification Required",
         description: "Please complete the CAPTCHA verification.",
       })
-      setIsLoading(false)
+      setStatus("idle")
       return
     }
 
@@ -42,7 +70,7 @@ export default function LoginPage() {
       const { error, data } = await authClient.signIn.email({
         email,
         password,
-        callbackURL: routes.app.root(),
+        callbackURL: routes.public.authCallback(next),
         fetchOptions: captchaToken
           ? {
               headers: {
@@ -58,53 +86,75 @@ export default function LoginPage() {
         if (requiresCaptchaNext) {
           setRequiresCaptcha(true)
         }
+        setErrorMessage(message)
         toast({
           variant: "destructive",
           title: "Login Failed",
           description: message,
         })
+        setStatus("idle")
         return
       }
 
       // Redirect happens automatically via callbackURL
+      setStatus("redirecting")
     } catch (err) {
+      setErrorMessage("An unexpected error occurred")
       toast({
         variant: "destructive",
         title: "Error",
         description: "An unexpected error occurred",
       })
+      setStatus("idle")
     } finally {
-      setIsLoading(false)
+      // keep status during redirects
+      if (status !== "redirecting") setStatus("idle")
     }
   }
 
   const handleSocialLogin = async (provider: "github" | "google") => {
-    setIsLoading(true)
+    setErrorMessage(null)
+    setStatus("redirecting")
     try {
       await authClient.signIn.social({
         provider,
+        callbackURL: routes.public.authCallback(next),
       })
       // Social login will redirect, so we don't need to navigate manually
     } catch (err) {
+      setErrorMessage(`Failed to login with ${provider}`)
       toast({
         variant: "destructive",
         title: "Error",
         description: `Failed to login with ${provider}`,
       })
-      setIsLoading(false)
+      setStatus("idle")
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50 px-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl">Sign In</CardTitle>
-          <CardDescription>
-            Sign in to your account to continue
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+    <AuthShell title="Sign in" description="Access your workspace securely.">
+      {isSessionLoading ? (
+        <div className="flex items-center gap-3 rounded-lg border bg-card p-4">
+          <Spinner className="size-5" />
+          <div className="text-sm text-muted-foreground">Checking session…</div>
+        </div>
+      ) : null}
+
+      {errorMessage ? (
+        <Alert variant="destructive">
+          <AlertTitle>Sign-in failed</AlertTitle>
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      {status === "redirecting" ? (
+        <div className="flex items-center gap-3 rounded-lg border bg-card p-4">
+          <Spinner className="size-5" />
+          <div className="text-sm text-muted-foreground">Redirecting to finalize sign-in…</div>
+        </div>
+      ) : null}
+
           {/* Email Login Form */}
           <form onSubmit={handleEmailLogin} className="space-y-4">
             <div className="space-y-2">
@@ -116,7 +166,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isBusy}
               />
             </div>
             <div className="space-y-2">
@@ -128,11 +178,11 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={isLoading}
+                disabled={isBusy}
               />
             </div>
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing In..." : "Sign In"}
+            <Button type="submit" className="w-full" disabled={isBusy}>
+              {status === "submitting" ? "Signing in…" : "Sign in"}
             </Button>
           </form>
 
@@ -162,7 +212,7 @@ export default function LoginPage() {
               type="button"
               variant="outline"
               onClick={() => handleSocialLogin("github")}
-              disabled={isLoading}
+              disabled={isBusy}
               className="flex items-center gap-2"
             >
               <div className="flex items-center justify-center">
@@ -174,7 +224,7 @@ export default function LoginPage() {
               type="button"
               variant="outline"
               onClick={() => handleSocialLogin("google")}
-              disabled={isLoading}
+              disabled={isBusy}
               className="flex items-center gap-2"
             >
               <div className="flex items-center justify-center">
@@ -206,8 +256,6 @@ export default function LoginPage() {
               Sign up
             </Link>
           </div>
-        </CardContent>
-      </Card>
-    </div>
+    </AuthShell>
   )
 }

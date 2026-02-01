@@ -4,6 +4,11 @@ import { getNeonAuthConfig } from "@/lib/server/auth/neon-integration"
 
 export async function GET() {
   try {
+    // Avoid leaking environment configuration in production.
+    if (process.env.NODE_ENV === "production") {
+      return NextResponse.json({ data: null, error: "Not found" }, { status: 404 })
+    }
+
     const config = getNeonAuthConfig()
     
     return NextResponse.json({
@@ -14,7 +19,7 @@ export async function GET() {
           dataApiUrl: config.dataApiUrl,
           jwksUrl: config.jwksUrl,
           authBaseUrl: config.authBaseUrl,
-          hasJwtSecret: Boolean(config.jwtSecret),
+          hasJwtVerificationSecret: Boolean(config.jwtVerificationSecret),
         },
         message: config.enabled 
           ? "Neon Auth is properly configured" 

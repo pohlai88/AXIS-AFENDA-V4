@@ -1,123 +1,91 @@
+import { NextRequest, NextResponse } from "next/server"
+import { auth } from "@/lib/auth/server"
+import { logAuthEvent } from "@/lib/server/auth/audit-log"
+import { extractIpAddress } from "@/lib/server/auth/audit-log"
+import { logger } from "@/lib/server/logger"
+
 /**
- * Resend Verification Email API Endpoint
+ * Resend Email Verification Endpoint
  * 
- * Allows users to request a new verification email if the previous one expired.
- * Creates a new verification token and sends a fresh email.
+ * Allows users to request a new verification email if the original expired.
  * 
  * @route POST /api/auth/resend-verification
+ * 
+ * Rate-limited: 1 per email per hour
+ * 
+ * Delegates to Neon Auth for email resending,
+ * then logs audit event.
  */
-
-import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/server/db'
-import { users, verificationTokens } from '@/lib/server/db/schema'
-import { eq } from 'drizzle-orm'
-import { sendVerificationEmail } from '@/lib/server/email/service'
-import { logger } from '@/lib/server/logger'
-import { randomBytes } from 'crypto'
-import { getServerEnv } from '@/lib/env/server'
-
-/**
- * Generate secure verification token
- */
-function generateVerificationToken(): string {
-  return randomBytes(32).toString('base64url')
-}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { email } = body
+    const ipAddress = extractIpAddress(request.headers)
 
-    if (!email || typeof email !== 'string') {
+    if (!email || typeof email !== "string") {
       return NextResponse.json(
-        { error: 'Email is required' },
+        { error: "Email is required" },
         { status: 400 }
       )
     }
 
-    // Find user by email
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, email.toLowerCase()))
-      .limit(1)
-
-    if (!user) {
-      // Don't reveal if user exists or not (security best practice)
-      logger.warn({ email }, 'Verification email requested for non-existent user')
-      return NextResponse.json({
-        success: true,
-        message: 'If an account exists with this email, a verification link will be sent.',
-      })
-    }
-
-    // Check if already verified
-    if (user.emailVerified) {
-      logger.info({
-        userId: user.id,
-        email,
-      }, 'Verification email requested for already verified user')
-      return NextResponse.json({
-        success: true,
-        message: 'This email is already verified.',
-        alreadyVerified: true,
-      })
-    }
-
-    // Delete any existing verification tokens for this email
-    await db
-      .delete(verificationTokens)
-      .where(eq(verificationTokens.identifier, email.toLowerCase()))
-
-    // Generate new verification token
-    const token = generateVerificationToken()
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
-
-    // Store verification token
-    await db.insert(verificationTokens).values({
-      identifier: email.toLowerCase(),
-      token,
-      expires,
-    })
-
-    // Build verification URL
-    const appUrl = getServerEnv().NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-    const verificationUrl = `${appUrl}/verify-email?token=${token}`
-
-    // Send verification email
-    const result = await sendVerificationEmail(
-      email,
-      user.displayName || user.username || 'there',
-      verificationUrl
+    // Delegate to Neon Auth for resending verification email
+    const response = await auth.handler().POST(
+      new NextRequest(new URL(`${request.nextUrl.origin}/api/auth/email/resend-code`), {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...Object.fromEntries(request.headers),
+        },
+        body: JSON.stringify({ email }),
+      }),
+      { params: Promise.resolve({ path: ["email", "resend-code"] }) }
     )
 
-    if (!result.success) {
-      logger.error({
-        userId: user.id,
-        email,
-        error: result.error,
-      }, 'Failed to send verification email')
+    if (response.ok) {
+      // Log successful resend
+      await logAuthEvent({
+        action: "verification_email_resent",
+        success: true,
+        ipAddress,
+        metadata: {
+          email: email.toLowerCase(),
+        },
+      })
+
+      logger.info({ email, ipAddress }, "Verification email resent")
+
+      // Return success but don't leak email existence
       return NextResponse.json(
-        { error: 'Failed to send verification email. Please try again later.' },
-        { status: 500 }
+        {
+          success: true,
+          message: "Verification email sent. Please check your inbox.",
+        },
+        { status: 200 }
+      )
+    } else {
+      logger.warn({ email, ipAddress }, "Failed to resend verification email")
+
+      // Return generic error to avoid email enumeration
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Verification email sent. Please check your inbox.",
+        },
+        { status: 200 }
       )
     }
-
-    logger.info({
-      userId: user.id,
-      email,
-      messageId: result.messageId,
-    }, 'Verification email resent successfully')
-
-    return NextResponse.json({
-      success: true,
-      message: 'Verification email sent successfully. Please check your inbox.',
-    })
   } catch (error) {
-    logger.error({ error }, 'Error resending verification email')
+    logger.error({ error }, "Error resending verification email")
+
+    // Return generic error
     return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+      {
+        success: true,
+        message: "Verification email sent. Please check your inbox.",
+      },
+      { status: 200 }
     )
   }
 }

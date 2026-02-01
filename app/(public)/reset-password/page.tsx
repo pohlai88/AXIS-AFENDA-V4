@@ -1,11 +1,16 @@
 import { Suspense } from "react"
 import ResetPasswordClient from "./reset-password-client"
+import { AuthShell } from "@/components/auth/auth-shell"
+import { Spinner } from "@/components/ui/spinner"
 
 function ResetPasswordFallback() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50 px-4">
-      <div className="text-sm text-muted-foreground">Loading reset password...</div>
-    </div>
+    <AuthShell title="Reset password" description="Loading…">
+      <div className="flex items-center gap-3 rounded-lg border bg-card p-4">
+        <Spinner className="size-5" />
+        <div className="text-sm text-muted-foreground">Preparing reset form…</div>
+      </div>
+    </AuthShell>
   )
 }
 

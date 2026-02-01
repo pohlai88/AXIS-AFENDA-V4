@@ -9,6 +9,16 @@ export interface UserDataAccessOptions {
   offset?: number
 }
 
+type TaskRow = Record<string, unknown> & { due_date?: unknown }
+
+function normalizeTodo(row: TaskRow) {
+  const { due_date, ...rest } = row
+  return {
+    ...rest,
+    due_at: typeof due_date === "string" ? due_date : due_date ?? null,
+  }
+}
+
 export class UserDataService {
   private static async getAuthenticatedClient() {
     const authContext = await getAuthContext()
@@ -17,8 +27,13 @@ export class UserDataService {
       throw new Error("User not authenticated")
     }
 
+    // Neon Data API requires a Neon Auth user JWT as bearer token.
+    if (authContext.authSource !== "neon-auth" || !authContext.sessionId) {
+      throw new Error("Neon Auth session required for Data API access")
+    }
+
     return {
-      client: createNeonDataApiClient(authContext.userId),
+      client: createNeonDataApiClient(authContext.sessionId),
       authContext,
     }
   }
@@ -34,11 +49,11 @@ export class UserDataService {
       // For now, let admins see all todos
     } else {
       // Regular users can only see their own todos
-      filter.owner = authContext.userId
+      filter.user_id = authContext.userId
     }
 
-    const response = await client.get("axis.todo_items", {
-      select: "id, title, description, status, due_at, created_at, updated_at",
+    const response = await client.get("public.tasks", {
+      select: "id, title, description, status, due_date, created_at, updated_at",
       filter,
       limit: options.limit || 50,
       offset: options.offset || 0,
@@ -50,7 +65,7 @@ export class UserDataService {
     }
 
     return {
-      todos: response.data,
+      todos: response.data.map((row) => normalizeTodo(row as TaskRow)),
       authSource: authContext.authSource,
       userId: authContext.userId,
       roles: authContext.roles,
@@ -61,8 +76,8 @@ export class UserDataService {
     const { client, authContext } = await this.getAuthenticatedClient()
 
     // Get user profile from the database
-    const response = await client.get("axis.users", {
-      select: "id, email, role, created_at, updated_at",
+    const response = await client.get("public.users", {
+      select: "id, email, created_at",
       filter: { id: authContext.userId },
       limit: 1,
     })
@@ -77,7 +92,10 @@ export class UserDataService {
     }
 
     return {
-      user,
+      user: {
+        ...user,
+        role: authContext.roles[0] ?? "user",
+      },
       authSource: authContext.authSource,
       roles: authContext.roles,
     }
@@ -90,14 +108,12 @@ export class UserDataService {
   }) {
     const { client, authContext } = await this.getAuthenticatedClient()
 
-    const response = await client.post("axis.todo_items", {
+    const response = await client.post("public.tasks", {
+      user_id: authContext.userId,
       title: todoData.title,
       description: todoData.description,
-      due_at: todoData.due_at,
-      status: "pending",
-      owner: authContext.userId,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      due_date: todoData.due_at,
+      status: "todo",
     })
 
     if (response.error) {
@@ -105,7 +121,7 @@ export class UserDataService {
     }
 
     return {
-      todo: response.data[0],
+      todo: normalizeTodo((response.data[0] ?? {}) as TaskRow),
       authSource: authContext.authSource,
     }
   }
@@ -122,20 +138,27 @@ export class UserDataService {
     const filter: Record<string, unknown> = { id: todoId }
     
     if (!authContext.roles.includes("admin")) {
-      filter.owner = authContext.userId
+      filter.user_id = authContext.userId
     }
 
-    const response = await client.patch("axis.todo_items", {
-      ...updates,
-      updated_at: new Date().toISOString(),
-    }, filter)
+    const { due_at, ...rest } = updates
+
+    const response = await client.patch(
+      "public.tasks",
+      {
+        ...rest,
+        ...(due_at ? { due_date: due_at } : {}),
+        updated_at: new Date().toISOString(),
+      },
+      filter
+    )
 
     if (response.error) {
       throw new Error(`Failed to update todo: ${response.error}`)
     }
 
     return {
-      todo: response.data[0],
+      todo: normalizeTodo((response.data[0] ?? {}) as TaskRow),
       authSource: authContext.authSource,
     }
   }
@@ -147,10 +170,10 @@ export class UserDataService {
     const filter: Record<string, unknown> = { id: todoId }
     
     if (!authContext.roles.includes("admin")) {
-      filter.owner = authContext.userId
+      filter.user_id = authContext.userId
     }
 
-    const response = await client.delete("axis.todo_items", filter)
+    const response = await client.delete("public.tasks", filter)
 
     if (response.error) {
       throw new Error(`Failed to delete todo: ${response.error}`)

@@ -16,25 +16,17 @@ export async function verifyNeonJwt(token: string): Promise<VerifiedToken | null
   const env = getServerEnv()
 
   try {
-    if (env.JWKS_URL) {
-      if (!cachedJwks) {
-        cachedJwks = createRemoteJWKSet(new URL(env.JWKS_URL))
-      }
+    // Note: Legacy JWKS_URL and NEON_JWT_SECRET env vars are no longer needed
+    // Neon Auth SDK handles JWT verification internally
+    // This function is kept for backwards compatibility
 
-      const { payload } = await jwtVerify(token, cachedJwks)
-      return { payload, raw: token }
-    }
+    // If needed in the future, configure Neon Auth JWT verification instead
+    // See: https://neon.tech/docs/guides/neon-auth
 
-    if (env.NEON_JWT_SECRET) {
-      const key = new TextEncoder().encode(env.NEON_JWT_SECRET)
-      const { payload } = await jwtVerify(token, key)
-      return { payload, raw: token }
-    }
-
-    logger.warn("Neon JWT verification skipped: no JWKS_URL or NEON_JWT_SECRET configured")
+    logger.debug("JWT verification delegated to Neon Auth service")
     return null
   } catch (error) {
-    logger.warn({ err: error }, "Neon JWT verification failed")
+    logger.warn({ err: error }, "JWT verification failed")
     return null
   }
 }

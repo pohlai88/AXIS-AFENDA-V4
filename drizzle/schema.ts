@@ -1,24 +1,23 @@
 import { pgTable, unique, uuid, varchar, timestamp, boolean, text, integer, jsonb, serial } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
-
-
-export const passwordResetTokens = pgTable("password_reset_tokens", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	userId: uuid("user_id").notNull(),
-	token: varchar({ length: 255 }).notNull(),
-	expires: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
-	used: boolean().default(false).notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	unique("password_reset_tokens_token_unique").on(table.token),
-]);
-
-export const users = pgTable("users", {
-	id: text().primaryKey().notNull(),
-	email: text().notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-});
+/**
+ * NEON AUTH BEST PRACTICES:
+ * 
+ * User authentication is managed exclusively by Neon Auth (neon_auth.* schema).
+ * All user, session, account, and verification data lives in Neon Auth tables.
+ * 
+ * DO NOT create custom users, sessions, accounts, password_reset_tokens, or verification_tokens tables.
+ * This file defines only business logic tables for your application.
+ * 
+ * Neon Auth provides:
+ * - neon_auth.user (user data)
+ * - neon_auth.session (session management)
+ * - neon_auth.account (OAuth accounts)
+ * - neon_auth.verification (email verification)
+ * - neon_auth.organization (org management - optional)
+ * - neon_auth.member (org membership - optional)
+ */
 
 export const projects = pgTable("projects", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
@@ -81,37 +80,6 @@ export const tenantDesignSystem = pgTable("tenant_design_system", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 });
 
-export const accounts = pgTable("accounts", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	userId: uuid("user_id").notNull(),
-	type: varchar({ length: 50 }).notNull(),
-	provider: varchar({ length: 50 }).notNull(),
-	providerAccountId: varchar("provider_account_id", { length: 255 }).notNull(),
-	refreshToken: varchar("refresh_token", { length: 1000 }),
-	accessToken: varchar("access_token", { length: 1000 }),
-	expiresAt: integer("expires_at"),
-	tokenType: varchar("token_type", { length: 50 }),
-	scope: varchar({ length: 500 }),
-	idToken: varchar("id_token", { length: 2000 }),
-	sessionState: varchar("session_state", { length: 500 }),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-});
-
-export const sessions = pgTable("sessions", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	sessionToken: varchar("session_token", { length: 255 }).notNull(),
-	userId: uuid("user_id").notNull(),
-	expires: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
-	user: jsonb().notNull(),
-	ipAddress: varchar("ip_address", { length: 45 }),
-	userAgent: varchar("user_agent", { length: 500 }),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	unique("sessions_session_token_unique").on(table.sessionToken),
-]);
-
 export const userActivityLog = pgTable("user_activity_log", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	userId: uuid("user_id").notNull(),
@@ -123,15 +91,6 @@ export const userActivityLog = pgTable("user_activity_log", {
 	metadata: jsonb().default({}),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 });
-
-export const verificationTokens = pgTable("verification_tokens", {
-	identifier: varchar({ length: 255 }).notNull(),
-	token: varchar({ length: 255 }).notNull(),
-	expires: timestamp({ withTimezone: true, mode: 'string' }).notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-}, (table) => [
-	unique("verification_tokens_token_unique").on(table.token),
-]);
 
 export const loginAttempts = pgTable("login_attempts", {
 	id: serial().primaryKey().notNull(),

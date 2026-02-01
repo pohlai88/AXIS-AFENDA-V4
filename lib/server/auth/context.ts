@@ -2,10 +2,11 @@ import "@/lib/server/only"
 
 import { headers } from "next/headers"
 import { logger } from "@/lib/server/logger"
-import { HEADER_NAMES, COOKIE_NAMES } from "@/lib/constants"
+import { HEADER_NAMES } from "@/lib/constants"
 import { verifyNeonJwt } from "@/lib/server/auth/jwt"
 import { syncUserFromAuth } from "@/lib/server/auth/user-sync"
 import { logLogin, extractIpAddress, extractUserAgent } from "@/lib/server/auth/audit-log"
+import { auth } from "@/lib/auth/server"
 
 export interface AuthContext {
   userId: string
@@ -26,15 +27,32 @@ export function shouldRefreshToken(expiresAt: number): boolean {
   return expiresIn < 900 // Refresh if < 15 minutes (900 seconds)
 }
 
+function isNextStaticGenerationDynamicUsageError(err: unknown): boolean {
+  if (!err || typeof err !== "object") return false
+
+  const anyErr = err as { digest?: unknown; message?: unknown; description?: unknown }
+  if (anyErr.digest === "DYNAMIC_SERVER_USAGE") return true
+
+  const message = typeof anyErr.message === "string" ? anyErr.message : ""
+  const description = typeof anyErr.description === "string" ? anyErr.description : ""
+
+  return message.includes("Dynamic server usage") || description.includes("Dynamic server usage")
+}
+
 export async function getAuthContext(): Promise<AuthContext> {
   try {
     const headersList = await headers()
     const authHeader = headersList.get("authorization")
     const tokenFromHeader = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null
-    const tokenFromCookie = extractNeonAuthCookie(headersList.get("cookie"))
-    const token = tokenFromHeader ?? tokenFromCookie
+    const token = tokenFromHeader
 
-    if (!token) {
+    // Prefer explicit bearer token (service-to-service / API calls), otherwise
+    // resolve the Neon Auth session via the official server API.
+    const neonSession = token ? null : await auth.getSession()
+    const neonSessionData = neonSession && "data" in neonSession ? neonSession.data : null
+    const sessionToken = token ?? neonSessionData?.session?.token ?? null
+
+    if (!sessionToken) {
       return {
         userId: "",
         roles: [],
@@ -43,14 +61,16 @@ export async function getAuthContext(): Promise<AuthContext> {
       }
     }
 
-    const verified = await verifyNeonJwt(token)
+    // IMPORTANT: verify the JWT token from the session. The Neon Auth cookie
+    // itself is not guaranteed to be a JWT (and may be opaque/encrypted).
+    const verified = await verifyNeonJwt(sessionToken)
 
     if (!verified) {
       const headerUserId = headersList.get(HEADER_NAMES.USER_ID)
       if (headerUserId) {
         return {
           userId: headerUserId,
-          sessionId: token,
+          sessionId: sessionToken,
           roles: ["user"],
           authSource: "header",
           isAuthenticated: true,
@@ -67,7 +87,8 @@ export async function getAuthContext(): Promise<AuthContext> {
 
     const payload = verified.payload
     const claims = payload as Record<string, unknown>
-    const userId = (payload.sub ?? claims.user_id ?? claims.userId) as string | undefined
+    const userId =
+      ((payload.sub ?? claims.user_id ?? claims.userId ?? neonSessionData?.user?.id) as string | undefined) ?? undefined
 
     if (!userId) {
       return {
@@ -78,11 +99,14 @@ export async function getAuthContext(): Promise<AuthContext> {
       }
     }
 
-    const email = (payload.email ?? claims.email_address) as string | undefined
-    const name = (payload.name ?? claims.preferred_username) as string | undefined
-    const avatar = (payload.picture ?? claims.avatar_url) as string | undefined
+    const email =
+      ((payload.email ?? claims.email_address ?? neonSessionData?.user?.email) as string | undefined) ?? undefined
+    const name =
+      ((payload.name ?? claims.preferred_username ?? neonSessionData?.user?.name) as string | undefined) ?? undefined
+    const avatar =
+      ((payload.picture ?? claims.avatar_url ?? neonSessionData?.user?.image) as string | undefined) ?? undefined
     const provider = (claims.provider ?? payload.iss) as string | undefined
-    const emailVerified = Boolean(claims.email_verified)
+    const emailVerified = Boolean(claims.email_verified ?? neonSessionData?.user?.emailVerified)
 
     let syncResult: Awaited<ReturnType<typeof syncUserFromAuth>> | null = null
 
@@ -115,7 +139,7 @@ export async function getAuthContext(): Promise<AuthContext> {
       // New user signup
       logLogin(userId, {
         provider,
-        sessionId: token,
+        sessionId: sessionToken,
         ipAddress: extractIpAddress(headersList),
         userAgent: extractUserAgent(headersList),
       }).catch((err) => logger.warn({ err }, "Failed to log signup event"))
@@ -123,7 +147,7 @@ export async function getAuthContext(): Promise<AuthContext> {
 
     return {
       userId,
-      sessionId: token,
+      sessionId: sessionToken,
       email: syncResult?.email ?? email,
       roles,
       authSource: "neon-auth",
@@ -132,7 +156,13 @@ export async function getAuthContext(): Promise<AuthContext> {
       shouldRefresh,
     }
   } catch (error) {
-    logger.error({ err: error }, "Error getting auth context")
+    // During build-time static generation, calling request-bound APIs like `headers()`
+    // throws `DYNAMIC_SERVER_USAGE`. That's expected and should not be logged as an error.
+    if (isNextStaticGenerationDynamicUsageError(error)) {
+      logger.debug({ err: error }, "Auth context unavailable during static generation")
+    } else {
+      logger.error({ err: error }, "Error getting auth context")
+    }
     return {
       userId: "",
       roles: [],
@@ -140,18 +170,4 @@ export async function getAuthContext(): Promise<AuthContext> {
       isAuthenticated: false,
     }
   }
-}
-
-function extractNeonAuthCookie(cookieHeader: string | null): string | null {
-  if (!cookieHeader) return null
-
-  const cookies = cookieHeader.split(";").map((cookie) => cookie.trim())
-  const neonCookie = cookies.find((cookie) => cookie.startsWith(COOKIE_NAMES.NEON_AUTH))
-
-  if (!neonCookie) return null
-
-  const value = neonCookie.split("=")[1]
-  if (!value) return null
-
-  return decodeURIComponent(value)
 }

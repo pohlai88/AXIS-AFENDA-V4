@@ -8,6 +8,11 @@ export const routes = {
     register: () => "/register",
     forgotPassword: () => "/forgot-password",
     resetPassword: (token?: string) => token ? `/reset-password?token=${token}` : "/reset-password",
+    /**
+     * Dedicated callback landing page for Neon Auth redirects.
+     * Keeps the UI consistent while the session finalizes.
+     */
+    authCallback: (next?: string) => next ? `/auth/callback?next=${encodeURIComponent(next)}` : "/auth/callback",
   },
   app: {
     root: () => "/app",

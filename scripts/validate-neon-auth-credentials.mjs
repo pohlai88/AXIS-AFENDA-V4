@@ -81,6 +81,23 @@ function loadEnv(filePath) {
   return env
 }
 
+/**
+ * Load env vars from common Next.js locations.
+ *
+ * Next.js loads `.env`, `.env.local`, etc. automatically at runtime, but this
+ * standalone Node script must do it explicitly.
+ *
+ * Precedence (last wins):
+ * - .env
+ * - .env.local
+ * - process.env (explicit shell/CI env should override files)
+ */
+function loadProjectEnv() {
+  const base = loadEnv(path.join(projectRoot, ".env"))
+  const local = loadEnv(path.join(projectRoot, ".env.local"))
+  return { ...base, ...local, ...process.env }
+}
+
 // Required variables for Neon Auth
 const REQUIRED_VARS = {
   DATABASE_URL: {
@@ -177,7 +194,10 @@ async function validateJwksUrl(jwksUrl) {
 // Validate Neon Auth endpoints
 async function validateNeonAuthEndpoints(baseUrl) {
   try {
-    const response = await fetch(`${baseUrl}/.well-known/oauth-authorization-server`, {
+    // Neon Auth reliably exposes JWKS under the auth base URL.
+    // Use that to validate the auth service is reachable.
+    const response = await fetch(`${baseUrl}/.well-known/jwks.json`, {
+      method: 'GET',
       headers: {
         'User-Agent': 'neon-auth-validator/1.0',
       },
@@ -192,8 +212,7 @@ async function validateNeonAuthEndpoints(baseUrl) {
 
 // Main validation function
 async function validateNeonAuthCredentials() {
-  const envPath = path.join(projectRoot, '.env.local')
-  const env = loadEnv(envPath)
+  const env = loadProjectEnv()
 
   header('NEON AUTH DEVELOPER CREDENTIALS VALIDATION')
 
