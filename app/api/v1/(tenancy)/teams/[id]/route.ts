@@ -12,6 +12,7 @@ import { HttpError } from "@/lib/server/api/errors"
 import { teamService } from "@/lib/server/teams/service"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { withApiErrorBoundary } from "@/lib/server/api/handler"
+import { withRlsDb } from "@/lib/server/db/rls"
 import {
   updateTeamSchema,
   teamParamsSchema
@@ -32,15 +33,16 @@ export async function GET(req: Request, context: Context) {
     const params = await context.params
     const { id } = teamParamsSchema.parse(params)
 
-    // Check if user is member of the team
-    const isMember = await teamService.isMember(auth.userId, id)
-    if (!isMember) {
-      return fail({ code: "ACCESS_DENIED", message: "Access denied" }, 403)
-    }
+    return await withRlsDb(auth.userId, async (db) => {
+      // Check if user is member of the team
+      const isMember = await teamService.isMember(auth.userId, id, db)
+      if (!isMember) {
+        return fail({ code: "ACCESS_DENIED", message: "Access denied" }, 403)
+      }
 
-    const team = await teamService.getById(id)
-
-    return ok(team)
+      const team = await teamService.getById(id, db)
+      return ok(team)
+    })
   })
 }
 
@@ -58,10 +60,11 @@ export async function PATCH(req: Request, context: Context) {
     // Check manager permissions
     await requireTeamManager()(req)
 
-    const team = await teamService.update(id, data)
-    invalidateTag(`teams:${auth.userId}`)
-
-    return ok(team)
+    return await withRlsDb(auth.userId, async (db) => {
+      const team = await teamService.update(id, data, db)
+      invalidateTag(`teams:${auth.userId}`)
+      return ok(team)
+    })
   })
 }
 
@@ -78,10 +81,11 @@ export async function DELETE(req: Request, context: Context) {
     // Check manager permissions
     await requireTeamManager()(req)
 
-    const team = await teamService.delete(id)
-    invalidateTag(`teams:${auth.userId}`)
-
-    return ok(team)
+    return await withRlsDb(auth.userId, async (db) => {
+      const team = await teamService.delete(id, db)
+      invalidateTag(`teams:${auth.userId}`)
+      return ok(team)
+    })
   })
 }
 

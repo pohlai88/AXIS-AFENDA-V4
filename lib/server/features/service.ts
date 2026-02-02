@@ -1,6 +1,6 @@
 import "@/lib/server/only"
-import { db } from "@/lib/server/db"
-import { users } from "@/lib/server/db/schema"
+import { getDb } from "@/lib/server/db"
+import { userProfiles } from "@/lib/server/db/schema"
 import { eq } from "drizzle-orm"
 import { logger } from "@/lib/server/logger"
 import {
@@ -19,11 +19,12 @@ export class FeatureFlagService {
    */
   async isEnabled(userId: string, feature: FeatureFlagValue): Promise<boolean> {
     try {
+      const db = getDb()
       // Get user preferences
       const [user] = await db
-        .select({ preferences: users.preferences })
-        .from(users)
-        .where(eq(users.id, userId))
+        .select({ preferences: userProfiles.preferences })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, userId))
         .limit(1)
 
       if (!user) {
@@ -77,10 +78,11 @@ export class FeatureFlagService {
    */
   async enableFeature(userId: string, feature: FeatureFlagValue): Promise<void> {
     try {
+      const db = getDb()
       const [user] = await db
-        .select({ preferences: users.preferences })
-        .from(users)
-        .where(eq(users.id, userId))
+        .select({ preferences: userProfiles.preferences })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, userId))
         .limit(1)
 
       if (!user) {
@@ -94,7 +96,7 @@ export class FeatureFlagService {
       featureFlags[feature] = true
 
       await db
-        .update(users)
+        .update(userProfiles)
         .set({
           preferences: {
             ...preferences,
@@ -102,7 +104,7 @@ export class FeatureFlagService {
           },
           updatedAt: new Date(),
         })
-        .where(eq(users.id, userId))
+        .where(eq(userProfiles.userId, userId))
 
       logger.info({ userId, feature }, "Feature flag enabled")
     } catch (error) {
@@ -115,10 +117,11 @@ export class FeatureFlagService {
    */
   async disableFeature(userId: string, feature: FeatureFlagValue): Promise<void> {
     try {
+      const db = getDb()
       const [user] = await db
-        .select({ preferences: users.preferences })
-        .from(users)
-        .where(eq(users.id, userId))
+        .select({ preferences: userProfiles.preferences })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, userId))
         .limit(1)
 
       if (!user) {
@@ -132,7 +135,7 @@ export class FeatureFlagService {
       featureFlags[feature] = false
 
       await db
-        .update(users)
+        .update(userProfiles)
         .set({
           preferences: {
             ...preferences,
@@ -140,7 +143,7 @@ export class FeatureFlagService {
           },
           updatedAt: new Date(),
         })
-        .where(eq(users.id, userId))
+        .where(eq(userProfiles.userId, userId))
 
       logger.info({ userId, feature }, "Feature flag disabled")
     } catch (error) {
@@ -153,10 +156,11 @@ export class FeatureFlagService {
    */
   async getAllFlags(userId: string): Promise<Record<string, boolean>> {
     try {
+      const db = getDb()
       const [user] = await db
-        .select({ preferences: users.preferences })
-        .from(users)
-        .where(eq(users.id, userId))
+        .select({ preferences: userProfiles.preferences })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, userId))
         .limit(1)
 
       if (!user) {
@@ -259,10 +263,11 @@ export class FeatureFlagService {
    */
   async resetToDefaults(userId: string): Promise<void> {
     try {
+      const db = getDb()
       const [user] = await db
-        .select({ preferences: users.preferences })
-        .from(users)
-        .where(eq(users.id, userId))
+        .select({ preferences: userProfiles.preferences })
+        .from(userProfiles)
+        .where(eq(userProfiles.userId, userId))
         .limit(1)
 
       if (!user) {
@@ -275,12 +280,12 @@ export class FeatureFlagService {
       delete preferences.featureFlags
 
       await db
-        .update(users)
+        .update(userProfiles)
         .set({
           preferences,
           updatedAt: new Date(),
         })
-        .where(eq(users.id, userId))
+        .where(eq(userProfiles.userId, userId))
 
       logger.info({ userId }, "Feature flags reset to defaults")
     } catch (error) {

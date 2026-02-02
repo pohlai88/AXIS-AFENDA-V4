@@ -16,6 +16,7 @@
 
 import { NeonAuthUIProvider } from "@neondatabase/auth/react"
 import { authClient } from "@/lib/auth/client"
+import { routes } from "@/lib/routes"
 
 interface AuthProviderProps {
   children: React.ReactNode
@@ -25,7 +26,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   return (
     <NeonAuthUIProvider
       authClient={authClient}
-      redirectTo="/app"
+      redirectTo={routes.ui.orchestra.root()}
       social={{
         providers: ["google", "github"],
       }}

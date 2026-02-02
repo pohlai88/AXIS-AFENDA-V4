@@ -4,12 +4,15 @@
  * @responsibility API route handler for /api/auth/:path*
  */
 
-import { NextRequest, NextResponse } from "next/server"
+import "@/lib/server/only"
+
+import { NextRequest } from "next/server"
 import { auth } from "@/lib/auth/server"
 import { extractIpAddress, logAuthEvent } from "@/lib/server/auth/audit-log"
 import { checkLoginEligibility, recordFailedLoginAttempt, resetLoginAttempts } from "@/lib/server/auth/rate-limit"
 import { verifyCaptchaToken } from "@/lib/server/auth/captcha"
-const RATE_LIMIT_EMAIL_LOCKOUT_THRESHOLD = 5
+import { fail } from "@/lib/server/api/response"
+import { HEADER_NAMES } from "@/lib/constants"
 
 /**
  * Neon Auth Proxy Handler
@@ -90,60 +93,67 @@ export async function POST(
 	// Rate limiting and security checks for sign-in
 	const { email, captchaToken } = await extractAuthPayload(request)
 	const ipAddress = extractIpAddress(request.headers)
+	const requestId = request.headers.get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
 	const eligibility = await checkLoginEligibility({ email, ipAddress })
 
 	if (!eligibility.allowed) {
-		const response = NextResponse.json(
+		return fail(
 			{
-				error: "Too many failed login attempts. Please try again later.",
-				requiresCaptcha: eligibility.requiresCaptcha,
+				code: "TOO_MANY_ATTEMPTS",
+				message: "Too many failed login attempts. Please try again later.",
+				requestId,
+				details: {
+					requiresCaptcha: eligibility.requiresCaptcha,
+					retryAfterSeconds: eligibility.retryAfterSeconds,
+				},
 			},
-			{ status: 429 }
+			429,
+			eligibility.retryAfterSeconds
+				? { headers: { "Retry-After": String(eligibility.retryAfterSeconds) } }
+				: undefined
 		)
-
-		if (eligibility.retryAfterSeconds) {
-			response.headers.set("Retry-After", String(eligibility.retryAfterSeconds))
-		}
-
-		return response
 	}
 
 	if (eligibility.requiresCaptcha) {
 		if (!captchaToken) {
-			return NextResponse.json(
+			return fail(
 				{
-					error: "CAPTCHA required",
-					requiresCaptcha: true,
+					code: "CAPTCHA_REQUIRED",
+					message: "CAPTCHA required",
+					requestId,
+					details: { requiresCaptcha: true },
 				},
-				{ status: 403 }
+				403
 			)
 		}
 
 		const verification = await verifyCaptchaToken({ token: captchaToken, remoteIp: ipAddress })
 
 		if (!verification.success) {
-			return NextResponse.json(
+			return fail(
 				{
-					error: verification.error ?? "CAPTCHA verification failed",
-					requiresCaptcha: true,
+					code: "CAPTCHA_FAILED",
+					message: verification.error ?? "CAPTCHA verification failed",
+					requestId,
+					details: { requiresCaptcha: true },
 				},
-				{ status: 403 }
+				403
 			)
 		}
 	}
 
 	const response = await authPOST(request, context)
 
-	// Log failed authentication attempts
+	// Record failed authentication attempts (rate limit state is owned by us, not Neon Auth).
 	if (!response.ok) {
 		const result = await recordFailedLoginAttempt({ email, ipAddress })
 
-		// Log account lock event
+		// Log account lock event (user may not be known yet; keep details in metadata).
 		if (email && result.email?.lockedUntil) {
 			await logAuthEvent({
 				userId: undefined,
-				action: 'account_locked',
+				action: "account_locked",
 				success: true,
 				ipAddress,
 				metadata: {
@@ -151,10 +161,10 @@ export async function POST(
 					lockedUntil: result.email.lockedUntil.toISOString(),
 				},
 			})
-		} else {
-			// Reset attempts on successful login
-			await resetLoginAttempts({ email, ipAddress })
 		}
+	} else {
+		// Reset attempts on successful login.
+		await resetLoginAttempts({ email, ipAddress })
 	}
 
 	return response

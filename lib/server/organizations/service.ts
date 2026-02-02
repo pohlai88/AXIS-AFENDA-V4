@@ -1,11 +1,11 @@
 import "@/lib/server/only"
-import { db } from "@/lib/server/db"
-import { unstable_cache } from "next/cache"
-import { organizations, teams, memberships, users } from "@/lib/server/db/schema"
+import { getDb } from "@/lib/server/db"
+import { organizations, teams, memberships, userProfiles } from "@/lib/server/db/schema"
 import { eq, and, desc, ilike, count } from "drizzle-orm"
 import { logger } from "@/lib/server/logger"
 import { HttpError } from "@/lib/server/api/errors"
 import { ORGANIZATION } from "@/lib/constants"
+import type { Db } from "@/lib/server/db/client"
 import type {
   CreateOrganizationInput,
   UpdateOrganizationInput,
@@ -16,11 +16,12 @@ export class OrganizationService {
   /**
    * Create a new organization
    */
-  async create(data: CreateOrganizationInput, createdBy: string) {
+  async create(data: CreateOrganizationInput, createdBy: string, db?: Db) {
+    const dbx = db ?? getDb()
     logger.info({ data: { name: data.name, slug: data.slug } }, "Creating organization")
 
     // Check if slug is already taken
-    const [existing] = await db
+    const [existing] = await dbx
       .select()
       .from(organizations)
       .where(eq(organizations.slug, data.slug))
@@ -31,16 +32,17 @@ export class OrganizationService {
     }
 
     // Create organization
-    const [org] = await db.insert(organizations).values({
+    const [org] = await dbx.insert(organizations).values({
       name: data.name,
       slug: data.slug,
       description: data.description,
       logo: data.logo,
       settings: {},
+      createdBy,
     }).returning()
 
     // Add creator as owner
-    await db.insert(memberships).values({
+    await dbx.insert(memberships).values({
       userId: createdBy,
       organizationId: org.id,
       role: ORGANIZATION.ROLES.OWNER,
@@ -56,8 +58,9 @@ export class OrganizationService {
   /**
    * Get organization by ID
    */
-  async getById(id: string) {
-    const [org] = await db
+  async getById(id: string, db?: Db) {
+    const dbx = db ?? getDb()
+    const [org] = await dbx
       .select()
       .from(organizations)
       .where(eq(organizations.id, id))
@@ -73,8 +76,9 @@ export class OrganizationService {
   /**
    * Get organization by slug
    */
-  async getBySlug(slug: string) {
-    const [org] = await db
+  async getBySlug(slug: string, db?: Db) {
+    const dbx = db ?? getDb()
+    const [org] = await dbx
       .select()
       .from(organizations)
       .where(eq(organizations.slug, slug))
@@ -90,85 +94,69 @@ export class OrganizationService {
   /**
    * List organizations for a user
    */
-  async listForUser(userId: string, query: OrganizationQuery) {
-    const cacheKey = [
-      "organizations:listForUser",
-      userId,
-      String(query.page),
-      String(query.limit),
-      query.search ?? "",
-    ]
+  async listForUser(userId: string, query: OrganizationQuery, db?: Db) {
+    const dbx = db ?? getDb()
+    const offset = (query.page - 1) * query.limit
 
-    const getCachedList = unstable_cache(
-      async () => {
-        const offset = (query.page - 1) * query.limit
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let whereClause: any = eq(memberships.userId, userId)
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let whereClause: any = eq(memberships.userId, userId)
+    if (query.search) {
+      whereClause = and(whereClause, ilike(organizations.name, `%${query.search}%`))
+    }
 
-        if (query.search) {
-          whereClause = and(
-            whereClause,
-            ilike(organizations.name, `%${query.search}%`)
-          )
-        }
+    const orgList = await dbx
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        slug: organizations.slug,
+        description: organizations.description,
+        logo: organizations.logo,
+        isActive: organizations.isActive,
+        createdAt: organizations.createdAt,
+        updatedAt: organizations.updatedAt,
+        memberCount: count(memberships.id),
+        teamCount: count(teams.id),
+      })
+      .from(organizations)
+      .innerJoin(memberships, eq(organizations.id, memberships.organizationId))
+      .leftJoin(teams, eq(organizations.id, teams.organizationId))
+      .where(whereClause)
+      .groupBy(organizations.id)
+      .orderBy(desc(organizations.createdAt))
+      .limit(query.limit)
+      .offset(offset)
 
-        const orgList = await db
-          .select({
-            id: organizations.id,
-            name: organizations.name,
-            slug: organizations.slug,
-            description: organizations.description,
-            logo: organizations.logo,
-            isActive: organizations.isActive,
-            createdAt: organizations.createdAt,
-            updatedAt: organizations.updatedAt,
-            memberCount: count(memberships.id),
-            teamCount: count(teams.id),
-          })
-          .from(organizations)
-          .innerJoin(memberships, eq(organizations.id, memberships.organizationId))
-          .leftJoin(teams, eq(organizations.id, teams.organizationId))
-          .where(whereClause)
-          .groupBy(organizations.id)
-          .orderBy(desc(organizations.createdAt))
-          .limit(query.limit)
-          .offset(offset)
+    const totalCountResult = await dbx
+      .select({ count: count() })
+      .from(organizations)
+      .innerJoin(memberships, eq(organizations.id, memberships.organizationId))
+      .where(
+        and(
+          eq(memberships.userId, userId),
+          query.search ? ilike(organizations.name, `%${query.search}%`) : undefined
+        )
+      )
 
-        // Get total count
-        const totalCountResult = await db
-          .select({ count: count() })
-          .from(organizations)
-          .innerJoin(memberships, eq(organizations.id, memberships.organizationId))
-          .where(and(
-            eq(memberships.userId, userId),
-            query.search ? ilike(organizations.name, `%${query.search}%`) : undefined
-          ))
-
-        return {
-          organizations: orgList,
-          pagination: {
-            page: query.page,
-            limit: query.limit,
-            total: totalCountResult[0].count,
-            totalPages: Math.ceil(totalCountResult[0].count / query.limit),
-          }
-        }
+    return {
+      organizations: orgList,
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total: totalCountResult[0].count,
+        totalPages: Math.ceil(totalCountResult[0].count / query.limit),
       },
-      cacheKey,
-      { tags: [`organizations:${userId}`], revalidate: 3600 }
-    )
-
-    return getCachedList()
+    }
   }
 
   /**
    * Update organization
    */
-  async update(id: string, data: UpdateOrganizationInput) {
+  async update(id: string, data: UpdateOrganizationInput, db?: Db) {
+    const dbx = db ?? getDb()
     logger.info({ orgId: id, data }, "Updating organization")
 
-    const [org] = await db
+    const [org] = await dbx
       .update(organizations)
       .set({
         ...data,
@@ -189,10 +177,11 @@ export class OrganizationService {
   /**
    * Delete organization (soft delete by setting isActive = false)
    */
-  async delete(id: string) {
+  async delete(id: string, db?: Db) {
+    const dbx = db ?? getDb()
     logger.info({ orgId: id }, "Deactivating organization")
 
-    const [org] = await db
+    const [org] = await dbx
       .update(organizations)
       .set({
         isActive: false,
@@ -213,8 +202,9 @@ export class OrganizationService {
   /**
    * Check if user is member of organization
    */
-  async isMember(userId: string, organizationId: string): Promise<boolean> {
-    const [membership] = await db
+  async isMember(userId: string, organizationId: string, db?: Db): Promise<boolean> {
+    const dbx = db ?? getDb()
+    const [membership] = await dbx
       .select()
       .from(memberships)
       .where(
@@ -232,8 +222,9 @@ export class OrganizationService {
   /**
    * Get user role in organization
    */
-  async getUserRole(userId: string, organizationId: string): Promise<string | null> {
-    const [membership] = await db
+  async getUserRole(userId: string, organizationId: string, db?: Db): Promise<string | null> {
+    const dbx = db ?? getDb()
+    const [membership] = await dbx
       .select()
       .from(memberships)
       .where(
@@ -251,7 +242,8 @@ export class OrganizationService {
   /**
    * Get organization members
    */
-  async getMembers(organizationId: string, query: OrganizationQuery) {
+  async getMembers(organizationId: string, query: OrganizationQuery, db?: Db) {
+    const dbx = db ?? getDb()
     const offset = (query.page - 1) * query.limit
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -263,7 +255,7 @@ export class OrganizationService {
     if (query.search) {
       whereClause = and(
         whereClause,
-        ilike(users.displayName, `%${query.search}%`)
+        ilike(userProfiles.displayName, `%${query.search}%`)
       )
     }
 
@@ -271,7 +263,7 @@ export class OrganizationService {
       whereClause = and(whereClause, eq(memberships.role, query.role))
     }
 
-    const memberList = await db
+    const memberList = await dbx
       .select({
         id: memberships.id,
         userId: memberships.userId,
@@ -280,24 +272,24 @@ export class OrganizationService {
         joinedAt: memberships.joinedAt,
         invitedBy: memberships.invitedBy,
         user: {
-          id: users.id,
-          email: users.email,
-          displayName: users.displayName,
-          avatar: users.avatar,
+          id: userProfiles.userId,
+          email: userProfiles.email,
+          displayName: userProfiles.displayName,
+          avatar: userProfiles.avatar,
         }
       })
       .from(memberships)
-      .innerJoin(users, eq(memberships.userId, users.id))
+      .leftJoin(userProfiles, eq(memberships.userId, userProfiles.userId))
       .where(whereClause)
       .orderBy(desc(memberships.joinedAt))
       .limit(query.limit)
       .offset(offset)
 
     // Get total count
-    const totalCountResult = await db
+    const totalCountResult = await dbx
       .select({ count: count() })
       .from(memberships)
-      .innerJoin(users, eq(memberships.userId, users.id))
+      .leftJoin(userProfiles, eq(memberships.userId, userProfiles.userId))
       .where(whereClause)
 
     return {

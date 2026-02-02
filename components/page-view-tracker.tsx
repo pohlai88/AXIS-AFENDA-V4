@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { routes } from '@/lib/routes'
 
 interface PageViewTrackerProps {
   pageName: string
@@ -54,11 +55,11 @@ export function PageViewTracker({
         // Send to your analytics endpoint
         if (navigator.sendBeacon) {
           navigator.sendBeacon(
-            '/api/analytics/page-view',
+            routes.api.analytics.pageView(),
             JSON.stringify(payload)
           )
         } else {
-          await fetch('/api/analytics/page-view', {
+          await fetch(routes.api.analytics.pageView(), {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),

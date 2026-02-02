@@ -1,14 +1,15 @@
 import "@/lib/server/only"
 
 import { cache } from "react"
-import { eq, and, gt, lt, not, desc } from "drizzle-orm"
-
-import { db } from "@/lib/server/db"
-import { sessions } from "@/lib/server/db/schema"
 import { logger } from "@/lib/server/logger"
+import { listNeonSessions, revokeNeonSession, revokeOtherNeonSessions } from "@/lib/server/auth/neon-sessions"
 
 export interface SessionInfo {
   id: string
+  /**
+   * Legacy field from pre-Neon-Auth session storage.
+   * Neon Auth session tokens must never be returned to clients.
+   */
   sessionToken: string
   device: string
   browser: string
@@ -21,7 +22,8 @@ export interface SessionInfo {
 }
 
 /**
- * Parse User-Agent string to extract device, browser, and OS information
+ * @deprecated This module previously queried local `sessions` table.
+ * Neon Auth now owns session storage; use `lib/server/auth/neon-sessions.ts`.
  */
 export function parseUserAgent(userAgent: string | null): {
   device: string
@@ -72,34 +74,21 @@ export const getUserActiveSessions = cache(async function getUserActiveSessions(
   currentSessionToken?: string
 ): Promise<SessionInfo[]> {
   try {
-    const now = new Date()
-
-    // Query all non-expired sessions for the user
-    const userSessions = await db
-      .select()
-      .from(sessions)
-      .where(and(eq(sessions.userId, userId), gt(sessions.expires, now)))
-      .orderBy(desc(sessions.updatedAt))
-
-    // Map to SessionInfo
-    const sessionInfos: SessionInfo[] = userSessions.map((session) => {
-      const { device, browser, os } = parseUserAgent(session.userAgent)
-
-      return {
-        id: session.id,
-        sessionToken: session.sessionToken,
-        device,
-        browser,
-        os,
-        ipAddress: session.ipAddress,
-        lastActive: session.updatedAt,
-        expires: session.expires,
-        createdAt: session.createdAt,
-        isCurrent: currentSessionToken ? session.sessionToken === currentSessionToken : false,
-      }
-    })
-
-    return sessionInfos
+    void userId
+    void currentSessionToken
+    const { sessions } = await listNeonSessions()
+    return sessions.map((s) => ({
+      id: s.id,
+      sessionToken: "", // never expose Neon Auth session token
+      device: s.device,
+      browser: s.browser,
+      os: s.os,
+      ipAddress: s.ipAddress,
+      lastActive: s.lastActive,
+      expires: s.expires,
+      createdAt: s.createdAt,
+      isCurrent: s.isCurrent,
+    }))
   } catch (error) {
     logger.error({ error, userId }, "Failed to get user active sessions")
     return []
@@ -112,17 +101,9 @@ export const getUserActiveSessions = cache(async function getUserActiveSessions(
  */
 export async function revokeSession(sessionId: string, userId: string): Promise<boolean> {
   try {
-    const result = await db
-      .delete(sessions)
-      .where(and(eq(sessions.id, sessionId), eq(sessions.userId, userId)))
-      .returning({ id: sessions.id })
-
-    if (result.length === 0) {
-      logger.warn({ sessionId, userId }, "Session not found or not owned by user")
-      return false
-    }
-
-    logger.info({ sessionId, userId }, "Session revoked successfully")
+    void userId
+    await revokeNeonSession(sessionId)
+    logger.info({ sessionId }, "Neon session revoked successfully")
     return true
   } catch (error) {
     logger.error({ error, sessionId, userId }, "Failed to revoke session")
@@ -138,21 +119,11 @@ export async function revokeAllOtherSessions(
   currentSessionToken: string
 ): Promise<number> {
   try {
-    const result = await db
-      .delete(sessions)
-      .where(
-        and(
-          eq(sessions.userId, userId),
-          gt(sessions.expires, new Date()),
-          not(eq(sessions.sessionToken, currentSessionToken))
-        )
-      )
-      .returning({ id: sessions.id })
-
-    const deletedCount = result.length
-
-    logger.info({ userId, deletedCount }, "Revoked other user sessions")
-    return deletedCount
+    void userId
+    void currentSessionToken
+    await revokeOtherNeonSessions()
+    // Neon does not report count reliably via SDK; callers should refresh list.
+    return 0
   } catch (error) {
     logger.error({ error, userId }, "Failed to revoke other sessions")
     return 0
@@ -163,18 +134,6 @@ export async function revokeAllOtherSessions(
  * Clean up expired sessions (maintenance function)
  */
 export async function cleanupExpiredSessions(): Promise<number> {
-  try {
-    const now = new Date()
-    const result = await db
-      .delete(sessions)
-      .where(lt(sessions.expires, now))
-      .returning({ id: sessions.id })
-
-    const count = result.length
-    logger.info({ count }, "Cleaned up expired sessions")
-    return count
-  } catch (error) {
-    logger.error({ error }, "Failed to cleanup expired sessions")
-    return 0
-  }
+  // Neon Auth owns session expiry; no-op.
+  return 0
 }

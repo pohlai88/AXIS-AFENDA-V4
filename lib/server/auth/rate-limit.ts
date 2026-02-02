@@ -1,6 +1,6 @@
 import "@/lib/server/only"
 
-import { db } from "@/lib/server/db"
+import { getDb } from "@/lib/server/db"
 import { loginAttempts } from "@/lib/server/db/schema"
 import { and, desc, eq, gt } from "drizzle-orm"
 
@@ -41,6 +41,7 @@ function getRetryAfterSeconds(lockedUntil?: Date): number | undefined {
 
 export class RateLimiter {
   async checkLoginAttempt(scope: RateLimitScope, value: string): Promise<RateLimitStatus> {
+    const db = getDb()
     const identifier = buildIdentifier(scope, value)
     const config = RATE_LIMIT_CONFIG[scope]
     const now = new Date()
@@ -82,6 +83,7 @@ export class RateLimiter {
   }
 
   async recordFailedLogin(scope: RateLimitScope, value: string): Promise<RateLimitStatus> {
+    const db = getDb()
     const identifier = buildIdentifier(scope, value)
     const config = RATE_LIMIT_CONFIG[scope]
     const now = new Date()
@@ -133,6 +135,7 @@ export class RateLimiter {
   }
 
   async resetLoginAttempts(scope: RateLimitScope, value: string): Promise<void> {
+    const db = getDb()
     const identifier = buildIdentifier(scope, value)
     await db.delete(loginAttempts).where(eq(loginAttempts.identifier, identifier))
   }

@@ -5,7 +5,8 @@ import { z } from "zod"
  */
 
 export const sessionResponseSchema = z.object({
-  id: z.string().uuid(),
+  // Neon Auth session ids are not guaranteed to be UUIDs across providers/versions.
+  id: z.string().min(1, "Invalid session ID"),
   device: z.string(),
   browser: z.string(),
   os: z.string(),
@@ -22,7 +23,7 @@ export const sessionListResponseSchema = z.object({
 })
 
 export const sessionIdParamSchema = z.object({
-  id: z.string().uuid("Invalid session ID"),
+  id: z.string().min(1, "Invalid session ID"),
 })
 
 export const userIdParamSchema = z.object({

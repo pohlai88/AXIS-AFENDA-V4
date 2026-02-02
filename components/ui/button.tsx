@@ -39,6 +39,8 @@ type ButtonProps = React.ComponentPropsWithoutRef<"button"> &
     asChild?: boolean
   }
 
+export type { ButtonProps }
+
 const Button = React.forwardRef<React.ElementRef<"button">, ButtonProps>(
   ({ className, variant = "default", size = "default", asChild = false, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"

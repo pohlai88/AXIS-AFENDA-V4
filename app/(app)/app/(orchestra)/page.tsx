@@ -22,7 +22,7 @@ export default function AppDashboardPage() {
     <div className="space-y-6">
       <PageAuditHeader
         pageName="App Dashboard"
-        route="/app"
+        route={routes.ui.orchestra.root()}
         status="connected"
         shellType="app-shell"
         features={["Sidebar", "Auth Protected", "Token Refresh", "User Menu"]}

@@ -1,16 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { RateLimiter } from "@/lib/server/auth/rate-limit";
-import { db } from "@/lib/server/db";
 import { loginAttempts } from "@/lib/server/db/schema";
 
+const mockDb = {
+  select: vi.fn(),
+  insert: vi.fn(),
+  update: vi.fn(),
+  delete: vi.fn(),
+}
+
 vi.mock("@/lib/server/db", () => ({
-  db: {
-    select: vi.fn(),
-    insert: vi.fn(),
-    update: vi.fn(),
-    delete: vi.fn(),
-  },
+  getDb: () => mockDb,
 }));
 
 describe("RateLimiter", () => {
@@ -23,7 +24,7 @@ describe("RateLimiter", () => {
 
   describe("checkLoginAttempt", () => {
     it("should allow login when no previous attempts", async () => {
-      vi.mocked(db.select).mockReturnValue({
+      vi.mocked(mockDb.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
         }),
@@ -38,7 +39,7 @@ describe("RateLimiter", () => {
 
     it("should require CAPTCHA after 3 failed attempts", async () => {
       const windowStart = new Date(Date.now() - 5 * 60 * 1000); // 5 min ago
-      vi.mocked(db.select).mockReturnValue({
+      vi.mocked(mockDb.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([
             {
@@ -60,7 +61,7 @@ describe("RateLimiter", () => {
 
     it("should block login when account locked", async () => {
       const lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15 min future
-      vi.mocked(db.select).mockReturnValue({
+      vi.mocked(mockDb.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([
             {
@@ -83,7 +84,7 @@ describe("RateLimiter", () => {
 
     it("should calculate remaining attempts correctly", async () => {
       const windowStart = new Date(Date.now() - 5 * 60 * 1000);
-      vi.mocked(db.select).mockReturnValue({
+      vi.mocked(mockDb.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([
             {
@@ -104,7 +105,7 @@ describe("RateLimiter", () => {
 
     it("should handle IP-based rate limiting", async () => {
       const windowStart = new Date(Date.now() - 30 * 60 * 1000); // 30 min ago
-      vi.mocked(db.select).mockReturnValue({
+      vi.mocked(mockDb.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([
             {
@@ -126,13 +127,13 @@ describe("RateLimiter", () => {
 
   describe("recordFailedLogin", () => {
     it("should create new record for first failure", async () => {
-      vi.mocked(db.select).mockReturnValue({
+      vi.mocked(mockDb.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
         }),
       } as any);
 
-      vi.mocked(db.insert).mockReturnValue({
+      vi.mocked(mockDb.insert).mockReturnValue({
         values: vi.fn().mockReturnValue({
           returning: vi.fn().mockResolvedValue([
             {
@@ -148,7 +149,7 @@ describe("RateLimiter", () => {
 
       await rateLimiter.recordFailedLogin("email", "test@example.com");
 
-      expect(db.insert).toHaveBeenCalledWith(loginAttempts);
+      expect(mockDb.insert).toHaveBeenCalledWith(loginAttempts);
     });
 
     it("should increment attempts for existing record", async () => {
@@ -160,13 +161,13 @@ describe("RateLimiter", () => {
         lockedUntil: null,
       };
 
-      vi.mocked(db.select).mockReturnValue({
+      vi.mocked(mockDb.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([existing]),
         }),
       } as any);
 
-      vi.mocked(db.update).mockReturnValue({
+      vi.mocked(mockDb.update).mockReturnValue({
         set: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]),
         }),
@@ -174,7 +175,7 @@ describe("RateLimiter", () => {
 
       await rateLimiter.recordFailedLogin("email", "test@example.com");
 
-      expect(db.update).toHaveBeenCalledWith(loginAttempts);
+      expect(mockDb.update).toHaveBeenCalledWith(loginAttempts);
     });
 
     it("should set lockedUntil when threshold reached", async () => {
@@ -186,14 +187,14 @@ describe("RateLimiter", () => {
         lockedUntil: null,
       };
 
-      vi.mocked(db.select).mockReturnValue({
+      vi.mocked(mockDb.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([existing]),
         }),
       } as any);
 
       const updateMock = vi.fn().mockResolvedValue([]);
-      vi.mocked(db.update).mockReturnValue({
+      vi.mocked(mockDb.update).mockReturnValue({
         set: vi.fn().mockReturnValue({
           where: updateMock,
         }),
@@ -202,20 +203,20 @@ describe("RateLimiter", () => {
       await rateLimiter.recordFailedLogin("email", "test@example.com");
 
       // Verify lockedUntil was set
-      const setCall = (db.update as any).mock.results[0].value.set.mock.calls[0][0];
+      const setCall = (mockDb.update as any).mock.results[0].value.set.mock.calls[0][0];
       expect(setCall.lockedUntil).toBeInstanceOf(Date);
     });
   });
 
   describe("resetLoginAttempts", () => {
     it("should delete all attempts for identifier", async () => {
-      vi.mocked(db.delete).mockReturnValue({
+      vi.mocked(mockDb.delete).mockReturnValue({
         where: vi.fn().mockResolvedValue([]),
       } as any);
 
       await rateLimiter.resetLoginAttempts("email", "test@example.com");
 
-      expect(db.delete).toHaveBeenCalledWith(loginAttempts);
+      expect(mockDb.delete).toHaveBeenCalledWith(loginAttempts);
     });
   });
 
@@ -229,7 +230,7 @@ describe("RateLimiter", () => {
         lockedUntil: null,
       };
 
-      vi.mocked(db.select).mockReturnValue({
+      vi.mocked(mockDb.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([]), // Should filter out old attempts
         }),
@@ -251,7 +252,7 @@ describe("RateLimiter", () => {
         lockedUntil: null,
       };
 
-      vi.mocked(db.select).mockReturnValue({
+      vi.mocked(mockDb.select).mockReturnValue({
         from: vi.fn().mockReturnValue({
           where: vi.fn().mockResolvedValue([recentAttempt]),
         }),

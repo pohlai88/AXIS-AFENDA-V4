@@ -1,36 +1,34 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { db } from "@/lib/server/db";
-import { loginAttempts, users, verificationTokens } from "@/lib/server/db/schema";
+import { getDb } from "@/lib/server/db";
+import { loginAttempts, unlockTokens } from "@/lib/server/db/schema";
 import { eq } from "drizzle-orm";
 import { RateLimiter } from "@/lib/server/auth/rate-limit";
 import { verifyCaptchaToken } from "@/lib/server/auth/captcha";
-import { buildUnlockIdentifier, createUnlockToken, verifyUnlockToken } from "@/lib/server/auth/unlock";
+import { buildUnlockIdentifierHash, createUnlockToken, verifyUnlockToken } from "@/lib/server/auth/unlock";
 
 describe("Login Protection Integration", () => {
   const testEmail = "test-lockout@example.com";
   const testIp = "192.168.1.100";
   const emailIdentifier = `email:${testEmail}`;
   const ipIdentifier = `ip:${testIp}`;
-  const unlockIdentifier = buildUnlockIdentifier(testEmail);
+  const unlockIdentifierHash = buildUnlockIdentifierHash(testEmail);
   let rateLimiter: RateLimiter;
 
   beforeEach(async () => {
+    const db = getDb()
     rateLimiter = new RateLimiter();
     // Clean up test data
     await db.delete(loginAttempts).where(eq(loginAttempts.identifier, emailIdentifier));
     await db.delete(loginAttempts).where(eq(loginAttempts.identifier, ipIdentifier));
-    await db
-      .delete(verificationTokens)
-      .where(eq(verificationTokens.identifier, unlockIdentifier));
+    await db.delete(unlockTokens).where(eq(unlockTokens.identifierHash, unlockIdentifierHash));
   });
 
   afterEach(async () => {
+    const db = getDb()
     // Clean up test data
     await db.delete(loginAttempts).where(eq(loginAttempts.identifier, emailIdentifier));
     await db.delete(loginAttempts).where(eq(loginAttempts.identifier, ipIdentifier));
-    await db
-      .delete(verificationTokens)
-      .where(eq(verificationTokens.identifier, unlockIdentifier));
+    await db.delete(unlockTokens).where(eq(unlockTokens.identifierHash, unlockIdentifierHash));
   });
 
   describe("Failed Login Flow", () => {
@@ -112,6 +110,7 @@ describe("Login Protection Integration", () => {
     });
 
     it("should use 1-hour window for IP addresses", async () => {
+      const db = getDb()
       // Record attempt with old timestamp
       const oldWindowStart = new Date(Date.now() - 65 * 60 * 1000); // 65 min ago
       await db.insert(loginAttempts).values({
@@ -152,15 +151,17 @@ describe("Login Protection Integration", () => {
     });
 
     it("should reject expired unlock tokens", async () => {
+      const db = getDb()
       // Create expired token directly in DB
       const expiredToken = "expired-token-abc123";
       const expiredDate = new Date(Date.now() - 2 * 60 * 60 * 1000); // 2 hours ago
 
-      await db.insert(verificationTokens).values({
-        identifier: unlockIdentifier,
+      await db.insert(unlockTokens).values({
+        identifierHash: unlockIdentifierHash,
         token: expiredToken,
-        expires: expiredDate,
-      });
+        expiresAt: expiredDate,
+        createdAt: expiredDate,
+      })
 
       const unlocked = await verifyUnlockToken(testEmail, expiredToken);
       expect(unlocked).toBe(false);
@@ -235,6 +236,7 @@ describe("Login Protection Integration", () => {
 
   describe("Sliding Window Behavior", () => {
     it("should only count attempts within 15-minute window", async () => {
+      const db = getDb()
       // Create old attempt outside window
       const oldWindowStart = new Date(Date.now() - 20 * 60 * 1000); // 20 min ago
       await db.insert(loginAttempts).values({

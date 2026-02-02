@@ -6,15 +6,20 @@ import { routes } from "@/lib/routes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
+import { useAuthUIStore } from "@/stores/auth-ui"
+import { apiFetch } from "@/lib/api/client"
+import {
+  ResetPasswordSchema,
+  resetPasswordResponseSchema,
+} from "@/lib/contracts/auth"
 
 export default function ResetPasswordClient() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { toast } = useToast()
+  const { setResetToken } = useAuthUIStore()
 
   const [isLoading, setIsLoading] = useState(false)
   const [password, setPassword] = useState("")
@@ -32,6 +37,10 @@ export default function ResetPasswordClient() {
       }, 3000)
       return () => clearTimeout(timeout)
     }
+
+    // Persist token for the duration of the reset flow (used by multi-step UI if needed).
+    setResetToken(token)
+    return () => setResetToken(null)
   }, [token, router])
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -40,34 +49,27 @@ export default function ResetPasswordClient() {
     setError("")
 
     try {
-      if (password !== confirmPassword) {
-        setError("Passwords do not match")
-        setIsLoading(false)
-        return
-      }
-
-      if (password.length < 8) {
-        setError("Password must be at least 8 characters long")
-        setIsLoading(false)
-        return
-      }
-
-      const res = await fetch(routes.api.publicAuth.resetPassword(), {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token, password }),
+      const parsed = ResetPasswordSchema.safeParse({
+        token: token ?? "",
+        password,
+        confirmPassword,
       })
 
-      if (!res.ok) {
-        const payload = (await res.json().catch(() => null)) as { error?: string } | null
-        setError(payload?.error || "Failed to reset password")
+      if (!parsed.success) {
+        setError(parsed.error.issues[0]?.message ?? "Invalid password")
         return
       }
 
-      toast({
-        title: "Success",
-        description: "Your password has been reset successfully. Redirecting to login...",
-      })
+      await apiFetch(
+        routes.api.publicAuth.resetPassword(),
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ token: parsed.data.token, password: parsed.data.password }),
+        },
+        resetPasswordResponseSchema
+      )
+
       setSuccess(true)
 
       setTimeout(() => {

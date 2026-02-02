@@ -5,23 +5,10 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1769821192143,
-      "tag": "0000_black_morbius",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1769828762589,
-      "tag": "0001_spicy_tony_stark",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1769937410401,
-      "tag": "0002_far_praxagora",
+      "when": 1760000000000,
+      "tag": "0000_init",
       "breakpoints": true
     }
   ]
 }
+

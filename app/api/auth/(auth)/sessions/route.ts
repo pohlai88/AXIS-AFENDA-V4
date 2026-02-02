@@ -8,7 +8,7 @@ import "@/lib/server/only"
 
 import { NextRequest } from "next/server"
 import { getAuthContext } from "@/lib/server/auth/context"
-import { getUserActiveSessions, revokeSession, revokeAllOtherSessions } from "@/lib/server/auth/session-helpers"
+import { listNeonSessions, revokeNeonSession, revokeOtherNeonSessions } from "@/lib/server/auth/neon-sessions"
 import { withApiErrorBoundary } from "@/lib/server/api/handler"
 import { ok, fail } from "@/lib/server/api/response"
 
@@ -34,11 +34,15 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const sessions = await getUserActiveSessions(authContext.userId, authContext.sessionId)
+    const { sessions } = await listNeonSessions()
+    const safeSessions = sessions.map(({ token, ...rest }) => {
+      void token
+      return rest
+    })
 
     log.info({ userId: authContext.userId, sessionCount: sessions.length, requestId }, "Sessions retrieved")
 
-    return ok({ sessions }, {
+    return ok({ sessions: safeSessions }, {
       status: 200,
       headers: {
         'Cache-Control': 'private, max-age=60', // Cache for 60 seconds (user-specific data)
@@ -101,21 +105,16 @@ export async function POST(request: NextRequest) {
 
       // Prevent users from revoking their current session via this endpoint
       // (they should use the logout endpoint instead)
-      if (sessionId === authContext.sessionId) {
+      const { sessions } = await listNeonSessions()
+      const current = sessions.find((s) => s.isCurrent)
+      if (current?.id && sessionId === current.id) {
         return fail(
           { code: "BAD_REQUEST", message: "Cannot revoke current session. Use /api/auth/logout instead." },
           400
         )
       }
 
-      const revoked = await revokeSession(sessionId, authContext.userId)
-
-      if (!revoked) {
-        return fail(
-          { code: "NOT_FOUND", message: "Session not found or you do not have permission to revoke it" },
-          404
-        )
-      }
+      await revokeNeonSession(sessionId)
 
       log.info({ userId: authContext.userId, sessionId, requestId }, "Session revoked by user")
 
@@ -124,14 +123,10 @@ export async function POST(request: NextRequest) {
 
     // Revoke all sessions except current
     if (action === "revoke-all-others") {
-      if (!authContext.sessionId) {
-        return fail(
-          { code: "INTERNAL", message: "Current session token not available" },
-          500
-        )
-      }
+      const { sessions } = await listNeonSessions()
+      const revokedCount = sessions.filter((s) => !s.isCurrent).length
 
-      const revokedCount = await revokeAllOtherSessions(authContext.userId, authContext.sessionId)
+      await revokeOtherNeonSessions()
 
       log.info(
         { userId: authContext.userId, revokedCount, requestId },

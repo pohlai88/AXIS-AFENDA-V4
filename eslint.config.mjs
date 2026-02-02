@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generated service worker output (built artifact)
+    "public/sw.js",
   ]),
 
   // ---- Drift-prevention rules (new standard) ----

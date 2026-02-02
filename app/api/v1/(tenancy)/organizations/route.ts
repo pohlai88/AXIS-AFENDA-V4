@@ -12,6 +12,7 @@ import { HttpError } from "@/lib/server/api/errors"
 import { organizationService } from "@/lib/server/organizations/service"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { withApiErrorBoundary } from "@/lib/server/api/handler"
+import { withRlsDb } from "@/lib/server/db/rls"
 import {
   createOrganizationSchema,
   organizationQuerySchema
@@ -26,9 +27,10 @@ export async function GET(req: Request) {
 
     const query = parseSearchParams(new URL(req.url).searchParams, organizationQuerySchema)
 
-    const result = await organizationService.listForUser(auth.userId, query)
-
-    return ok(result)
+    return await withRlsDb(auth.userId, async (db) => {
+      const result = await organizationService.listForUser(auth.userId, query, db)
+      return ok(result)
+    })
   })
 }
 
@@ -41,10 +43,11 @@ export async function POST(req: Request) {
 
     const data = await parseJson(req, createOrganizationSchema)
 
-    const organization = await organizationService.create(data, auth.userId)
-    invalidateTag(`organizations:${auth.userId}`)
-
-    return ok(organization, { status: 201 })
+    return await withRlsDb(auth.userId, async (db) => {
+      const organization = await organizationService.create(data, auth.userId, db)
+      invalidateTag(`organizations:${auth.userId}`)
+      return ok(organization, { status: 201 })
+    })
   })
 }
 

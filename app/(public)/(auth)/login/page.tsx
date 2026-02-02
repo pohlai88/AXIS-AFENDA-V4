@@ -2,28 +2,41 @@
  * @domain auth
  * @layer ui
  * @responsibility UI route entrypoint for /login
+ * 
+ * Uses react-hook-form + Zod for validation, enterprise components for UI,
+ * and Zustand for OAuth flow tracking.
  */
 
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo } from "react"
+import { useState } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
+import { useForm, type Resolver } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import type { LoginInput } from "@/lib/contracts/auth"
+import { LoginSchema } from "@/lib/contracts/auth"
+import { AUTH_LABELS, AUTH_ERRORS } from "@/lib/constants/auth"
 import { authClient } from "@/lib/auth/client"
 import { routes } from "@/lib/routes"
 import { getPublicEnv } from "@/lib/env/public"
-import { Button } from "@/components/ui/button"
+import {
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage,
+  Form,
+} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { useToast } from "@/hooks/use-toast"
-import { GitHubLogoIcon } from "@radix-ui/react-icons"
-import HCaptcha from "@hcaptcha/react-hcaptcha"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { AuthShell } from "@/components/auth/auth-shell"
+import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import HCaptcha from "@hcaptcha/react-hcaptcha"
+import { AuthShell } from "@/components/auth/auth-shell"
+import { FormError, OAuthButton } from "@/components/auth"
 import { useAuth } from "@/lib/client/hooks/useAuth"
-
-type Status = "idle" | "submitting" | "redirecting"
+import { useAuthUIStore } from "@/stores/auth-ui"
 
 function isSafeInternalPath(next: string | null): next is string {
   if (!next) return false
@@ -33,15 +46,23 @@ function isSafeInternalPath(next: string | null): next is string {
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { toast } = useToast()
   const { isLoading: isSessionLoading, isAuthenticated } = useAuth()
-  const [status, setStatus] = useState<Status>("idle")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const { oauthPending, setOAuthPending } = useAuthUIStore()
   const [requiresCaptcha, setRequiresCaptcha] = useState(false)
   const [captchaToken, setCaptchaToken] = useState<string | null>(null)
-  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const { NEXT_PUBLIC_HCAPTCHA_SITE_KEY } = getPublicEnv()
+
+  const form = useForm<LoginInput>({
+    // NOTE: Resolver typing expects a single zod instance; this repo uses Zod v4.
+    // Cast is intentional to avoid versioned-type mismatches in resolver generics.
+    resolver: zodResolver(LoginSchema as unknown as never) as unknown as Resolver<LoginInput>,
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  })
+
+  const isPending = form.formState.isSubmitting
 
   const next = useMemo(() => {
     const param = searchParams.get("next")
@@ -55,154 +76,96 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, isSessionLoading, next, router])
 
-  const isBusy = status !== "idle"
-
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setErrorMessage(null)
-    setStatus("submitting")
-
-    if (requiresCaptcha && !captchaToken) {
-      toast({
-        variant: "destructive",
-        title: "Verification Required",
-        description: "Please complete the CAPTCHA verification.",
-      })
-      setStatus("idle")
-      return
-    }
-
+  const onSubmit = async (data: LoginInput) => {
     try {
-      const { error, data } = await authClient.signIn.email({
-        email,
-        password,
+      if (requiresCaptcha && !captchaToken) {
+        form.setError("root", {
+          message: AUTH_ERRORS.CAPTCHA_REQUIRED,
+        })
+        return
+      }
+
+      const { error } = await authClient.signIn.email({
+        email: data.email,
+        password: data.password,
         callbackURL: routes.ui.auth.authCallback(next),
         fetchOptions: captchaToken
           ? {
-            headers: {
-              "x-captcha-token": captchaToken,
-            },
-          }
+              headers: {
+                "x-captcha-token": captchaToken,
+              },
+            }
           : undefined,
       })
 
       if (error) {
-        const message = error.message || "Invalid email or password"
-        const requiresCaptchaNext = message.toLowerCase().includes("captcha") || message.toLowerCase().includes("too many")
-        if (requiresCaptchaNext) {
+        const message = error.message || AUTH_ERRORS.INVALID_CREDENTIALS
+
+        // Check if captcha needed
+        if (
+          message.toLowerCase().includes("captcha") ||
+          message.toLowerCase().includes("too many")
+        ) {
           setRequiresCaptcha(true)
         }
-        setErrorMessage(message)
-        toast({
-          variant: "destructive",
-          title: "Login Failed",
-          description: message,
-        })
-        setStatus("idle")
-        return
-      }
 
-      // Redirect happens automatically via callbackURL
-      setStatus("redirecting")
-    } catch (err) {
-      setErrorMessage("An unexpected error occurred")
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "An unexpected error occurred",
+        form.setError("root", { message })
+      }
+    } catch {
+      form.setError("root", {
+        message: AUTH_ERRORS.NETWORK_ERROR,
       })
-      setStatus("idle")
-    } finally {
-      // keep status during redirects
-      if (status !== "redirecting") setStatus("idle")
     }
   }
 
   const handleSocialLogin = async (provider: "github" | "google") => {
-    setErrorMessage(null)
-    setStatus("redirecting")
+    setOAuthPending(provider)
     try {
       await authClient.signIn.social({
         provider,
         callbackURL: routes.ui.auth.authCallback(next),
       })
-      // Social login will redirect, so we don't need to navigate manually
-    } catch (err) {
-      setErrorMessage(`Failed to login with ${provider}`)
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: `Failed to login with ${provider}`,
+    } catch {
+      setOAuthPending(null)
+      form.setError("root", {
+        message: `${AUTH_ERRORS.OAUTH_FAILED} ${provider}`,
       })
-      setStatus("idle")
     }
   }
 
   return (
-    <AuthShell title="Sign in" description="Access your workspace securely.">
+    <AuthShell
+      title={AUTH_LABELS.SIGN_IN}
+      description="Enter your credentials or continue with social login"
+    >
       {isSessionLoading ? (
-        <div className="flex items-center gap-3 rounded-lg border bg-card p-4">
-          <Spinner className="size-5" />
-          <div className="text-sm text-muted-foreground">Checking session…</div>
+        <div className="flex items-center justify-center py-8">
+          <div className="text-sm text-muted-foreground">
+            {AUTH_LABELS.CHECKING_SESSION}
+          </div>
         </div>
       ) : null}
 
-      {errorMessage ? (
-        <Alert variant="destructive">
-          <AlertTitle>Sign-in failed</AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      {status === "redirecting" ? (
-        <div className="flex items-center gap-3 rounded-lg border bg-card p-4">
-          <Spinner className="size-5" />
-          <div className="text-sm text-muted-foreground">Redirecting to finalize sign-in…</div>
-        </div>
-      ) : null}
-
-      {/* Email Login Form */}
-      <form onSubmit={handleEmailLogin} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="your@email.com"
-            autoComplete="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            disabled={isBusy}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            autoComplete="current-password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            disabled={isBusy}
-          />
-        </div>
-        <Button type="submit" className="w-full" disabled={isBusy}>
-          {status === "submitting" ? "Signing in…" : "Sign in"}
-        </Button>
-      </form>
-
-      {requiresCaptcha && NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
-        <div className="rounded-md border border-muted-foreground/20 p-3">
-          <HCaptcha
-            sitekey={NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
-            onVerify={(token) => setCaptchaToken(token)}
-            onExpire={() => setCaptchaToken(null)}
-          />
-        </div>
+      {/* Root-level errors */}
+      {form.formState.errors.root && (
+        <FormError message={form.formState.errors.root.message} />
       )}
+
+      {/* OAuth Buttons */}
+      <div className="grid grid-cols-2 gap-3">
+        <OAuthButton
+          provider="google"
+          onClick={() => handleSocialLogin("google")}
+          isLoading={oauthPending === "google"}
+          disabled={isPending || !!oauthPending}
+        />
+        <OAuthButton
+          provider="github"
+          onClick={() => handleSocialLogin("github")}
+          isLoading={oauthPending === "github"}
+          disabled={isPending || !!oauthPending}
+        />
+      </div>
 
       {/* Divider */}
       <div className="relative">
@@ -210,58 +173,96 @@ export default function LoginPage() {
           <div className="w-full border-t border-muted-foreground/20" />
         </div>
         <div className="relative flex justify-center text-xs uppercase">
-          <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+          <span className="bg-card px-2 text-muted-foreground">
+            {AUTH_LABELS.OR_CONTINUE_WITH_EMAIL}
+          </span>
         </div>
       </div>
 
-      {/* Social Login Buttons */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => handleSocialLogin("github")}
-          disabled={isBusy}
-          className="flex items-center gap-2"
-        >
-          <div className="flex items-center justify-center">
-            <GitHubLogoIcon className="size-4" />
-          </div>
-          GitHub
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => handleSocialLogin("google")}
-          disabled={isBusy}
-          className="flex items-center gap-2"
-        >
-          <div className="flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="size-4" fill="currentColor">
-              <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
-            </svg>
-          </div>
-          Google
-        </Button>
-      </div>
+      {/* Email/Password Form */}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{AUTH_LABELS.EMAIL}</FormLabel>
+                <FormControl>
+                  <Input
+                    type="email"
+                    placeholder="your@email.com"
+                    autoComplete="email"
+                    disabled={isPending}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-      {/* Forgot Password Link */}
-      <div className="text-center text-sm">
-        <Link
-          href={routes.ui.auth.forgotPassword()}
-          className="text-primary hover:underline"
-        >
-          Forgot password?
-        </Link>
-      </div>
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex items-center justify-between">
+                  <FormLabel>{AUTH_LABELS.PASSWORD}</FormLabel>
+                  <Link
+                    href={routes.ui.auth.forgotPassword()}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {AUTH_LABELS.FORGOT_PASSWORD}
+                  </Link>
+                </div>
+                <FormControl>
+                  <Input
+                    type="password"
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    disabled={isPending}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
-      {/* Sign Up Link */}
+          {requiresCaptcha && NEXT_PUBLIC_HCAPTCHA_SITE_KEY && (
+            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+              <HCaptcha
+                sitekey={NEXT_PUBLIC_HCAPTCHA_SITE_KEY}
+                onVerify={(token) => setCaptchaToken(token)}
+                onExpire={() => setCaptchaToken(null)}
+              />
+            </div>
+          )}
+
+          <div className="pt-2">
+            <Button type="submit" className="w-full" size="lg" disabled={isPending}>
+              {isPending ? (
+                <>
+                  <Spinner className="mr-2 h-4 w-4" />
+                  {AUTH_LABELS.SIGNING_IN}
+                </>
+              ) : (
+                AUTH_LABELS.SIGN_IN
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
+
+      {/* Sign up link */}
       <div className="text-center text-sm text-muted-foreground">
-        Don&apos;t have an account?{" "}
+        {AUTH_LABELS.DONT_HAVE_ACCOUNT}{" "}
         <Link
           href={routes.ui.auth.register()}
           className="text-primary hover:underline font-medium"
         >
-          Sign up
+          {AUTH_LABELS.CREATE_ACCOUNT}
         </Link>
       </div>
     </AuthShell>

@@ -17,7 +17,9 @@ import { invalidateTag } from "@/lib/server/cache/revalidate"
 import { cacheTags } from "@/lib/server/cache/tags"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { getTenantContext } from "@/lib/server/tenant/context"
-import { getProject, updateProject, deleteProject } from "@/lib/server/db/queries/projects"
+import { getProject, updateProject, deleteProjectScoped } from "@/lib/server/db/queries/projects"
+import { withRlsDbEx } from "@/lib/server/db/rls"
+import { resolveTenantScopeInDb } from "@/lib/server/tenant/resolve-scope"
 
 export async function GET(
   request: Request,
@@ -33,7 +35,19 @@ export async function GET(
     const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
-    const project = await getProject(auth.userId, id)
+    const project = await withRlsDbEx({ userId: auth.userId }, async (db, sql) => {
+      const scope = await resolveTenantScopeInDb(tenantId, db)
+      const requireTenantMapping =
+        process.env.NODE_ENV === "production" || process.env.REQUIRE_TENANT_MAPPING === "true"
+      if (requireTenantMapping && !scope.organizationId) {
+        throw Unauthorized("Tenant mapping required")
+      }
+
+      await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
+      await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
+
+      return await getProject(auth.userId, id, scope.organizationId, db)
+    })
     if (!project) throw NotFound("Project not found")
 
     return ok(project)
@@ -58,7 +72,19 @@ export async function PATCH(
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const body = await parseJson(request, updateProjectRequestSchema)
-    const updated = await updateProject(auth.userId, id, body)
+    const updated = await withRlsDbEx({ userId: auth.userId }, async (db, sql) => {
+      const scope = await resolveTenantScopeInDb(tenantId, db)
+      const requireTenantMapping =
+        process.env.NODE_ENV === "production" || process.env.REQUIRE_TENANT_MAPPING === "true"
+      if (requireTenantMapping && !scope.organizationId) {
+        throw Unauthorized("Tenant mapping required")
+      }
+
+      await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
+      await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
+
+      return await updateProject(auth.userId, id, body, scope.organizationId, db)
+    })
     if (!updated) throw NotFound("Project not found")
 
     invalidateTag(cacheTags.projects(tenantId))
@@ -83,7 +109,19 @@ export async function DELETE(
     const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
-    const deleted = await deleteProject(auth.userId, id)
+    const deleted = await withRlsDbEx({ userId: auth.userId }, async (db, sql) => {
+      const scope = await resolveTenantScopeInDb(tenantId, db)
+      const requireTenantMapping =
+        process.env.NODE_ENV === "production" || process.env.REQUIRE_TENANT_MAPPING === "true"
+      if (requireTenantMapping && !scope.organizationId) {
+        throw Unauthorized("Tenant mapping required")
+      }
+
+      await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
+      await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
+
+      return await deleteProjectScoped(auth.userId, id, scope.organizationId, db)
+    })
     if (!deleted) throw NotFound("Project not found")
 
     invalidateTag(cacheTags.projects(tenantId))

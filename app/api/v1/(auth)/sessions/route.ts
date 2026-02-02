@@ -6,14 +6,13 @@
 
 import "@/lib/server/only"
 
-import { headers, cookies } from "next/headers"
-import { NextResponse } from "next/server"
+import { headers } from "next/headers"
 
-import { HEADER_NAMES, COOKIE_NAMES } from "@/lib/constants"
+import { HEADER_NAMES } from "@/lib/constants"
 import { ok, fail } from "@/lib/server/api/response"
 import { HttpError } from "@/lib/server/api/errors"
 import { getAuthContext } from "@/lib/server/auth/context"
-import { getUserActiveSessions, revokeAllOtherSessions } from "@/lib/server/auth/session-helpers"
+import { listNeonSessions, revokeOtherNeonSessions } from "@/lib/server/auth/neon-sessions"
 import { sessionListResponseSchema, revokeAllSessionsResponseSchema } from "@/lib/contracts/sessions"
 import { logger } from "@/lib/server/logger"
 
@@ -31,13 +30,7 @@ export async function GET() {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
     }
 
-    // Get current session token from cookie
-    const cookieStore = await cookies()
-    const sessionCookie = cookieStore.get(COOKIE_NAMES.NEON_AUTH)
-    const currentSessionToken = sessionCookie?.value
-
-    // Fetch active sessions
-    const sessions = await getUserActiveSessions(auth.userId, currentSessionToken)
+    const { sessions } = await listNeonSessions()
 
     // Format response
     const response = sessionListResponseSchema.parse({
@@ -82,17 +75,10 @@ export async function DELETE() {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
     }
 
-    // Get current session token from cookie
-    const cookieStore = await cookies()
-    const sessionCookie = cookieStore.get(COOKIE_NAMES.NEON_AUTH)
-    const currentSessionToken = sessionCookie?.value
+    const { sessions } = await listNeonSessions()
+    const revokedCount = sessions.filter((s) => !s.isCurrent).length
 
-    if (!currentSessionToken) {
-      throw new HttpError(400, "BAD_REQUEST", "Current session not found")
-    }
-
-    // Revoke all other sessions
-    const revokedCount = await revokeAllOtherSessions(auth.userId, currentSessionToken)
+    await revokeOtherNeonSessions()
 
     const response = revokeAllSessionsResponseSchema.parse({
       success: true,

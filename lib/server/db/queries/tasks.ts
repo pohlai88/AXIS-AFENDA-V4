@@ -1,6 +1,6 @@
 import "@/lib/server/only"
 
-import { eq, and, desc } from "drizzle-orm"
+import { eq, and, desc, isNull } from "drizzle-orm"
 import { tasks, taskHistory } from "@/lib/server/db/schema"
 import {
   TASK_HISTORY_ACTION,
@@ -11,7 +11,7 @@ import {
   type TaskStatus,
 } from "@/lib/contracts/tasks"
 import { DB_LIMITS, PAGINATION } from "@/lib/constants"
-import { getDb } from "@/lib/server/db/client"
+import { getDb, type Db } from "@/lib/server/db/client"
 
 /**
  * Task queries: all operations assume user_id is pre-validated.
@@ -27,13 +27,16 @@ export async function createTask(
     status?: TaskStatus
     projectId?: string
     tags?: string[]
-  }
+  },
+  organizationId?: string | null,
+  db?: Db
 ) {
-  const db = getDb()
-  const [task] = await db
+  const dbx = db ?? getDb()
+  const [task] = await dbx
     .insert(tasks)
     .values({
       userId,
+      organizationId: organizationId ?? null,
       title: taskData.title,
       description: taskData.description,
       dueDate: taskData.dueDate,
@@ -45,7 +48,7 @@ export async function createTask(
     .returning()
 
   // Log in task history
-  await logTaskHistory(userId, task.id, TASK_HISTORY_ACTION.CREATED)
+  await logTaskHistory(userId, task.id, TASK_HISTORY_ACTION.CREATED, organizationId ?? null, undefined, dbx)
 
   return task
 }
@@ -61,50 +64,83 @@ export async function updateTask(
     status?: TaskStatus
     completedAt?: Date | null
     tags?: string[]
-  }
+  },
+  organizationId?: string | null,
+  db?: Db
 ) {
-  const db = getDb()
-  const [task] = await db
+  const dbx = db ?? getDb()
+  const [task] = await dbx
     .update(tasks)
     .set({
       ...updates,
       updatedAt: new Date(),
     })
-    .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+    .where(
+      and(
+        eq(tasks.id, taskId),
+        eq(tasks.userId, userId),
+        organizationId === undefined
+          ? undefined
+          : organizationId === null
+            ? isNull(tasks.organizationId)
+            : eq(tasks.organizationId, organizationId)
+      )
+    )
     .returning()
 
   if (task) {
-    await logTaskHistory(userId, taskId, TASK_HISTORY_ACTION.UPDATED, updates)
+    await logTaskHistory(userId, taskId, TASK_HISTORY_ACTION.UPDATED, organizationId ?? null, updates, dbx)
   }
 
   return task
 }
 
-export async function deleteTask(userId: string, taskId: string) {
-  const db = getDb()
-  const [task] = await db
+export async function deleteTask(userId: string, taskId: string, organizationId?: string | null, db?: Db) {
+  const dbx = db ?? getDb()
+  const [task] = await dbx
     .delete(tasks)
-    .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+    .where(
+      and(
+        eq(tasks.id, taskId),
+        eq(tasks.userId, userId),
+        organizationId === undefined
+          ? undefined
+          : organizationId === null
+            ? isNull(tasks.organizationId)
+            : eq(tasks.organizationId, organizationId)
+      )
+    )
     .returning()
 
   if (task) {
-    await logTaskHistory(userId, taskId, TASK_HISTORY_ACTION.DELETED)
+    await logTaskHistory(userId, taskId, TASK_HISTORY_ACTION.DELETED, organizationId ?? null, undefined, dbx)
   }
 
   return task
 }
 
-export async function getTask(userId: string, taskId: string) {
-  const db = getDb()
-  const [task] = await db
+export async function getTask(userId: string, taskId: string, organizationId?: string | null, db?: Db) {
+  const dbx = db ?? getDb()
+  const [task] = await dbx
     .select()
     .from(tasks)
-    .where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+    .where(
+      and(
+        eq(tasks.id, taskId),
+        eq(tasks.userId, userId),
+        organizationId === undefined
+          ? undefined
+          : organizationId === null
+            ? isNull(tasks.organizationId)
+            : eq(tasks.organizationId, organizationId)
+      )
+    )
   return task
 }
 
 export async function listTasks(
   userId: string,
+  organizationId?: string | null,
   filters?: {
     projectId?: string
     status?: TaskStatus
@@ -113,9 +149,10 @@ export async function listTasks(
     dueAfter?: Date
     archived?: boolean
   },
-  pagination?: { limit?: number; offset?: number }
+  pagination?: { limit?: number; offset?: number },
+  db?: Db
 ) {
-  const db = getDb()
+  const dbx = db ?? getDb()
   const limit = Math.min(
     pagination?.limit ?? PAGINATION.DEFAULT_PAGE_SIZE,
     DB_LIMITS.MAX_SELECT_ROWS
@@ -124,13 +161,25 @@ export async function listTasks(
 
   const conditions: Array<ReturnType<typeof eq>> = [eq(tasks.userId, userId)]
 
+  if (organizationId !== undefined) {
+    conditions.push(
+      organizationId === null ? isNull(tasks.organizationId) : eq(tasks.organizationId, organizationId)
+    )
+  }
+
   if (filters?.projectId) conditions.push(eq(tasks.projectId, filters.projectId))
   if (filters?.status) conditions.push(eq(tasks.status, filters.status))
   if (filters?.priority) conditions.push(eq(tasks.priority, filters.priority))
 
-  const taskList = await db.select().from(tasks).where(and(...conditions)).limit(limit).offset(offset).orderBy(desc(tasks.dueDate))
+  const taskList = await dbx
+    .select()
+    .from(tasks)
+    .where(and(...conditions))
+    .limit(limit)
+    .offset(offset)
+    .orderBy(desc(tasks.dueDate))
 
-  const [countResult] = await db
+  const [countResult] = await dbx
     .select({ count: tasks.id })
     .from(tasks)
     .where(and(...conditions))
@@ -143,11 +192,9 @@ export async function listTasks(
   }
 }
 
-export async function completeTask(userId: string, taskId: string) {
-  return updateTask(userId, taskId, {
-    status: TASK_STATUS.DONE,
-    completedAt: new Date(),
-  })
+export async function completeTask(userId: string, taskId: string, db?: Db) {
+  const dbx = db ?? getDb()
+  return updateTask(userId, taskId, { status: TASK_STATUS.DONE, completedAt: new Date() }, undefined, dbx)
 }
 
 // ============ Helper: Task History ============
@@ -155,12 +202,15 @@ async function logTaskHistory(
   userId: string,
   taskId: string,
   action: TaskHistoryAction,
-  previousValues?: unknown
+  organizationId: string | null,
+  previousValues?: unknown,
+  dbOverride?: Db
 ) {
-  const db = getDb()
+  const db = dbOverride ?? getDb()
   await db.insert(taskHistory).values({
     taskId,
     userId,
+    organizationId,
     action,
     previousValues: previousValues ? JSON.stringify(previousValues) : null,
   })

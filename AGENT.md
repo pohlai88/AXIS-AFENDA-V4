@@ -251,7 +251,7 @@ This repo had real failures caused by “legacy constant drift”. Treat these a
 
 ### Database access
 
-- **Import DB from the barrel**: `import { db, getDb, withTransaction } from "@/lib/server/db"`
+- **Import DB from the barrel**: `import { getDb, getDbClient, withTransaction } from "@/lib/server/db"`
 - Do **not** import from `lib/server/db/client.ts` directly unless you are working inside `lib/server/db/*`.
 - Migrations are in `drizzle/*.sql`. Prefer `pnpm db:generate` + `pnpm db:migrate`.
 

@@ -1,11 +1,11 @@
 import "@/lib/server/only"
-import { db } from "@/lib/server/db"
-import { unstable_cache } from "next/cache"
-import { teams, organizations, memberships, users } from "@/lib/server/db/schema"
+import { getDb } from "@/lib/server/db"
+import { teams, organizations, memberships } from "@/lib/server/db/schema"
 import { eq, and, desc, ilike, count } from "drizzle-orm"
 import { logger } from "@/lib/server/logger"
 import { HttpError } from "@/lib/server/api/errors"
 import { TEAM } from "@/lib/constants"
+import type { Db } from "@/lib/server/db/client"
 import type {
   CreateTeamInput,
   UpdateTeamInput,
@@ -16,11 +16,12 @@ export class TeamService {
   /**
    * Create a new team
    */
-  async create(data: CreateTeamInput, createdBy: string) {
+  async create(data: CreateTeamInput, createdBy: string, db?: Db) {
+    const dbx = db ?? getDb()
     logger.info({ data: { name: data.name, organizationId: data.organizationId } }, "Creating team")
 
     // Verify organization exists and user is member
-    const [org] = await db
+    const [org] = await dbx
       .select()
       .from(organizations)
       .where(eq(organizations.id, data.organizationId))
@@ -30,7 +31,7 @@ export class TeamService {
       throw new HttpError(404, "NOT_FOUND", "Organization not found")
     }
 
-    const [isMember] = await db
+    const [isMember] = await dbx
       .select()
       .from(memberships)
       .where(
@@ -47,7 +48,7 @@ export class TeamService {
     }
 
     // Check if slug is already taken in the organization
-    const [existing] = await db
+    const [existing] = await dbx
       .select()
       .from(teams)
       .where(
@@ -63,7 +64,7 @@ export class TeamService {
     }
 
     // Create team
-    const [team] = await db.insert(teams).values({
+    const [team] = await dbx.insert(teams).values({
       organizationId: data.organizationId,
       name: data.name,
       slug: data.slug,
@@ -73,7 +74,7 @@ export class TeamService {
     }).returning()
 
     // Add creator as team manager
-    await db.insert(memberships).values({
+    await dbx.insert(memberships).values({
       userId: createdBy,
       organizationId: data.organizationId,
       teamId: team.id,
@@ -90,8 +91,9 @@ export class TeamService {
   /**
    * Get team by ID
    */
-  async getById(id: string) {
-    const [team] = await db
+  async getById(id: string, db?: Db) {
+    const dbx = db ?? getDb()
+    const [team] = await dbx
       .select()
       .from(teams)
       .where(eq(teams.id, id))
@@ -110,10 +112,12 @@ export class TeamService {
   async listForOrganization(
     organizationId: string,
     userId: string,
-    query: TeamQuery
+    query: TeamQuery,
+    db?: Db
   ) {
+    const dbx = db ?? getDb()
     // Verify user is member of organization
-    const [isMember] = await db
+    const [isMember] = await dbx
       .select()
       .from(memberships)
       .where(
@@ -141,7 +145,7 @@ export class TeamService {
       )
     }
 
-    const teamList = await db
+    const teamList = await dbx
       .select({
         id: teams.id,
         organizationId: teams.organizationId,
@@ -166,7 +170,7 @@ export class TeamService {
       .offset(offset)
 
     // Get total count
-    const totalCountResult = await db
+    const totalCountResult = await dbx
       .select({ count: count() })
       .from(teams)
       .where(and(
@@ -188,96 +192,76 @@ export class TeamService {
   /**
    * List teams for a user
    */
-  async listForUser(userId: string, query: TeamQuery) {
-    const cacheKey = [
-      "teams:listForUser",
-      userId,
-      String(query.page),
-      String(query.limit),
-      query.search ?? "",
-    ]
+  async listForUser(userId: string, query: TeamQuery, db?: Db) {
+    const dbx = db ?? getDb()
+    const offset = (query.page - 1) * query.limit
 
-    const getCachedList = unstable_cache(
-      async () => {
-        const offset = (query.page - 1) * query.limit
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let whereClause: any = eq(memberships.userId, userId)
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        let whereClause: any = eq(memberships.userId, userId)
+    if (query.search) {
+      whereClause = and(whereClause, ilike(teams.name, `%${query.search}%`))
+    }
 
-        if (query.search) {
-          whereClause = and(
-            whereClause,
-            ilike(teams.name, `%${query.search}%`)
-          )
-        }
+    const teamList = await dbx
+      .select({
+        id: teams.id,
+        organizationId: teams.organizationId,
+        name: teams.name,
+        slug: teams.slug,
+        description: teams.description,
+        parentId: teams.parentId,
+        isActive: teams.isActive,
+        createdAt: teams.createdAt,
+        updatedAt: teams.updatedAt,
+        memberCount: count(memberships.id),
+        organization: {
+          id: organizations.id,
+          name: organizations.name,
+          slug: organizations.slug,
+        },
+      })
+      .from(teams)
+      .innerJoin(memberships, eq(teams.id, memberships.teamId))
+      .innerJoin(organizations, eq(teams.organizationId, organizations.id))
+      .where(and(whereClause, eq(memberships.isActive, true), eq(teams.isActive, true)))
+      .groupBy(teams.id, organizations.id)
+      .orderBy(desc(teams.createdAt))
+      .limit(query.limit)
+      .offset(offset)
 
-        const teamList = await db
-          .select({
-            id: teams.id,
-            organizationId: teams.organizationId,
-            name: teams.name,
-            slug: teams.slug,
-            description: teams.description,
-            parentId: teams.parentId,
-            isActive: teams.isActive,
-            createdAt: teams.createdAt,
-            updatedAt: teams.updatedAt,
-            memberCount: count(memberships.id),
-            organization: {
-              id: organizations.id,
-              name: organizations.name,
-              slug: organizations.slug,
-            }
-          })
-          .from(teams)
-          .innerJoin(memberships, eq(teams.id, memberships.teamId))
-          .innerJoin(organizations, eq(teams.organizationId, organizations.id))
-          .where(and(
-            whereClause,
-            eq(memberships.isActive, true),
-            eq(teams.isActive, true)
-          ))
-          .groupBy(teams.id, organizations.id)
-          .orderBy(desc(teams.createdAt))
-          .limit(query.limit)
-          .offset(offset)
+    const totalCountResult = await dbx
+      .select({ count: count() })
+      .from(teams)
+      .innerJoin(memberships, eq(teams.id, memberships.teamId))
+      .where(
+        and(
+          eq(memberships.userId, userId),
+          eq(memberships.isActive, true),
+          eq(teams.isActive, true),
+          query.search ? ilike(teams.name, `%${query.search}%`) : undefined
+        )
+      )
 
-        // Get total count
-        const totalCountResult = await db
-          .select({ count: count() })
-          .from(teams)
-          .innerJoin(memberships, eq(teams.id, memberships.teamId))
-          .where(and(
-            eq(memberships.userId, userId),
-            eq(memberships.isActive, true),
-            eq(teams.isActive, true),
-            query.search ? ilike(teams.name, `%${query.search}%`) : undefined
-          ))
-
-        return {
-          teams: teamList,
-          pagination: {
-            page: query.page,
-            limit: query.limit,
-            total: totalCountResult[0].count,
-            totalPages: Math.ceil(totalCountResult[0].count / query.limit),
-          }
-        }
+    return {
+      teams: teamList,
+      pagination: {
+        page: query.page,
+        limit: query.limit,
+        total: totalCountResult[0].count,
+        totalPages: Math.ceil(totalCountResult[0].count / query.limit),
       },
-      cacheKey,
-      { tags: [`teams:${userId}`], revalidate: 3600 }
-    )
-
-    return getCachedList()
+    }
   }
 
   /**
    * Update team
    */
-  async update(id: string, data: UpdateTeamInput) {
+  async update(id: string, data: UpdateTeamInput, db?: Db) {
+    const dbx = db ?? getDb()
     logger.info({ teamId: id, data }, "Updating team")
 
-    const [team] = await db
+    const [team] = await dbx
       .update(teams)
       .set({
         ...data,
@@ -298,10 +282,11 @@ export class TeamService {
   /**
    * Delete team (soft delete by setting isActive = false)
    */
-  async delete(id: string) {
+  async delete(id: string, db?: Db) {
+    const dbx = db ?? getDb()
     logger.info({ teamId: id }, "Deactivating team")
 
-    const [team] = await db
+    const [team] = await dbx
       .update(teams)
       .set({
         isActive: false,
@@ -322,8 +307,9 @@ export class TeamService {
   /**
    * Check if user is member of team
    */
-  async isMember(userId: string, teamId: string): Promise<boolean> {
-    const [membership] = await db
+  async isMember(userId: string, teamId: string, db?: Db): Promise<boolean> {
+    const dbx = db ?? getDb()
+    const [membership] = await dbx
       .select()
       .from(memberships)
       .where(
@@ -341,8 +327,9 @@ export class TeamService {
   /**
    * Get user role in team
    */
-  async getUserRole(userId: string, teamId: string): Promise<string | null> {
-    const [membership] = await db
+  async getUserRole(userId: string, teamId: string, db?: Db): Promise<string | null> {
+    const dbx = db ?? getDb()
+    const [membership] = await dbx
       .select()
       .from(memberships)
       .where(

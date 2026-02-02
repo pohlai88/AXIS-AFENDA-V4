@@ -18,6 +18,8 @@ import { cacheTags } from "@/lib/server/cache/tags"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { getTenantContext } from "@/lib/server/tenant/context"
 import { getTask, updateTask, deleteTask } from "@/lib/server/db/queries/tasks"
+import { withRlsDbEx } from "@/lib/server/db/rls"
+import { resolveTenantScopeInDb } from "@/lib/server/tenant/resolve-scope"
 
 // Route Segment Config: Auth-dependent routes must be dynamic
 export const dynamic = 'force-dynamic'
@@ -40,7 +42,19 @@ export async function GET(
     const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
-    const task = await getTask(auth.userId, id)
+    const task = await withRlsDbEx({ userId: auth.userId }, async (db, sql) => {
+      const scope = await resolveTenantScopeInDb(tenantId, db)
+      const requireTenantMapping =
+        process.env.NODE_ENV === "production" || process.env.REQUIRE_TENANT_MAPPING === "true"
+      if (requireTenantMapping && !scope.organizationId) {
+        throw Unauthorized("Tenant mapping required")
+      }
+
+      await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
+      await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
+
+      return await getTask(auth.userId, id, scope.organizationId, db)
+    })
     if (!task) throw NotFound("Task not found")
 
     return ok(task)
@@ -69,9 +83,27 @@ export async function PATCH(
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const body = await parseJson(request, updateTaskRequestSchema)
-    const updated = await updateTask(auth.userId, id, {
-      ...body,
-      dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+    const updated = await withRlsDbEx({ userId: auth.userId }, async (db, sql) => {
+      const scope = await resolveTenantScopeInDb(tenantId, db)
+      const requireTenantMapping =
+        process.env.NODE_ENV === "production" || process.env.REQUIRE_TENANT_MAPPING === "true"
+      if (requireTenantMapping && !scope.organizationId) {
+        throw Unauthorized("Tenant mapping required")
+      }
+
+      await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
+      await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
+
+      return await updateTask(
+        auth.userId,
+        id,
+        {
+          ...body,
+          dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
+        },
+        scope.organizationId,
+        db
+      )
     })
     if (!updated) throw NotFound("Task not found")
 
@@ -101,7 +133,19 @@ export async function DELETE(
     const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")
 
-    const deleted = await deleteTask(auth.userId, id)
+    const deleted = await withRlsDbEx({ userId: auth.userId }, async (db, sql) => {
+      const scope = await resolveTenantScopeInDb(tenantId, db)
+      const requireTenantMapping =
+        process.env.NODE_ENV === "production" || process.env.REQUIRE_TENANT_MAPPING === "true"
+      if (requireTenantMapping && !scope.organizationId) {
+        throw Unauthorized("Tenant mapping required")
+      }
+
+      await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
+      await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
+
+      return await deleteTask(auth.userId, id, scope.organizationId, db)
+    })
     if (!deleted) throw NotFound("Task not found")
 
     invalidateTag(cacheTags.tasks(auth.userId))

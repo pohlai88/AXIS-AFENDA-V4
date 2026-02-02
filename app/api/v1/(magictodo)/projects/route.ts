@@ -18,6 +18,8 @@ import { cacheTags } from "@/lib/server/cache/tags"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { getTenantContext } from "@/lib/server/tenant/context"
 import { createProject, listProjects, listAllProjects } from "@/lib/server/db/queries/projects"
+import { withRlsDbEx } from "@/lib/server/db/rls"
+import { resolveTenantScopeInDb } from "@/lib/server/tenant/resolve-scope"
 
 export async function GET(request: Request) {
   const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
@@ -32,9 +34,21 @@ export async function GET(request: Request) {
     const query = parseSearchParams(url.searchParams, projectQuerySchema)
     const includeArchived = query.includeArchived
 
-    const projects = includeArchived
-      ? await listAllProjects(auth.userId)
-      : await listProjects(auth.userId)
+    const projects = await withRlsDbEx({ userId: auth.userId }, async (db, sql) => {
+      const scope = await resolveTenantScopeInDb(tenantId, db)
+      const requireTenantMapping =
+        process.env.NODE_ENV === "production" || process.env.REQUIRE_TENANT_MAPPING === "true"
+      if (requireTenantMapping && !scope.organizationId) {
+        throw Unauthorized("Tenant mapping required")
+      }
+
+      await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
+      await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
+
+      return includeArchived
+        ? await listAllProjects(auth.userId, scope.organizationId, db)
+        : await listProjects(auth.userId, scope.organizationId, db)
+    })
 
     return ok({ items: projects })
   } catch (e) {
@@ -53,7 +67,19 @@ export async function POST(request: Request) {
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const body = await parseJson(request, createProjectRequestSchema)
-    const project = await createProject(auth.userId, body)
+    const project = await withRlsDbEx({ userId: auth.userId }, async (db, sql) => {
+      const scope = await resolveTenantScopeInDb(tenantId, db)
+      const requireTenantMapping =
+        process.env.NODE_ENV === "production" || process.env.REQUIRE_TENANT_MAPPING === "true"
+      if (requireTenantMapping && !scope.organizationId) {
+        throw Unauthorized("Tenant mapping required")
+      }
+
+      await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
+      await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
+
+      return await createProject(auth.userId, body, scope.organizationId, db)
+    })
 
     invalidateTag(cacheTags.projects(tenantId))
     return ok(project)

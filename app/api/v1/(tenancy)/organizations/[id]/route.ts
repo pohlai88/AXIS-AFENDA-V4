@@ -12,6 +12,7 @@ import { HttpError } from "@/lib/server/api/errors"
 import { organizationService } from "@/lib/server/organizations/service"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { withApiErrorBoundary } from "@/lib/server/api/handler"
+import { withRlsDb } from "@/lib/server/db/rls"
 import {
   updateOrganizationSchema,
   organizationParamsSchema
@@ -32,15 +33,16 @@ export async function GET(req: Request, context: Context) {
     const params = await context.params
     const { id } = organizationParamsSchema.parse(params)
 
-    // Check if user is member of the organization
-    const isMember = await organizationService.isMember(auth.userId, id)
-    if (!isMember) {
-      return fail({ code: "ACCESS_DENIED", message: "Access denied" }, 403)
-    }
+    return await withRlsDb(auth.userId, async (db) => {
+      // Check if user is member of the organization
+      const isMember = await organizationService.isMember(auth.userId, id, db)
+      if (!isMember) {
+        return fail({ code: "ACCESS_DENIED", message: "Access denied" }, 403)
+      }
 
-    const organization = await organizationService.getById(id)
-
-    return ok(organization)
+      const organization = await organizationService.getById(id, db)
+      return ok(organization)
+    })
   })
 }
 
@@ -58,10 +60,11 @@ export async function PATCH(req: Request, context: Context) {
     // Check admin permissions
     await requireOrganizationAdmin()(req)
 
-    const organization = await organizationService.update(id, data)
-    invalidateTag(`organizations:${auth.userId}`)
-
-    return ok(organization)
+    return await withRlsDb(auth.userId, async (db) => {
+      const organization = await organizationService.update(id, data, db)
+      invalidateTag(`organizations:${auth.userId}`)
+      return ok(organization)
+    })
   })
 }
 
@@ -78,10 +81,11 @@ export async function DELETE(req: Request, context: Context) {
     // Check admin permissions
     await requireOrganizationAdmin()(req)
 
-    const organization = await organizationService.delete(id)
-    invalidateTag(`organizations:${auth.userId}`)
-
-    return ok(organization)
+    return await withRlsDb(auth.userId, async (db) => {
+      const organization = await organizationService.delete(id, db)
+      invalidateTag(`organizations:${auth.userId}`)
+      return ok(organization)
+    })
   })
 }
 

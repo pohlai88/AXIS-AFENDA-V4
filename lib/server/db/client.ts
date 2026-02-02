@@ -8,21 +8,57 @@ import { Result, err, ok } from "@/lib/shared/result"
 
 import * as schema from "./schema"
 
-type Db = ReturnType<typeof drizzle>
+export type Db = ReturnType<typeof drizzle>
 
 type GlobalDbCache = {
   __afendaDb?: Db
   __afendaDbClient?: postgres.Sql
+  __afendaRlsConfigPromise?: Promise<void>
 }
 
 const globalForDb = globalThis as unknown as GlobalDbCache
 
 // Connection pool configuration
+function readInt(name: string): number | undefined {
+  const raw = process.env[name]
+  if (!raw) return undefined
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) ? n : undefined
+}
+
+function readMs(name: string): number | undefined {
+  const raw = process.env[name]
+  if (!raw) return undefined
+  const n = Number.parseInt(raw, 10)
+  return Number.isFinite(n) && n >= 0 ? n : undefined
+}
+
+/**
+ * Neon best-practice defaults:
+ * - Prefer low connection counts in serverless to avoid connection exhaustion.
+ * - Tune via env vars when needed.
+ */
 const DB_CONFIG = {
-  max: 20, // Maximum number of connections
-  idle_timeout: 30, // Idle timeout in seconds
-  connect_timeout: 10, // Connection timeout in seconds
-  prepare: false, // Disable prepared statements for better performance
+  max: readInt("DB_POOL_MAX") ?? (process.env.NODE_ENV === "production" ? 5 : 20),
+  idle_timeout: readInt("DB_POOL_IDLE_TIMEOUT") ?? 30, // seconds
+  connect_timeout: readInt("DB_POOL_CONNECT_TIMEOUT") ?? 10, // seconds
+  prepare: false, // postgres.js recommendation for serverless + compatibility
+} as const
+
+const SESSION_DEFAULTS = {
+  applicationName: process.env.DB_APP_NAME ?? `afenda:${process.env.NODE_ENV ?? "unknown"}`,
+  statementTimeoutMs: readMs("DB_STATEMENT_TIMEOUT_MS") ?? 30_000,
+  lockTimeoutMs: readMs("DB_LOCK_TIMEOUT_MS") ?? 5_000,
+  idleInTxTimeoutMs: readMs("DB_IDLE_IN_TX_TIMEOUT_MS") ?? 30_000,
+} as const
+
+function buildServerOptions(): string {
+  // Postgres connection startup options (`-c key=value`) apply per-session (works well with pooled connections).
+  return [
+    `-c statement_timeout=${SESSION_DEFAULTS.statementTimeoutMs}`,
+    `-c lock_timeout=${SESSION_DEFAULTS.lockTimeoutMs}`,
+    `-c idle_in_transaction_session_timeout=${SESSION_DEFAULTS.idleInTxTimeoutMs}`,
+  ].join(" ")
 }
 
 let cachedDb: Db | null = null
@@ -36,14 +72,18 @@ function createDb(): { db: Db; client: postgres.Sql } {
   // Create connection pool
   const client = postgres(connectionString, {
     ...DB_CONFIG,
+    connection: {
+      application_name: SESSION_DEFAULTS.applicationName,
+      options: buildServerOptions(),
+    },
     // Enable SSL when required by connection string or in production
-    ssl: sslRequired || process.env.NODE_ENV === 'production' ? 'require' : false,
+    ssl: (sslRequired || process.env.NODE_ENV === "production") ? "require" : false,
   })
 
   const db = drizzle(client, {
     schema,
     // Enable logging in development
-    logger: process.env.NODE_ENV === 'development',
+    logger: process.env.NODE_ENV === "development",
   })
 
   return { db, client }
@@ -114,6 +154,98 @@ export async function checkDbHealth(): Promise<Result<boolean, Error>> {
   } catch (e) {
     return err(e as Error)
   }
+}
+
+export type RlsHealth = {
+  role: string
+  rowSecurity: string | null
+  tables: Array<{ table: string; rlsEnabled: boolean; rlsForced: boolean }>
+  missingRlsOnTables: string[]
+}
+
+const RLS_TABLES_TO_ENFORCE = [
+  "neon_user_profiles",
+  "neon_organizations",
+  "neon_teams",
+  "neon_memberships",
+  "neon_subdomain_config",
+  "neon_projects",
+  "neon_recurrence_rules",
+  "neon_tasks",
+  "neon_task_history",
+] as const
+
+/**
+ * Validates that the runtime connection is suitable for RLS enforcement.
+ *
+ * Notes:
+ * - This is only a *configuration* check (it does not validate per-user policies).
+ * - If you connect as an owner/superuser, RLS can be bypassed; use `DB_ASSERT_RLS_ROLE=app_user`.
+ */
+export async function checkRlsHealth(): Promise<Result<RlsHealth, Error>> {
+  const client = getDbClient()
+
+  try {
+    const metaRows = (await client`select current_user as role, current_setting('row_security', true) as row_security`) as unknown as Array<{
+      role: string
+      row_security: string | null
+    }>
+    const role = metaRows[0]?.role ?? "unknown"
+    const rowSecurity = metaRows[0]?.row_security ?? null
+
+    const rlsRows =
+      (await client`
+        select
+          c.relname as "table",
+          c.relrowsecurity as "rlsEnabled",
+          c.relforcerowsecurity as "rlsForced"
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public'
+          and c.relname in ${client([...RLS_TABLES_TO_ENFORCE])}
+        order by c.relname asc
+      `) as unknown as Array<{ table: string; rlsEnabled: boolean; rlsForced: boolean }>
+
+    const missingRlsOnTables = RLS_TABLES_TO_ENFORCE.filter(
+      (t) => !rlsRows.find((r) => r.table === t && r.rlsEnabled)
+    )
+
+    return ok({
+      role,
+      rowSecurity,
+      tables: rlsRows,
+      missingRlsOnTables: [...missingRlsOnTables],
+    })
+  } catch (e) {
+    return err(e as Error)
+  }
+}
+
+/**
+ * Optional: fail-fast guard for production.
+ *
+ * Set `DB_ASSERT_RLS_TABLES=true` to ensure core tables have RLS enabled.
+ * This is cached globally and runs at most once per process.
+ */
+export async function assertRlsConfiguredOnce(sql?: postgres.Sql): Promise<void> {
+  const shouldAssert = process.env.DB_ASSERT_RLS_TABLES === "true"
+  if (!shouldAssert) return
+
+  const cache = globalForDb
+  if (!cache.__afendaRlsConfigPromise) {
+    cache.__afendaRlsConfigPromise = (async () => {
+      void (sql ?? getDbClient()) // ensure a client exists
+      const rls = await checkRlsHealth()
+      if (!rls.ok) throw rls.error
+      if (rls.value.missingRlsOnTables.length > 0) {
+        throw new Error(
+          `RLS misconfigured: missing RLS on tables: ${rls.value.missingRlsOnTables.join(", ")}`
+        )
+      }
+    })()
+  }
+
+  await cache.__afendaRlsConfigPromise
 }
 
 /**

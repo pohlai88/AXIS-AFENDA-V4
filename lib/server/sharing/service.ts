@@ -1,6 +1,6 @@
 import "@/lib/server/only"
-import { db } from "@/lib/server/db"
-import { resourceShares, users, teams, organizations } from "@/lib/server/db/schema"
+import { getDb } from "@/lib/server/db"
+import { resourceShares, userProfiles, teams, organizations } from "@/lib/server/db/schema"
 import { eq, and } from "drizzle-orm"
 import { logger } from "@/lib/server/logger"
 import { HttpError } from "@/lib/server/api/errors"
@@ -22,6 +22,7 @@ export class SharingService {
     expiresAt?: Date
   }) {
     try {
+      const db = getDb()
       // Check if share already exists
       const [existingShare] = await db
         .select()
@@ -92,6 +93,7 @@ export class SharingService {
     expiresAt?: Date
   }) {
     try {
+      const db = getDb()
       // Verify team exists
       const [team] = await db
         .select()
@@ -174,6 +176,7 @@ export class SharingService {
     expiresAt?: Date
   }) {
     try {
+      const db = getDb()
       // Verify organization exists
       const [org] = await db
         .select()
@@ -249,6 +252,7 @@ export class SharingService {
    */
   async removeShare(shareId: string, userId: string) {
     try {
+      const db = getDb()
       // Verify user owns the share
       const [share] = await db
         .select()
@@ -281,6 +285,7 @@ export class SharingService {
    */
   async listResourceShares(resourceType: string, resourceId: string, ownerId: string) {
     try {
+      const db = getDb()
       const shares = await db
         .select()
         .from(resourceShares)
@@ -299,9 +304,9 @@ export class SharingService {
 
           if (share.sharedWithUserId) {
             const [user] = await db
-              .select({ id: users.id, displayName: users.displayName, email: users.email })
-              .from(users)
-              .where(eq(users.id, share.sharedWithUserId))
+              .select({ id: userProfiles.userId, displayName: userProfiles.displayName, email: userProfiles.email })
+              .from(userProfiles)
+              .where(eq(userProfiles.userId, share.sharedWithUserId))
               .limit(1)
             target = { type: "user", ...user }
           } else if (share.sharedWithTeamId) {
@@ -343,6 +348,7 @@ export class SharingService {
     resourceId: string
   ): Promise<boolean> {
     try {
+      const db = getDb()
       // Check direct user share
       const [directShare] = await db
         .select()
@@ -378,6 +384,7 @@ export class SharingService {
     resourceId: string
   ): Promise<Record<string, boolean>> {
     try {
+      const db = getDb()
       const permissions: Record<string, boolean> = {}
 
       // Get direct user share

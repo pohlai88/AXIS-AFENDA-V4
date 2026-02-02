@@ -31,6 +31,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar"
 import { authClient } from "@/lib/auth/client"
+import { routes } from "@/lib/routes"
 
 export function NavUser({
   user,
@@ -93,19 +94,19 @@ export function NavUser({
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem asChild>
-                <Link href="/account/settings">
+                <Link href={routes.ui.auth.accountSettings()}>
                   <IconUserCircle />
                   Account Settings
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/account/security">
+                <Link href={routes.ui.auth.accountSecurity()}>
                   <IconShield />
                   Security
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/app/settings">
+                <Link href={routes.ui.settings.root()}>
                   <IconNotification />
                   App Settings
                 </Link>

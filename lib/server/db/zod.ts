@@ -3,11 +3,12 @@ import "@/lib/server/only"
 import { createInsertSchema, createSelectSchema } from "drizzle-zod"
 import { z } from "zod"
 
-import { users, tasks, projects } from "./schema"
+import { userProfiles, tasks, projects } from "./schema"
 
 // Base schemas (auto-generated)
-export const UserSelectSchema = createSelectSchema(users)
-export const UserInsertSchema = createInsertSchema(users)
+// NOTE: Neon Auth owns auth users; this is app-owned profile/preferences.
+export const UserProfileSelectSchema = createSelectSchema(userProfiles)
+export const UserProfileInsertSchema = createInsertSchema(userProfiles)
 
 export const TaskSelectSchema = createSelectSchema(tasks)
 export const TaskInsertSchema = createInsertSchema(tasks)
@@ -21,6 +22,8 @@ export const TaskCreateSchema = TaskInsertSchema.omit({
     createdAt: true,
     updatedAt: true,
     userId: true, // Added from auth context
+    organizationId: true, // Added from tenant context (if applicable)
+    teamId: true, // Added from tenant context (if applicable)
 }).extend({
     // Add custom validations
     title: z.string().min(1).max(255),
@@ -45,6 +48,8 @@ export const ProjectCreateSchema = ProjectInsertSchema.omit({
     createdAt: true,
     updatedAt: true,
     userId: true, // Added from auth context
+    organizationId: true, // Added from tenant context (if applicable)
+    teamId: true, // Added from tenant context (if applicable)
 }).extend({
     name: z.string().min(1).max(255),
     description: z.string().optional(),
@@ -59,8 +64,8 @@ export const ProjectUpdateSchema = ProjectInsertSchema.pick({
 }).partial()
 
 // Export types
-export type User = typeof users.$inferSelect
-export type NewUser = typeof users.$inferInsert
+export type UserProfile = typeof userProfiles.$inferSelect
+export type NewUserProfile = typeof userProfiles.$inferInsert
 
 export type Task = typeof tasks.$inferSelect
 export type NewTask = typeof tasks.$inferInsert

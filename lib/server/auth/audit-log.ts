@@ -9,9 +9,11 @@
 
 import "@/lib/server/only"
 
-import { db } from "@/lib/server/db"
-import { userActivityLog } from "@/lib/server/db/schema"
+import { getDb } from "@/lib/server/db"
+import { securityEventLog, userActivityLog } from "@/lib/server/db/schema"
 import { logger } from "@/lib/server/logger"
+import { createHash } from "crypto"
+import { withRlsDb } from "@/lib/server/db/rls"
 
 /**
  * Authentication event types
@@ -48,29 +50,74 @@ export interface AuthEventData {
   errorMessage?: string
 }
 
+function sha256Hex(value: string): string {
+  return createHash("sha256").update(value).digest("hex")
+}
+
+function sanitizeSecurityMetadata(metadata: Record<string, unknown> | undefined): Record<string, unknown> | undefined {
+  if (!metadata) return undefined
+  const copy: Record<string, unknown> = { ...metadata }
+  // Never store raw identifiers (email) in unauthenticated logs.
+  if (typeof copy.email === "string") {
+    delete copy.email
+  }
+  return copy
+}
+
 /**
  * Log authentication event to audit trail
  */
 export async function logAuthEvent(event: AuthEventData): Promise<void> {
   try {
-    // Only log if userId is provided (required by schema)
-    if (!event.userId) {
-      logger.warn({ action: event.action }, 'Skipping audit log - no userId')
+    // If we have a user id, write to the user-attributed audit log.
+    if (event.userId) {
+      const userId = event.userId
+      await withRlsDb(userId, async (db) =>
+        db.insert(userActivityLog).values({
+          userId,
+          action: event.action,
+          ipAddress: event.ipAddress,
+          userAgent: event.userAgent,
+          metadata: event.metadata ?? undefined,
+          createdAt: new Date(),
+        })
+      )
+
+      logger.info(
+        { userId, action: event.action, success: event.success },
+        "Auth event logged"
+      )
       return
     }
 
-    const activityData = {
-      userId: event.userId,
+    // Otherwise write to unauthenticated security event log (enterprise monitoring).
+    const email =
+      event.metadata && typeof event.metadata.email === "string"
+        ? event.metadata.email
+        : undefined
+
+    const identifierHash = email ? sha256Hex(email.toLowerCase()) : undefined
+    const identifierType = email ? "email" : undefined
+
+    const db = getDb()
+    await db.insert(securityEventLog).values({
+      userId: undefined,
       action: event.action,
+      success: event.success,
+      identifierHash,
+      identifierType,
+      requestId:
+        event.metadata && typeof event.metadata.requestId === "string"
+          ? event.metadata.requestId
+          : undefined,
       ipAddress: event.ipAddress,
       userAgent: event.userAgent,
-      metadata: event.metadata ? JSON.stringify(event.metadata) : undefined,
+      errorMessage: event.errorMessage,
+      metadata: sanitizeSecurityMetadata(event.metadata),
       createdAt: new Date(),
-    }
+    })
 
-    await db.insert(userActivityLog).values(activityData)
-
-    logger.info({ userId: event.userId, action: event.action, success: event.success }, 'Auth event logged')
+    logger.info({ action: event.action, success: event.success }, "Security event logged")
   } catch (error) {
     // Don't fail the auth flow if logging fails
     logger.error({ event, err: error }, 'Failed to log auth event')

@@ -16,6 +16,8 @@ export const routes = {
       resetPassword: (token?: string) =>
         token ? `/reset-password?token=${token}` : "/reset-password",
       verifyEmail: () => "/verify-email",
+      accountSettings: () => "/account/settings",
+      accountSecurity: () => "/account/security",
       /**
        * Dedicated callback landing page for Neon Auth redirects.
        * Keeps the UI consistent while the session finalizes.
@@ -66,6 +68,10 @@ export const routes = {
     },
   },
   api: {
+    analytics: {
+      webVitals: () => "/api/analytics/web-vitals",
+      pageView: () => "/api/analytics/page-view",
+    },
     /**
      * Public auth feature endpoints (mirrors UI route names).
      *

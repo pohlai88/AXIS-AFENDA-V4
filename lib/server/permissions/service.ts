@@ -1,10 +1,11 @@
 import "@/lib/server/only"
 import { PERMISSIONS } from "@/lib/constants"
 import type { PermissionValue } from "@/lib/constants"
-import { db } from "@/lib/server/db"
+import { getDb } from "@/lib/server/db"
 import { memberships, resourceShares } from "@/lib/server/db/schema"
 import { eq, and } from "drizzle-orm"
 import { logger } from "@/lib/server/logger"
+import type { Db } from "@/lib/server/db/client"
 import {
   BASE_USER_PERMISSIONS,
   getOrganizationRolePermissions,
@@ -27,7 +28,7 @@ export class PermissionService {
     teamId?: string
     resourceId?: string
     resourceType?: string
-  }): Promise<Set<string>> {
+  }, db?: Db): Promise<Set<string>> {
     const permissions = new Set<string>()
 
     // 1. Base permissions - everyone gets basic permissions (Focalboard-inspired)
@@ -38,6 +39,8 @@ export class PermissionService {
       const orgPermissions = await this.getOrganizationPermissions(
         context.userId,
         context.organizationId
+        ,
+        db
       )
       orgPermissions.forEach(p => permissions.add(p))
     }
@@ -47,6 +50,8 @@ export class PermissionService {
       const teamPermissions = await this.getTeamPermissions(
         context.userId,
         context.teamId
+        ,
+        db
       )
       teamPermissions.forEach(p => permissions.add(p))
     }
@@ -57,6 +62,8 @@ export class PermissionService {
         context.userId,
         context.resourceId,
         context.resourceType
+        ,
+        db
       )
       sharePermissions.forEach(p => permissions.add(p))
     }
@@ -75,12 +82,13 @@ export class PermissionService {
       teamId?: string
       resourceId?: string
       resourceType?: string
-    }
+    },
+    db?: Db
   ): Promise<boolean> {
     const permissions = await this.calculatePermissions({
       userId,
       ...context
-    })
+    }, db)
 
     return permissions.has(permission)
   }
@@ -91,10 +99,11 @@ export class PermissionService {
   private async getOrganizationPermissions(
     userId: string,
     organizationId: string
-  ): Promise<string[]> {
+  , db?: Db): Promise<string[]> {
     try {
+      const dbx = db ?? getDb()
       // Query membership
-      const [membership] = await db
+      const [membership] = await dbx
         .select()
         .from(memberships)
         .where(
@@ -143,10 +152,11 @@ export class PermissionService {
   private async getTeamPermissions(
     userId: string,
     teamId: string
-  ): Promise<string[]> {
+  , db?: Db): Promise<string[]> {
     try {
+      const dbx = db ?? getDb()
       // Query team membership
-      const [membership] = await db
+      const [membership] = await dbx
         .select()
         .from(memberships)
         .where(
@@ -196,12 +206,13 @@ export class PermissionService {
     userId: string,
     resourceId: string,
     resourceType: string
-  ): Promise<string[]> {
+  , db?: Db): Promise<string[]> {
     try {
+      const dbx = db ?? getDb()
       const permissions: string[] = []
 
       // Query direct user shares
-      const userShares = await db
+      const userShares = await dbx
         .select()
         .from(resourceShares)
         .where(
@@ -225,7 +236,7 @@ export class PermissionService {
       })
 
       // Query team shares
-      const userTeams = await db
+      const userTeams = await dbx
         .select({ teamId: memberships.teamId })
         .from(memberships)
         .where(
@@ -239,7 +250,7 @@ export class PermissionService {
         const teamIds = userTeams.map(t => t.teamId).filter((id): id is string => id !== null)
 
         if (teamIds.length > 0) {
-          const teamShares = await db
+          const teamShares = await dbx
             .select()
             .from(resourceShares)
             .where(
@@ -263,7 +274,7 @@ export class PermissionService {
       }
 
       // Query organization shares
-      const userOrgs = await db
+      const userOrgs = await dbx
         .select({ organizationId: memberships.organizationId })
         .from(memberships)
         .where(
@@ -277,7 +288,7 @@ export class PermissionService {
         const orgIds = userOrgs.map(o => o.organizationId).filter((id): id is string => id !== null)
 
         if (orgIds.length > 0) {
-          const orgShares = await db
+          const orgShares = await dbx
             .select()
             .from(resourceShares)
             .where(
@@ -317,7 +328,8 @@ export class PermissionService {
     context?: {
       organizationId?: string
       teamId?: string
-    }
+    },
+    db?: Db
   ): Promise<boolean> {
     // Owner always has access
     // TODO: Check if user is the owner
@@ -330,7 +342,8 @@ export class PermissionService {
         resourceId,
         resourceType,
         ...context
-      }
+      },
+      db
     )
 
     if (hasShareAccess) return true
@@ -340,7 +353,8 @@ export class PermissionService {
       const hasOrgAccess = await this.hasPermission(
         userId,
         PERMISSIONS.ORG_READ,
-        context
+        context,
+        db
       )
       if (hasOrgAccess) return true
     }
@@ -358,7 +372,8 @@ export class PermissionService {
     context?: {
       organizationId?: string
       teamId?: string
-    }
+    },
+    db?: Db
   ): Promise<boolean> {
     // Owner always has access
     // TODO: Check if user is the owner
@@ -371,7 +386,8 @@ export class PermissionService {
         resourceId,
         resourceType,
         ...context
-      }
+      },
+      db
     )
 
     if (hasShareAccess) return true
@@ -381,7 +397,8 @@ export class PermissionService {
       const hasOrgAccess = await this.hasPermission(
         userId,
         PERMISSIONS.ORG_MEMBER_MANAGE,
-        context
+        context,
+        db
       )
       if (hasOrgAccess) return true
     }
@@ -390,7 +407,8 @@ export class PermissionService {
       const hasTeamAccess = await this.hasPermission(
         userId,
         PERMISSIONS.TEAM_MANAGE,
-        context
+        context,
+        db
       )
       if (hasTeamAccess) return true
     }

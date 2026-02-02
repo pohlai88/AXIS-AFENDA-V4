@@ -8,11 +8,5 @@ import "@/lib/server/only"
  */
 
 export { getDb, getDbClient, withTransaction, checkDbHealth, closeDb } from "./client"
-import { getDb } from "./client"
-
-/**
- * Convenience singleton for most request-scoped usage.
- * `getDb()` is already internally cached (and HMR-safe in dev).
- */
-export const db = getDb()
+export { checkRlsHealth } from "./client"
 

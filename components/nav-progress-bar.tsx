@@ -17,8 +17,10 @@ export function NavProgressBar() {
   // Show progress bar when transition starts
   useEffect(() => {
     if (isPending) {
-      setIsVisible(true)
-      setProgress(10)
+      const startRaf = requestAnimationFrame(() => {
+        setIsVisible(true)
+        setProgress(10)
+      })
       
       // Simulate progress increment
       const interval = setInterval(() => {
@@ -28,15 +30,21 @@ export function NavProgressBar() {
         })
       }, 200)
 
-      return () => clearInterval(interval)
+      return () => {
+        cancelAnimationFrame(startRaf)
+        clearInterval(interval)
+      }
     } else if (isVisible) {
       // Complete the progress bar
-      setProgress(100)
+      const completeRaf = requestAnimationFrame(() => setProgress(100))
       const timeout = setTimeout(() => {
         setIsVisible(false)
         setProgress(0)
       }, 300)
-      return () => clearTimeout(timeout)
+      return () => {
+        cancelAnimationFrame(completeRaf)
+        clearTimeout(timeout)
+      }
     }
   }, [isPending, isVisible])
 

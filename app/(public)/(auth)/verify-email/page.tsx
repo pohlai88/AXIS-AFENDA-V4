@@ -14,19 +14,38 @@ import { Mail, Loader2 } from 'lucide-react'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { routes } from '@/lib/routes'
 import { Input } from '@/components/ui/input'
+import { useAuthUIStore } from '@/stores/auth-ui'
+import { apiFetch } from '@/lib/api/client'
+import {
+  ResendVerificationSchema,
+  verifyEmailResponseSchema,
+  type ResendVerificationInput,
+} from '@/lib/contracts/auth'
+import { useForm, type Resolver } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form"
+import { FormError } from "@/components/auth"
 
 export default function VerifyEmailPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState(() => {
+  const { verifyingEmail } = useAuthUIStore()
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle")
+  const [message, setMessage] = useState<string | null>(null)
+
+  const initialEmail = useMemo(() => {
     try {
-      return localStorage.getItem("afenda.lastRegisteredEmail") ?? ""
+      return (verifyingEmail || localStorage.getItem("afenda.lastRegisteredEmail")) ?? ""
     } catch {
       return ""
     }
-  })
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle")
-  const [message, setMessage] = useState<string | null>(null)
+  }, [verifyingEmail])
 
   const next = useMemo(() => {
     const param = searchParams.get("next")
@@ -34,6 +53,13 @@ export default function VerifyEmailPage() {
       ? param
       : routes.ui.orchestra.root()
   }, [searchParams])
+
+  const form = useForm<ResendVerificationInput>({
+    // NOTE: Resolver typing expects a single zod instance; this repo uses Zod v4.
+    // Cast is intentional to avoid versioned-type mismatches in resolver generics.
+    resolver: zodResolver(ResendVerificationSchema as unknown as never) as unknown as Resolver<ResendVerificationInput>,
+    defaultValues: { email: initialEmail },
+  })
 
   return (
     <AuthShell title="Verify your email" description="Check your inbox for a verification email.">
@@ -55,58 +81,68 @@ export default function VerifyEmailPage() {
       ) : null}
 
       {status === "error" ? (
-        <Alert variant="destructive">
-          <AlertTitle>Could not send email</AlertTitle>
-          <AlertDescription>{message ?? "Please try again in a moment."}</AlertDescription>
-        </Alert>
+        <FormError title="Could not send email" message={message ?? "Please try again in a moment."} />
       ) : null}
 
-      <form
-        className="space-y-3"
-        onSubmit={async (e) => {
-          e.preventDefault()
-          setStatus("sending")
-          setMessage(null)
-          try {
-            const res = await fetch(routes.api.publicAuth.verifyEmailResend(), {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ email, callbackURL: routes.ui.auth.authCallback(next) }),
-            })
+      <Form {...form}>
+        <form
+          className="space-y-3"
+          onSubmit={form.handleSubmit(async (values) => {
+            setStatus("sending")
+            setMessage(null)
+            try {
+              await apiFetch(
+                routes.api.publicAuth.verifyEmailResend(),
+                {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({
+                    email: values.email,
+                    callbackURL: routes.ui.auth.authCallback(next),
+                  }),
+                },
+                verifyEmailResponseSchema
+              )
 
-            if (!res.ok) {
-              const payload = (await res.json().catch(() => null)) as { error?: string } | null
+              setStatus("sent")
+              setMessage("Verification email sent. Please check your inbox.")
+            } catch (err) {
               setStatus("error")
-              setMessage(payload?.error || "Failed to send verification email.")
-              return
+              setMessage(err instanceof Error ? err.message : "Failed to send verification email.")
             }
-            setStatus("sent")
-            setMessage("Verification email sent. Please check your inbox.")
-          } catch {
-            setStatus("error")
-            setMessage("Failed to send verification email.")
-          }
-        }}
-      >
-        <Input
-          placeholder="you@company.com"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          disabled={status === "sending"}
-        />
-        <Button type="submit" className="w-full" disabled={status === "sending"}>
-          {status === "sending" ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Sending…
-            </>
-          ) : (
-            "Resend verification email"
-          )}
-        </Button>
-      </form>
+          })}
+        >
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    placeholder="you@company.com"
+                    type="email"
+                    autoComplete="email"
+                    disabled={status === "sending"}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <Button type="submit" className="w-full" disabled={status === "sending"}>
+            {status === "sending" ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Sending…
+              </>
+            ) : (
+              "Resend verification email"
+            )}
+          </Button>
+        </form>
+      </Form>
 
       <div className="flex flex-col gap-2">
         <Button

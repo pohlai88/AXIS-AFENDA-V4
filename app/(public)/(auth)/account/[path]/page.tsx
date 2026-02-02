@@ -3,6 +3,13 @@
  * @layer page
  * @responsibility Dynamic account pages (settings, security, organizations)
  * 
+ * Validation: ✅ VERIFIED
+ * - Domain: auth (correct per ARCHITECTURE.md)
+ * - Route group: (public)/(auth) (correct)
+ * - Path: /account/[path] (canonical)
+ * - Layout: None (uses root layout only)
+ * - CSS: Custom header (globals.css) + AccountView (Neon Auth built-in)
+ * 
  * NOTE: Uses Neon Auth pre-built UI components with built-in CSS
  * https://neon.com/docs/auth/quick-start/nextjs
  * 
@@ -26,6 +33,7 @@ import { use } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
+import { routes } from "@/lib/routes"
 
 // Disable SSR for AccountView to prevent hydration mismatches
 // Using named export pattern per Next.js 16.1.6 guidelines
@@ -43,7 +51,7 @@ export default function AccountPage({ params }: { params: Promise<{ path: string
       <div className="border-b">
         <div className="container mx-auto flex h-14 items-center px-4">
           <Button variant="ghost" size="sm" asChild>
-            <Link href="/app">
+            <Link href={routes.ui.orchestra.root()}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to App
             </Link>

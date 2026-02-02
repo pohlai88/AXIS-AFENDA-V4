@@ -4,6 +4,7 @@ import { permissionService } from "./service"
 import type { PermissionValue } from "@/lib/constants"
 import { getTenancyFromRequest } from "@/lib/contracts/tenancy"
 import { getAuthContext } from "@/lib/server/auth/context"
+import { withRlsDb } from "@/lib/server/db/rls"
 
 /**
  * Create a middleware that checks for a specific permission
@@ -18,12 +19,19 @@ export function requirePermission(permission: PermissionValue) {
 
     const tenancy = getTenancyFromRequest(Object.fromEntries(req.headers.entries()))
 
-    const hasPermission = await permissionService.hasPermission(auth.userId, permission, {
-      organizationId: tenancy.orgId,
-      teamId: tenancy.teamId,
-      resourceId: context?.params?.id,
-      resourceType: getResourceTypeFromUrl(req.url),
-    })
+    const hasPermission = await withRlsDb(auth.userId, async (db) =>
+      permissionService.hasPermission(
+        auth.userId,
+        permission,
+        {
+          organizationId: tenancy.orgId,
+          teamId: tenancy.teamId,
+          resourceId: context?.params?.id,
+          resourceType: getResourceTypeFromUrl(req.url),
+        },
+        db
+      )
+    )
 
     if (!hasPermission) {
       throw new HttpError(403, "FORBIDDEN", "Insufficient permissions")
@@ -51,14 +59,17 @@ export function requireReadAccess(resourceType: string) {
 
     const tenancy = getTenancyFromRequest(Object.fromEntries(req.headers.entries()))
 
-    const canAccess = await permissionService.canAccess(
-      auth.userId,
-      resourceType,
-      resourceId,
-      {
-        organizationId: tenancy.orgId,
-        teamId: tenancy.teamId,
-      }
+    const canAccess = await withRlsDb(auth.userId, async (db) =>
+      permissionService.canAccess(
+        auth.userId,
+        resourceType,
+        resourceId,
+        {
+          organizationId: tenancy.orgId,
+          teamId: tenancy.teamId,
+        },
+        db
+      )
     )
 
     if (!canAccess) {
@@ -87,14 +98,17 @@ export function requireWriteAccess(resourceType: string) {
 
     const tenancy = getTenancyFromRequest(Object.fromEntries(req.headers.entries()))
 
-    const canModify = await permissionService.canModify(
-      auth.userId,
-      resourceType,
-      resourceId,
-      {
-        organizationId: tenancy.orgId,
-        teamId: tenancy.teamId,
-      }
+    const canModify = await withRlsDb(auth.userId, async (db) =>
+      permissionService.canModify(
+        auth.userId,
+        resourceType,
+        resourceId,
+        {
+          organizationId: tenancy.orgId,
+          teamId: tenancy.teamId,
+        },
+        db
+      )
     )
 
     if (!canModify) {
@@ -121,10 +135,13 @@ export function requireOrganizationMember() {
       throw new HttpError(400, "BAD_REQUEST", "Organization ID is required")
     }
 
-    const isMember = await permissionService.hasPermission(
-      auth.userId,
-      "organization:read" as PermissionValue,
-      { organizationId: tenancy.orgId }
+    const isMember = await withRlsDb(auth.userId, async (db) =>
+      permissionService.hasPermission(
+        auth.userId,
+        "organization:read" as PermissionValue,
+        { organizationId: tenancy.orgId },
+        db
+      )
     )
 
     if (!isMember) {
@@ -151,10 +168,13 @@ export function requireOrganizationAdmin() {
       throw new HttpError(400, "BAD_REQUEST", "Organization ID is required")
     }
 
-    const isAdmin = await permissionService.hasPermission(
-      auth.userId,
-      "organization:member:manage" as PermissionValue,
-      { organizationId: tenancy.orgId }
+    const isAdmin = await withRlsDb(auth.userId, async (db) =>
+      permissionService.hasPermission(
+        auth.userId,
+        "organization:member:manage" as PermissionValue,
+        { organizationId: tenancy.orgId },
+        db
+      )
     )
 
     if (!isAdmin) {
@@ -181,13 +201,16 @@ export function requireTeamManager() {
       throw new HttpError(400, "BAD_REQUEST", "Team ID is required")
     }
 
-    const isManager = await permissionService.hasPermission(
-      auth.userId,
-      "team:manage" as PermissionValue,
-      {
-        organizationId: tenancy.orgId,
-        teamId: tenancy.teamId
-      }
+    const isManager = await withRlsDb(auth.userId, async (db) =>
+      permissionService.hasPermission(
+        auth.userId,
+        "team:manage" as PermissionValue,
+        {
+          organizationId: tenancy.orgId,
+          teamId: tenancy.teamId,
+        },
+        db
+      )
     )
 
     if (!isManager) {

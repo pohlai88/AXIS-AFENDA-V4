@@ -7,13 +7,12 @@
 import "@/lib/server/only"
 
 import { headers } from "next/headers"
-import { NextResponse } from "next/server"
 
 import { HEADER_NAMES } from "@/lib/constants"
 import { ok, fail } from "@/lib/server/api/response"
 import { HttpError } from "@/lib/server/api/errors"
 import { getAuthContext } from "@/lib/server/auth/context"
-import { revokeSession } from "@/lib/server/auth/session-helpers"
+import { listNeonSessions, revokeNeonSession } from "@/lib/server/auth/neon-sessions"
 import { sessionIdParamSchema, revokeSessionResponseSchema } from "@/lib/contracts/sessions"
 import { logger } from "@/lib/server/logger"
 
@@ -39,12 +38,14 @@ export async function DELETE(_request: Request, segmentData: { params: Params })
     const params = await segmentData.params
     const { id } = sessionIdParamSchema.parse({ id: params.id })
 
-    // Revoke the session
-    const success = await revokeSession(id, auth.userId)
-
-    if (!success) {
-      throw new HttpError(404, "NOT_FOUND", "Session not found or already revoked")
+    // Prevent revoking the current session via this endpoint.
+    const { sessions } = await listNeonSessions()
+    const current = sessions.find((s) => s.isCurrent)
+    if (current?.id && current.id === id) {
+      throw new HttpError(400, "BAD_REQUEST", "Cannot revoke current session. Use /api/auth/logout instead.")
     }
+
+    await revokeNeonSession(id)
 
     const response = revokeSessionResponseSchema.parse({
       success: true,

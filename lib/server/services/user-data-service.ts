@@ -76,9 +76,9 @@ export class UserDataService {
     const { client, authContext } = await this.getAuthenticatedClient()
 
     // Get user profile from the database
-    const response = await client.get("public.users", {
-      select: "id, email, created_at",
-      filter: { id: authContext.userId },
+    const response = await client.get("public.user_profiles", {
+      select: "user_id, email, created_at",
+      filter: { user_id: authContext.userId },
       limit: 1,
     })
 
@@ -93,7 +93,9 @@ export class UserDataService {
 
     return {
       user: {
-        ...user,
+        id: String((user as Record<string, unknown>)["user_id"] ?? authContext.userId),
+        email: (user as Record<string, unknown>)["email"],
+        created_at: (user as Record<string, unknown>)["created_at"],
         role: authContext.roles[0] ?? "user",
       },
       authSource: authContext.authSource,

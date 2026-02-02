@@ -3,12 +3,13 @@ import "@/lib/server/only"
 import { eq, and } from "drizzle-orm"
 import { nanoid } from "nanoid"
 
-import { db } from "@/lib/server/db"
-import { memberships } from "@/lib/server/db/schema"
+import { memberships, userProfiles } from "@/lib/server/db/schema"
 import { logger } from "@/lib/server/logger"
 import { OrganizationService } from "@/lib/server/organizations/service"
 import { TeamService } from "@/lib/server/teams/service"
 import { ORGANIZATION } from "@/lib/constants"
+import { withRlsDb } from "@/lib/server/db/rls"
+import type { Db } from "@/lib/server/db/client"
 
 /**
  * IMPORTANT: User data is now managed entirely by Neon Auth (neon_auth.user)
@@ -51,33 +52,62 @@ export async function syncUserFromAuth(identity: NeonAuthIdentity): Promise<User
   /**
    * NEON AUTH BEST PRACTICE:
    * User data is managed by Neon Auth (neon_auth.user table).
-   * This function only ensures organizational setup and membership.
-   * DO NOT create/update users in custom tables - this breaks Neon Auth.
+   * This function maintains APP-OWNED profile/preferences ONLY (user_profiles)
+   * and ensures organization defaults/memberships.
    */
   const userId = identity.id
   const email = identity.email
 
-  // Ensure default organization for new users
-  const hasMembership = await hasAnyMembership(userId)
-  if (!hasMembership) {
-    await ensureDefaultOrganization({
-      ...identity,
-      id: userId,
-      email: email,
-      name: identity.name,
-      avatar: identity.avatar,
-    })
-  }
+  return await withRlsDb(userId, async (db) => {
+    // Upsert app-owned profile snapshot (for UI + local joins). Not an auth source-of-truth.
+    try {
+      await db
+        .insert(userProfiles)
+        .values({
+          userId,
+          email,
+          displayName: identity.name,
+          avatar: identity.avatar,
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: userProfiles.userId,
+          set: {
+            email,
+            displayName: identity.name,
+            avatar: identity.avatar,
+            updatedAt: new Date(),
+          },
+        })
+    } catch (e) {
+      logger.warn({ err: e, userId }, "Failed to upsert user profile snapshot")
+    }
 
-  return {
-    userId: userId,
-    email: email,
-    role: "user",
-    created: false,
-  }
+    // Ensure default organization for new users
+    const hasMembership = await hasAnyMembership(userId, db)
+    if (!hasMembership) {
+      await ensureDefaultOrganization(
+        {
+          ...identity,
+          id: userId,
+          email: email,
+          name: identity.name,
+          avatar: identity.avatar,
+        },
+        db
+      )
+    }
+
+    return {
+      userId: userId,
+      email: email,
+      role: "user",
+      created: false,
+    }
+  })
 }
 
-async function hasAnyMembership(userId: string) {
+async function hasAnyMembership(userId: string, db: Db) {
   const [membership] = await db
     .select()
     .from(memberships)
@@ -87,11 +117,11 @@ async function hasAnyMembership(userId: string) {
   return Boolean(membership)
 }
 
-async function ensureDefaultOrganization(identity: NeonAuthIdentity) {
+async function ensureDefaultOrganization(identity: NeonAuthIdentity, db: Db) {
   const orgName = identity.name ? `${identity.name}'s Workspace` : "Personal Workspace"
   const baseSlug = slugify(identity.name ?? identity.email?.split("@")[0] ?? "workspace")
 
-  const org = await createOrganizationWithUniqueSlug(orgName, baseSlug, identity.id)
+  const org = await createOrganizationWithUniqueSlug(orgName, baseSlug, identity.id, db)
 
   await teamService.create(
     {
@@ -100,11 +130,12 @@ async function ensureDefaultOrganization(identity: NeonAuthIdentity) {
       slug: "main",
       description: "Default team",
     },
-    identity.id
+    identity.id,
+    db
   )
 }
 
-async function createOrganizationWithUniqueSlug(name: string, baseSlug: string, userId: string) {
+async function createOrganizationWithUniqueSlug(name: string, baseSlug: string, userId: string, db: Db) {
   const maxAttempts = 3
   let slug = baseSlug
 
@@ -116,7 +147,8 @@ async function createOrganizationWithUniqueSlug(name: string, baseSlug: string, 
           slug,
           description: "Default workspace",
         },
-        userId
+        userId,
+        db
       )
     } catch (error) {
       if (attempt === maxAttempts - 1) {
@@ -132,7 +164,8 @@ async function createOrganizationWithUniqueSlug(name: string, baseSlug: string, 
       slug: `${baseSlug}-${nanoid(6)}`.slice(0, ORGANIZATION.MAX_SLUG_LENGTH),
       description: "Default workspace",
     },
-    userId
+    userId,
+    db
   )
 }
 

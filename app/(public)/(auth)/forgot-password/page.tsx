@@ -8,6 +8,8 @@
 
 import { useEffect, useMemo, useState } from "react"
 import Link from "next/link"
+import { useForm, type Resolver } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
 
 import { routes } from "@/lib/routes"
 import { AuthShell } from "@/components/auth/auth-shell"
@@ -15,8 +17,22 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
 import { useAuth } from "@/lib/client/hooks/useAuth"
 import { Button } from "@/components/ui/button"
+import { apiFetch } from "@/lib/api/client"
+import {
+  ForgotPasswordSchema,
+  forgotPasswordResponseSchema,
+  type ForgotPasswordInput,
+} from "@/lib/contracts/auth"
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { FormError } from "@/components/auth"
 
 type Status = "idle" | "submitting" | "success" | "error"
 
@@ -25,12 +41,20 @@ export default function ForgotPasswordPage() {
   const [status, setStatus] = useState<Status>("idle")
   const [submittedEmail, setSubmittedEmail] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [email, setEmail] = useState("")
 
   const redirectTo = useMemo(() => {
     if (typeof window === "undefined") return ""
     return `${window.location.origin}${routes.ui.auth.resetPassword()}`
   }, [])
+
+  const form = useForm<ForgotPasswordInput>({
+    // NOTE: Resolver typing expects a single zod instance; this repo uses Zod v4.
+    // Cast is intentional to avoid versioned-type mismatches in resolver generics.
+    resolver: zodResolver(ForgotPasswordSchema as unknown as never) as unknown as Resolver<ForgotPasswordInput>,
+    defaultValues: { email: "" },
+  })
+
+  const isPending = form.formState.isSubmitting || status === "submitting"
 
   useEffect(() => {
     if (!isSessionLoading && isAuthenticated) {
@@ -57,59 +81,66 @@ export default function ForgotPasswordPage() {
         </Alert>
       ) : null}
 
-      {status === "error" && errorMessage ? (
-        <Alert variant="destructive">
-          <AlertTitle>Could not send reset link</AlertTitle>
-          <AlertDescription>{errorMessage}</AlertDescription>
-        </Alert>
+      {status === "error" ? (
+        <FormError title="Could not send reset link" message={errorMessage} />
       ) : null}
 
       {status !== "success" ? (
-        <form
-          className="space-y-4"
-          onSubmit={async (e) => {
-            e.preventDefault()
-            setErrorMessage(null)
-            setStatus("submitting")
-            try {
-              const res = await fetch(routes.api.publicAuth.forgotPassword(), {
-                method: "POST",
-                headers: { "content-type": "application/json" },
-                body: JSON.stringify({ email, redirectTo }),
-              })
+        <Form {...form}>
+          <form
+            className="space-y-4"
+            onSubmit={form.handleSubmit(async (values) => {
+              setErrorMessage(null)
+              setStatus("submitting")
+              try {
+                await apiFetch(
+                  routes.api.publicAuth.forgotPassword(),
+                  {
+                    method: "POST",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ email: values.email, redirectTo }),
+                  },
+                  forgotPasswordResponseSchema
+                )
 
-              if (!res.ok) {
-                const payload = (await res.json().catch(() => null)) as { error?: string } | null
-                setErrorMessage(payload?.error || "Could not send reset link")
+                setSubmittedEmail(values.email)
+                form.reset()
+                setStatus("success")
+              } catch (err) {
+                setErrorMessage(
+                  err instanceof Error
+                    ? err.message
+                    : "An unexpected error occurred. Please try again."
+                )
                 setStatus("error")
-                return
               }
-
-              setSubmittedEmail(email)
-              setEmail("")
-              setStatus("success")
-            } catch {
-              setErrorMessage("An unexpected error occurred. Please try again.")
-              setStatus("error")
-            }
-          }}
-        >
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="you@company.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={status === "submitting"}
+            })}
+          >
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      {...field}
+                      type="email"
+                      placeholder="you@company.com"
+                      autoComplete="email"
+                      disabled={isPending}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-          <Button type="submit" className="w-full" disabled={status === "submitting"}>
-            {status === "submitting" ? "Sending…" : "Send reset link"}
-          </Button>
-        </form>
+
+            <Button type="submit" className="w-full" disabled={isPending}>
+              {isPending ? "Sending…" : "Send reset link"}
+            </Button>
+          </form>
+        </Form>
       ) : null}
 
       <div className="text-center text-sm text-muted-foreground">

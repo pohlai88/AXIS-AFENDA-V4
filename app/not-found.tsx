@@ -1,6 +1,7 @@
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
+import { routes } from "@/lib/routes"
 
 export default function NotFound() {
   return (
@@ -11,10 +12,10 @@ export default function NotFound() {
       </p>
       <div className="flex flex-wrap justify-center gap-2">
         <Button asChild>
-          <Link href="/">Go home</Link>
+          <Link href={routes.ui.marketing.home()}>Go home</Link>
         </Button>
         <Button asChild variant="outline">
-          <Link href="/app">Go to app</Link>
+          <Link href={routes.ui.orchestra.root()}>Go to app</Link>
         </Button>
       </div>
     </main>

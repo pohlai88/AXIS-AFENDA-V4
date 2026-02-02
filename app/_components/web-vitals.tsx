@@ -1,6 +1,7 @@
 "use client"
 
 import { useReportWebVitals } from "next/web-vitals"
+import { routes } from "@/lib/routes"
 
 export function WebVitals() {
   useReportWebVitals((metric) => {
@@ -23,7 +24,7 @@ export function WebVitals() {
         navigationType: metric.navigationType,
       })
 
-      const url = "/api/analytics/web-vitals"
+      const url = routes.api.analytics.webVitals()
 
       // Use sendBeacon for reliability, fallback to fetch
       if (navigator.sendBeacon) {

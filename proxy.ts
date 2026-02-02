@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server"
 
 import { HEADER_NAMES, COOKIE_NAMES } from "./lib/constants"
 import { applyApiGovernanceHeaders, getApiMetaForPath } from "./lib/api/meta"
+import { inferTenantFromHost as inferTenantFromHostShared } from "./lib/shared/tenant/infer-tenant"
 
 export default async function proxy(req: NextRequest) {
   const requestHeaders = new Headers(req.headers)
@@ -46,9 +47,14 @@ export default async function proxy(req: NextRequest) {
   const tenantId =
     headerTenantId ??
     cookieTenantId ??
-    inferTenantFromHost(
-      requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host")
-    )
+    inferTenantFromHostShared(requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host"), {
+      baseUrl: process.env.NEXT_PUBLIC_APP_URL ?? null,
+      publicSubdomains: (process.env.NEXT_PUBLIC_PUBLIC_SUBDOMAINS ?? "www,app,api,admin,docs,blog,status,cdn")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean),
+      pattern: process.env.NEXT_PUBLIC_TENANT_SUBDOMAIN_PATTERN ?? "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$",
+    })
 
   if (tenantId && !headerTenantId) requestHeaders.set(HEADER_NAMES.TENANT_ID, tenantId)
 
@@ -88,62 +94,6 @@ export default async function proxy(req: NextRequest) {
   }
 
   return res
-}
-
-/**
- * Infer tenant from subdomain
- * 
- * Flow:
- * 1. Extract subdomain from hostname (e.g., "tenant1" from "tenant1.nexuscanon.com")
- * 2. Filter out reserved subdomains (www, app, api, admin, etc.)
- * 3. Validate subdomain format (RFC 1123 compatible)
- * 4. Return subdomain as tenant ID or null
- * 
- * Note: In the future, this could query the subdomain_config database table
- * to dynamically map subdomains to organization/team IDs. For now, the 
- * subdomain itself serves as the tenant ID.
- */
-function inferTenantFromHost(host: string | null): string | null {
-  if (!host) return null
-
-  const hostname = host.split(":")[0]
-  if (!hostname) return null
-
-  // Development: localhost fallback
-  if (hostname === "localhost" || hostname.endsWith(".localhost")) {
-    return process.env.DEV_TENANT_ID ?? null
-  }
-
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-  if (!baseUrl) return null
-
-  let baseHostname: string | null = null
-  try {
-    baseHostname = new URL(baseUrl).hostname
-  } catch {
-    baseHostname = null
-  }
-
-  if (!baseHostname) return null
-  if (!hostname.endsWith(baseHostname)) return null
-
-  const subdomain = hostname.slice(0, -baseHostname.length).replace(/\.$/, "")
-  if (!subdomain) return null
-
-  // Filter out public/reserved subdomains
-  const publicSubdomains = (process.env.NEXT_PUBLIC_PUBLIC_SUBDOMAINS ?? "www,app,api,admin,docs,blog,status,cdn").split(",").map(s => s.trim())
-  if (publicSubdomains.includes(subdomain.toLowerCase())) return null
-
-  // Validate subdomain pattern (RFC 1123 compatible)
-  const pattern = process.env.NEXT_PUBLIC_TENANT_SUBDOMAIN_PATTERN ?? "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$"
-  try {
-    if (!new RegExp(pattern, "i").test(subdomain)) return null
-  } catch {
-    // Invalid regex pattern, fallback to simple validation
-    if (!/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i.test(subdomain)) return null
-  }
-
-  return subdomain
 }
 
 export const config = {
