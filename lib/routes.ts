@@ -66,6 +66,20 @@ export const routes = {
     },
   },
   api: {
+    /**
+     * Public auth feature endpoints (mirrors UI route names).
+     *
+     * NOTE: These are intentionally NOT nested under `/api/auth/*` so that
+     * feature APIs live “with” the feature concept (forgot-password, reset-password, verify-email).
+     * They still delegate to Neon Auth via `auth.handler()` internally.
+     */
+    publicAuth: {
+      forgotPassword: () => "/api/forgot-password",
+      resetPassword: () => "/api/reset-password",
+      verifyEmail: () => "/api/verify-email",
+      verifyEmailSend: () => "/api/verify-email/send",
+      verifyEmailResend: () => "/api/verify-email/resend",
+    },
     auth: {
       base: () => "/api/auth",
       /**
@@ -77,11 +91,6 @@ export const routes = {
       getSession: () => "/api/auth/get-session",
       refresh: () => "/api/auth/refresh",
       logout: () => "/api/auth/logout",
-      resendVerification: () => "/api/auth/resend-verification",
-      sendVerification: () => "/api/auth/send-verification",
-      verifyEmail: () => "/api/auth/verify-email",
-      resetPassword: () => "/api/auth/reset-password",
-      resetPasswordConfirm: () => "/api/auth/reset-password/confirm",
       unlock: () => "/api/auth/unlock",
       internal: {
         refreshSession: () => "/api/auth/refresh-session",
@@ -156,6 +165,12 @@ export const routes = {
         teams: {
           list: () => "/api/v1/teams",
           byId: (id: string) => `/api/v1/teams/${id}`,
+        },
+        subdomains: {
+          list: () => "/api/subdomains",
+          create: () => "/api/subdomains",
+          update: () => "/api/subdomains",
+          delete: () => "/api/subdomains",
         },
       },
     },

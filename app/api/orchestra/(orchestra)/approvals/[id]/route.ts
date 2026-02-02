@@ -1,10 +1,16 @@
+/**
+ * @domain orchestra
+ * @layer api
+ * @responsibility API route handler for /api/orchestra/approvals/:id
+ */
+
 import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
 import { HEADER_NAMES } from "@/lib/constants/headers"
-import { UpdateApprovalStatusSchema } from "@/lib/contracts/approvals"
-import { HttpError, NotFound, Unauthorized } from "@/lib/server/api/errors"
+import { UpdateApprovalStatusSchema, approvalParamsSchema } from "@/lib/contracts/approvals"
+import { HttpError, NotFound, Unauthorized, BadRequest } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
 import { parseJson } from "@/lib/server/api/validate"
 import { invalidateTag } from "@/lib/server/cache/revalidate"
@@ -20,11 +26,9 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
-    const [{ id }, auth, tenant] = await Promise.all([
-      ctx.params,
-      getAuthContext(),
-      getTenantContext(),
-    ])
+    const rawParams = await ctx.params
+    const { id } = approvalParamsSchema.parse(rawParams)
+    const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
     const tenantId = tenant.tenantId
     if (!tenantId) throw Unauthorized("Missing tenant")

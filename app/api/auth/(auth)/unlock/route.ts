@@ -1,9 +1,17 @@
+/**
+ * @domain auth
+ * @layer api
+ * @responsibility API route handler for /api/auth/unlock
+ */
+
 import "@/lib/server/only"
 
 import { NextRequest, NextResponse } from "next/server"
 import { verifyUnlockToken } from "@/lib/server/auth/unlock"
 import { resetLoginAttempts } from "@/lib/server/auth/rate-limit"
 import { logAuthEvent } from "@/lib/server/auth/audit-log"
+import { fail, ok } from "@/lib/server/api/response"
+import { withApiErrorBoundary } from "@/lib/server/api/handler"
 
 function getParam(request: NextRequest, key: string): string | undefined {
   const value = request.nextUrl.searchParams.get(key)
@@ -12,12 +20,12 @@ function getParam(request: NextRequest, key: string): string | undefined {
 
 async function handleUnlock(email?: string, token?: string) {
   if (!email || !token) {
-    return NextResponse.json({ error: "Missing email or token" }, { status: 400 })
+    return fail({ code: "BAD_REQUEST", message: "Missing email or token" }, 400)
   }
 
   const valid = await verifyUnlockToken(email, token)
   if (!valid) {
-    return NextResponse.json({ error: "Invalid or expired token" }, { status: 400 })
+    return fail({ code: "INVALID_TOKEN", message: "Invalid or expired token" }, 400)
   }
 
   await resetLoginAttempts({ email })
@@ -29,24 +37,28 @@ async function handleUnlock(email?: string, token?: string) {
     metadata: { email },
   })
 
-  return NextResponse.json({ success: true })
+  return ok({ success: true }, { status: 200 })
 }
 
 export async function GET(request: NextRequest) {
-  const email = getParam(request, "email")
-  const token = getParam(request, "token")
+  return withApiErrorBoundary(request, async () => {
+    const email = getParam(request, "email")
+    const token = getParam(request, "token")
 
-  const response = await handleUnlock(email, token)
+    const response = await handleUnlock(email, token)
 
-  if (response.ok) {
-    return NextResponse.redirect(new URL("/login?unlocked=1", request.url))
-  }
+    if (response.ok) {
+      return NextResponse.redirect(new URL("/login?unlocked=1", request.url))
+    }
 
-  return response
+    return response
+  })
 }
 
 export async function POST(request: NextRequest) {
-  const body = (await request.json().catch(() => ({}))) as { email?: string; token?: string }
-  return handleUnlock(body.email, body.token)
+  return withApiErrorBoundary(request, async () => {
+    const body = (await request.json().catch(() => ({}))) as { email?: string; token?: string }
+    return handleUnlock(body.email, body.token)
+  })
 }
 

@@ -1,3 +1,9 @@
+/**
+ * @domain orchestra
+ * @layer ui
+ * @responsibility UI route entrypoint for /app
+ */
+
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -9,10 +15,20 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { routes } from "@/lib/routes"
+import { PageAuditHeader } from "@/components/page-audit-header"
 
 export default function AppDashboardPage() {
   return (
     <div className="space-y-6">
+      <PageAuditHeader
+        pageName="App Dashboard"
+        route="/app"
+        status="connected"
+        shellType="app-shell"
+        features={["Sidebar", "Auth Protected", "Token Refresh", "User Menu"]}
+        notes="Main landing page after login. Full app shell integration."
+      />
+      
       <div className="space-y-1">
         <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-muted-foreground">

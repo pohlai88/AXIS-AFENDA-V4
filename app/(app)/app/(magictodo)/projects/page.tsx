@@ -1,3 +1,9 @@
+/**
+ * @domain magictodo
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/projects
+ */
+
 "use client"
 
 import { useEffect, useState } from "react"

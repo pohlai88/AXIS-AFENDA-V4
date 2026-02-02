@@ -10,7 +10,6 @@ import { useToast } from "@/hooks/use-toast"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
-import { authClient } from "@/lib/auth/client"
 
 export default function ResetPasswordClient() {
   const router = useRouter()
@@ -53,13 +52,15 @@ export default function ResetPasswordClient() {
         return
       }
 
-      const { error } = await authClient.resetPassword({
-        newPassword: password,
-        token: token ?? undefined,
+      const res = await fetch(routes.api.publicAuth.resetPassword(), {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token, password }),
       })
 
-      if (error) {
-        setError(error.message || "Failed to reset password")
+      if (!res.ok) {
+        const payload = (await res.json().catch(() => null)) as { error?: string } | null
+        setError(payload?.error || "Failed to reset password")
         return
       }
 

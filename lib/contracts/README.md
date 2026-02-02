@@ -99,6 +99,60 @@ export type UpdateUser = z.infer<typeof UpdateUserSchema>;
 
 ### Using Contracts in API Routes
 
+**Route handlers must:**
+1. Import schemas from contracts (never define inline)
+2. Validate request bodies with `parseJson(req, schema)`
+3. Validate query params with `parseSearchParams(searchParams, schema)`
+4. **Validate route params** with param schemas
+
+#### Request Body Validation
+
+```typescript
+// app/api/v1/tasks/route.ts
+import { parseJson } from "@/lib/server/api/validate";
+import { CreateTaskSchema } from "@/lib/contracts/tasks";
+
+export async function POST(request: Request) {
+  const body = await parseJson(request, CreateTaskSchema);
+  // body is now typed and validated
+}
+```
+
+#### Route Parameter Validation (Dynamic Routes)
+
+**All dynamic routes must validate params using dedicated param schemas:**
+
+```typescript
+// app/api/v1/tasks/[id]/route.ts
+import { taskParamsSchema } from "@/lib/contracts/tasks";
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  // ✅ CORRECT: Validate params
+  const rawParams = await params;
+  const { id } = taskParamsSchema.parse(rawParams);
+  
+  // ❌ WRONG: Direct destructuring (no validation)
+  // const { id } = await params;
+}
+```
+
+**Param schema pattern:**
+```typescript
+// lib/contracts/tasks.ts
+export const taskParamsSchema = z.object({
+  id: z.string().uuid("Invalid task ID"),
+})
+
+export type TaskParams = z.infer<typeof taskParamsSchema>
+```
+
+See [Dynamic Routes Guide](../../docs/api-dynamic-routes-guide.md) for complete details.
+
+#### Query Parameter Validation
+
 ```typescript
 // app/api/users/route.ts
 import { validateRequest } from "@/lib/server/api/validate";

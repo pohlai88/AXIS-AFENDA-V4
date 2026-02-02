@@ -1,39 +1,46 @@
-import { NextResponse } from "next/server"
+/**
+ * @domain orchestra
+ * @layer api
+ * @responsibility API route handler for /api/debug/neon-config
+ */
+
+import "@/lib/server/only"
 
 import { getNeonAuthConfig } from "@/lib/server/auth/neon-integration"
+import { fail, ok } from "@/lib/server/api/response"
+
+// Route Segment Config: Debug routes should never cache
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
     // Avoid leaking environment configuration in production.
     if (process.env.NODE_ENV === "production") {
-      return NextResponse.json({ data: null, error: "Not found" }, { status: 404 })
+      return fail({ code: "NOT_FOUND", message: "Not found" }, 404)
     }
 
     const config = getNeonAuthConfig()
 
-    return NextResponse.json({
-      data: {
-        neonAuthConfig: {
-          enabled: config.enabled,
-          projectId: config.projectId,
-          dataApiUrl: config.dataApiUrl,
-          jwksUrl: config.jwksUrl,
-          authBaseUrl: config.authBaseUrl,
-          hasJwtVerificationSecret: Boolean(config.jwtVerificationSecret),
-        },
-        message: config.enabled
-          ? "Neon Auth is properly configured"
-          : "Neon Auth is not configured - check environment variables",
+    return ok({
+      neonAuthConfig: {
+        enabled: config.enabled,
+        projectId: config.projectId,
+        dataApiUrl: config.dataApiUrl,
+        jwksUrl: config.jwksUrl,
+        authBaseUrl: config.authBaseUrl,
+        hasJwtVerificationSecret: Boolean(config.jwtVerificationSecret),
       },
-      error: null,
+      message: config.enabled
+        ? "Neon Auth is properly configured"
+        : "Neon Auth is not configured - check environment variables",
     })
   } catch (error) {
-    return NextResponse.json(
+    return fail(
       {
-        data: null,
-        error: error instanceof Error ? error.message : "Unknown error",
+        code: "INTERNAL",
+        message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      500
     )
   }
 }

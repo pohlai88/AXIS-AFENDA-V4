@@ -1,14 +1,21 @@
+/**
+ * @domain tenancy
+ * @layer api
+ * @responsibility API route handler for /api/v1/teams/:id
+ */
+
 import "@/lib/server/only"
 import { parseJson } from "@/lib/server/api/validate"
+import { invalidateTag } from "@/lib/server/cache/revalidate"
 import { ok, fail } from "@/lib/server/api/response"
 import { HttpError } from "@/lib/server/api/errors"
 import { teamService } from "@/lib/server/teams/service"
 import { getAuthContext } from "@/lib/server/auth/context"
+import { withApiErrorBoundary } from "@/lib/server/api/handler"
 import {
   updateTeamSchema,
   teamParamsSchema
 } from "@/lib/contracts/organizations"
-import type { UpdateTeamInput } from "@/lib/contracts/organizations"
 import { requireTeamManager } from "@/lib/server/permissions/middleware"
 
 interface Context {
@@ -16,7 +23,7 @@ interface Context {
 }
 
 export async function GET(req: Request, context: Context) {
-  try {
+  return withApiErrorBoundary(req, async () => {
     const auth = await getAuthContext()
     if (!auth.userId) {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
@@ -34,17 +41,11 @@ export async function GET(req: Request, context: Context) {
     const team = await teamService.getById(id)
 
     return ok(team)
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return fail({ code: error.code, message: error.message }, error.status)
-    }
-    console.error("Error getting team:", error)
-    return fail({ code: "INTERNAL_ERROR", message: "Internal server error" }, 500)
-  }
+  })
 }
 
 export async function PATCH(req: Request, context: Context) {
-  try {
+  return withApiErrorBoundary(req, async () => {
     const auth = await getAuthContext()
     if (!auth.userId) {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
@@ -58,19 +59,14 @@ export async function PATCH(req: Request, context: Context) {
     await requireTeamManager()(req)
 
     const team = await teamService.update(id, data)
+    invalidateTag(`teams:${auth.userId}`)
 
     return ok(team)
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return fail({ code: error.code, message: error.message }, error.status)
-    }
-    console.error("Error updating team:", error)
-    return fail({ code: "INTERNAL_ERROR", message: "Internal server error" }, 500)
-  }
+  })
 }
 
 export async function DELETE(req: Request, context: Context) {
-  try {
+  return withApiErrorBoundary(req, async () => {
     const auth = await getAuthContext()
     if (!auth.userId) {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
@@ -83,14 +79,9 @@ export async function DELETE(req: Request, context: Context) {
     await requireTeamManager()(req)
 
     const team = await teamService.delete(id)
+    invalidateTag(`teams:${auth.userId}`)
 
     return ok(team)
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return fail({ code: error.code, message: error.message }, error.status)
-    }
-    console.error("Error deleting team:", error)
-    return fail({ code: "INTERNAL_ERROR", message: "Internal server error" }, 500)
-  }
+  })
 }
 

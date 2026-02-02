@@ -1,3 +1,9 @@
+/**
+ * @domain marketing
+ * @layer ui
+ * @responsibility UI route entrypoint for /components
+ */
+
 import type { Metadata } from "next"
 
 import { ComponentExample } from "@/components/component-example"

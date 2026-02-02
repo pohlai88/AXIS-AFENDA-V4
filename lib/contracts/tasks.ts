@@ -142,6 +142,38 @@ export const UpdateProjectRequestSchema = ProjectBaseSchema.omit({
   archived: true,
 }).partial()
 
+// ============ Param Validation Schemas ============
+export const taskParamsSchema = z.object({
+  id: z.string().uuid("Invalid task ID"),
+})
+
+export const projectParamsSchema = z.object({
+  id: z.string().uuid("Invalid project ID"),
+})
+
+const emptyToUndefined = (value: unknown) => (value === "" ? undefined : value)
+
+export const taskQuerySchema = z.object({
+  status: z.preprocess(emptyToUndefined, TaskStatus.optional()),
+  priority: z.preprocess(emptyToUndefined, TaskPriority.optional()),
+  projectId: z.preprocess(emptyToUndefined, z.string().min(1).optional()),
+  limit: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(1).max(100).default(50)
+  ),
+  offset: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(0).default(0)
+  ),
+})
+
+export const projectQuerySchema = z.object({
+  includeArchived: z.preprocess(
+    (value) => (value === "true" ? true : value === "false" ? false : undefined),
+    z.boolean().default(false)
+  ),
+})
+
 // ============ Response Schemas ============
 export const TaskResponseSchema = TaskBaseSchema
 
@@ -278,6 +310,11 @@ export const projectResponseSchema = projectBaseSchema.extend({
 
 export type CreateProjectRequest = z.infer<typeof createProjectRequestSchema>
 export type UpdateProjectRequest = z.infer<typeof updateProjectRequestSchema>
+
+// ============ Param Types ============
+export type TaskParams = z.infer<typeof taskParamsSchema>
+export type ProjectParams = z.infer<typeof projectParamsSchema>
+
 export type ProjectResponse = z.infer<typeof projectResponseSchema>
 
 // ============ List Responses ============

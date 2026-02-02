@@ -1,3 +1,9 @@
+/**
+ * @domain marketing
+ * @layer ui
+ * @responsibility UI route entrypoint for /terms
+ */
+
 import type { Metadata } from "next"
 
 import { Button } from "@/components/ui/button"
@@ -30,13 +36,13 @@ export default function TermsPage() {
             </CardDescription>
             <div className="flex flex-wrap justify-center gap-2">
               <Badge variant="outline" className="gap-1">
-                <Shield className="h-3 w-3" /> Enterprise-Grade
+                <Shield className="h-3 w-3" aria-hidden="true" /> Enterprise-Grade
               </Badge>
               <Badge variant="outline" className="gap-1">
-                <Database className="h-3 w-3" /> 32.2 MB Storage
+                <Database className="h-3 w-3" aria-hidden="true" /> 32.2 MB Storage
               </Badge>
               <Badge variant="outline" className="gap-1">
-                <Zap className="h-3 w-3" /> Auto-scaling
+                <Zap className="h-3 w-3" aria-hidden="true" /> Auto-scaling
               </Badge>
             </div>
           </CardHeader>

@@ -30,6 +30,195 @@ To avoid typecheck breaking when `.next` isn’t present, **use**:
 - Middleware / request context: `proxy.ts`
 - DB schema & migrations: `lib/server/db/schema/*`, `drizzle/*.sql`
 
+## Domain-based architecture (strict organizational rules)
+
+### Core principle: Everything belongs to a domain
+
+**ALL pages, layouts, and components must live within their designated domain route group.**
+Direct placement at `app/` root (except `layout.tsx`, `globals.css`, `not-found.tsx`, error boundaries) is **PROHIBITED**.
+
+### Domain structure
+
+```
+app/
+├── layout.tsx                    ✅ Root layout (loads globals.css, providers)
+├── globals.css                   ✅ Global styles (Tailwind base/utilities)
+├── not-found.tsx                 ✅ Global 404
+├── global-error.tsx              ✅ Global error boundary
+├── _components/                  ✅ Shared cross-domain components
+│
+├── (public)/                     📁 DOMAIN: Public-facing pages
+│   ├── (auth)/                   📁 SUB-DOMAIN: Authentication & account
+│   │   ├── auth/                 🔐 Neon Auth pages
+│   │   │   └── [path]/page.tsx   → /auth/sign-in, /auth/sign-up, etc.
+│   │   ├── account/              🔐 Account management
+│   │   │   └── [path]/page.tsx   → /account/settings, /account/security
+│   │   ├── login/                🔐 Legacy login (if exists)
+│   │   ├── register/             🔐 Legacy register (if exists)
+│   │   └── forgot-password/      🔐 Password reset flows
+│   ├── layout.tsx                ✅ Public layout wrapper
+│   └── page.tsx                  → / (landing page)
+│
+├── (app)/                        📁 DOMAIN: Authenticated application
+│   ├── app/                      🔒 Main app routes
+│   │   └── page.tsx              → /app (dashboard)
+│   ├── tenancy/                  🔒 Multi-tenancy features
+│   │   ├── organizations/        → /app/tenancy/organizations
+│   │   └── teams/                → /app/tenancy/teams
+│   ├── management/               🔒 Management features
+│   ├── layout.tsx                ✅ App shell (sidebar, header, breadcrumbs)
+│   └── _components/              ✅ App-specific components
+│
+└── api/                          📁 DOMAIN: API routes
+    └── v1/                       → /api/v1/*
+```
+
+### Domain rules (what you can/cannot do)
+
+#### ✅ ALLOWED within domains
+
+**Within `(public)/` domain:**
+- Marketing pages, landing pages, about, pricing
+- Authentication flows (delegated to `(public)/(auth)/` sub-domain)
+- Public documentation, blogs, legal pages
+- Uses: `globals.css`, public marketing components
+- Layout: Minimal wrapper, no app shell
+
+**Within `(public)/(auth)/` sub-domain:**
+- Authentication pages: `/auth/sign-in`, `/auth/sign-up`, `/auth/sign-out`
+- Account management: `/account/settings`, `/account/security`
+- Password reset flows, email verification
+- Uses: Neon Auth built-in CSS (NO custom layout wrappers)
+- Styling: AuthView/AccountView components handle their own layout
+
+**Within `(app)/` domain:**
+- Authenticated application features
+- Dashboard, analytics, data tables
+- Multi-tenancy: organizations, teams, workspaces
+- Management: users, roles, permissions, settings
+- Uses: App shell layout (sidebar, header, breadcrumbs), `globals.css`
+- Requires: User session/authentication
+
+**Within `api/` domain:**
+- RESTful API endpoints
+- Versioned routes (`v1/`, `v2/`)
+- No pages or UI components allowed
+- Returns: JSON envelopes (standardized via `lib/server/api/*`)
+
+#### ❌ PROHIBITED at app root
+
+**DO NOT create these at `app/` root:**
+- ❌ `app/auth/` (must be `app/(public)/(auth)/auth/`)
+- ❌ `app/account/` (must be `app/(public)/(auth)/account/`)
+- ❌ `app/login/` (must be inside `(public)/(auth)/`)
+- ❌ `app/dashboard/` (must be `app/(app)/app/`)
+- ❌ Any page.tsx outside domain route groups
+- ❌ Custom layout.tsx for auth pages (Neon Auth has built-in layouts)
+
+**ONLY allowed at app root:**
+- ✅ `layout.tsx` - Root layout (providers, globals.css)
+- ✅ `globals.css` - Global styles
+- ✅ `not-found.tsx` - Global 404 handler
+- ✅ `global-error.tsx` - Global error boundary
+- ✅ `_components/` - Shared cross-domain components
+- ✅ `opengraph-image.tsx`, `twitter-image.tsx` - Social metadata
+- ✅ `sw.ts` - Service worker (PWA)
+
+### Route collision prevention
+
+**Critical rule:** Never create two pages that resolve to the same URL path.
+
+**Example of violation:**
+```
+❌ app/register/page.tsx          → /register
+❌ app/(public)/register/page.tsx → /register
+    (CONFLICT - both resolve to /register)
+```
+
+**Correct approach:**
+```
+✅ app/(public)/(auth)/register/page.tsx → /register
+   (Single source of truth)
+```
+
+**Before adding a new route:**
+1. Search codebase for existing pages with same path
+2. Check all route groups `(public)`, `(app)`, `(admin)`
+3. Remember: Route groups don't change URLs (they're organizational only)
+
+### Domain-specific styling rules
+
+#### Auth pages (`(public)/(auth)/auth/*`, `(public)/(auth)/account/*`)
+- **CSS Source**: Neon Auth built-in CSS (loaded by components)
+- **Custom Layouts**: ❌ PROHIBITED (creates wrapper conflicts)
+- **Custom Styles**: Only for navigation headers (use `globals.css`)
+- **Components**: `<AuthView />`, `<AccountView />` (from `@neondatabase/auth/react`)
+
+**Pattern for account pages:**
+```tsx
+// ✅ CORRECT: Integrated header + Neon Auth component
+return (
+  <div className="min-h-screen">
+    {/* Custom header - uses globals.css */}
+    <div className="border-b">
+      <Link href="/app">← Back to App</Link>
+    </div>
+    {/* Neon Auth component - uses built-in CSS */}
+    <AccountView path={path} />
+  </div>
+);
+```
+
+```tsx
+// ❌ WRONG: Wrapper layout interferes with Neon Auth
+// app/(public)/(auth)/account/layout.tsx
+export default function Layout({ children }) {
+  return <div className="container">{children}</div>; // ❌ Conflict!
+}
+```
+
+#### App pages (`(app)/*`)
+- **CSS Source**: `globals.css` (Tailwind utilities)
+- **Layout**: App shell (`(app)/layout.tsx`) with sidebar, header, breadcrumbs
+- **Components**: shadcn/ui components, custom app components
+- **Auth**: Required (protected routes)
+
+#### Public pages (`(public)/*`)
+- **CSS Source**: `globals.css`, custom marketing styles
+- **Layout**: Minimal wrapper (`(public)/layout.tsx`)
+- **Components**: Marketing components, hero sections, CTAs
+- **Auth**: Not required (public access)
+
+### Domain migration checklist
+
+When moving existing files to correct domains:
+
+1. **Identify domain:**
+   - Auth/account? → `(public)/(auth)/`
+   - Authenticated feature? → `(app)/`
+   - Public marketing? → `(public)/`
+   - API endpoint? → `api/v1/`
+
+2. **Move files:**
+   ```powershell
+   # Example: Moving auth folder
+   Move-Item -Path "app\auth" -Destination "app\(public)\(auth)\auth"
+   ```
+
+3. **Remove wrapper layouts:**
+   - Delete `layout.tsx` files that wrap Neon Auth components
+   - Integrate navigation into page components instead
+
+4. **Update imports:**
+   - Check for hardcoded paths in redirects
+   - Update internal links/hrefs
+   - Verify auth provider `redirectTo` paths
+
+5. **Test routing:**
+   - Verify URLs still resolve correctly
+   - Check browser navigation works
+   - Test authentication flows end-to-end
+
 ## Non‑negotiable conventions (no exceptions)
 
 ### Server vs client boundaries
@@ -85,10 +274,12 @@ It was originally introduced for NextAuth compatibility; NextAuth has since been
 
 ## Next.js routing rules (prevents build/runtime crashes)
 
-- **Never create two pages that resolve to the same path**.
-  - Example of what to avoid: `/register` existing in both `app/register/page.tsx` and `app/(public)/register/page.tsx`.
-- Route groups `(public)`, `(app)` are for organization only; they do not change the URL.
+- **Never create two pages that resolve to the same path** (see Domain rules above for examples).
+- **All pages must belong to a domain route group**: `(public)`, `(app)`, or `api`.
+- **Route groups are organizational only** - they do not change the URL path.
+- **Auth pages belong in `(public)/(auth)/`** - never at app root.
 - When adding a new route, search for existing pages/handlers that would collide.
+- Follow the domain-based architecture strictly to prevent drift.
 
 ## API routing standard (REST-by-default)
 
@@ -137,10 +328,13 @@ When the dev server is running (Next 16+), prefer runtime diagnostics:
 
 ## Common paths
 
-- App shell routes: `app/(app)/app/*`
-- Public routes: `app/(public)/*`
-- Auth: `app/(public)/login`, `app/(public)/register`
-- API v1: `app/api/v1/*`
+- **App shell routes**: `app/(app)/app/*` → `/app/*`
+- **Public routes**: `app/(public)/*` → `/*`
+- **Auth routes**: `app/(public)/(auth)/auth/*` → `/auth/*`
+- **Account routes**: `app/(public)/(auth)/account/*` → `/account/*`
+- **API v1**: `app/api/v1/*` → `/api/v1/*`
+
+**Remember**: Route groups `(...)` are removed from URLs - they're for organization only.
 
 ## Troubleshooting checklist
 

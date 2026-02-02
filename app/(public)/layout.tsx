@@ -123,7 +123,7 @@ export default function PublicLayout({
         <Separator />
         <div className="mx-auto w-full max-w-7xl px-6 py-3">
           <p className="text-center text-xs text-muted-foreground">
-            NexusCanon • Protect • Detect • React • Adapt
+            NexusCanon • Protect • Detect • React •
           </p>
         </div>
       </footer>

@@ -1,9 +1,10 @@
 import "@/lib/server/only"
 
+import { cache } from "react"
 import { headers } from "next/headers"
 import { logger } from "@/lib/server/logger"
 import { HEADER_NAMES } from "@/lib/constants"
-import { verifyNeonJwt } from "@/lib/server/auth/jwt"
+import { verifyNeonJwt, type NeonJwtPayload } from "@/lib/server/auth/jwt"
 import { syncUserFromAuth } from "@/lib/server/auth/user-sync"
 import { logLogin, extractIpAddress, extractUserAgent } from "@/lib/server/auth/audit-log"
 import { auth } from "@/lib/auth/server"
@@ -20,11 +21,13 @@ export interface AuthContext {
 }
 
 /**
- * Check if a token should be refreshed (< 15 minutes remaining)
+ * Check if a token should be refreshed (< 10 minutes remaining)
+ * This is more aggressive than the previous 15 minutes to ensure
+ * proactive refresh before user experiences token expiration
  */
 export function shouldRefreshToken(expiresAt: number): boolean {
   const expiresIn = expiresAt - Math.floor(Date.now() / 1000)
-  return expiresIn < 900 // Refresh if < 15 minutes (900 seconds)
+  return expiresIn < 600 // Refresh if < 10 minutes (600 seconds)
 }
 
 function isNextStaticGenerationDynamicUsageError(err: unknown): boolean {
@@ -36,10 +39,20 @@ function isNextStaticGenerationDynamicUsageError(err: unknown): boolean {
   const message = typeof anyErr.message === "string" ? anyErr.message : ""
   const description = typeof anyErr.description === "string" ? anyErr.description : ""
 
-  return message.includes("Dynamic server usage") || description.includes("Dynamic server usage")
+  return (
+    message.includes("Dynamic server usage") ||
+    description.includes("Dynamic server usage") ||
+    message.includes("outside a request scope")
+  )
 }
 
-export async function getAuthContext(): Promise<AuthContext> {
+/**
+ * Get authentication context for the current request
+ * 
+ * Memoized with React cache to prevent duplicate JWT verification
+ * and database queries during the same request lifecycle
+ */
+export const getAuthContext = cache(async function getAuthContext(): Promise<AuthContext> {
   try {
     const headersList = await headers()
     const authHeader = headersList.get("authorization")
@@ -85,12 +98,11 @@ export async function getAuthContext(): Promise<AuthContext> {
       }
     }
 
-    const payload = verified.payload
-    const claims = payload as Record<string, unknown>
-    const userId =
-      ((payload.sub ?? claims.user_id ?? claims.userId ?? neonSessionData?.user?.id) as string | undefined) ?? undefined
+    const payload = verified.payload as NeonJwtPayload
+    const userId = payload.sub
 
     if (!userId) {
+      logger.error("JWT validation passed but 'sub' claim is missing")
       return {
         userId: "",
         roles: [],
@@ -99,14 +111,20 @@ export async function getAuthContext(): Promise<AuthContext> {
       }
     }
 
-    const email =
-      ((payload.email ?? claims.email_address ?? neonSessionData?.user?.email) as string | undefined) ?? undefined
-    const name =
-      ((payload.name ?? claims.preferred_username ?? neonSessionData?.user?.name) as string | undefined) ?? undefined
-    const avatar =
-      ((payload.picture ?? claims.avatar_url ?? neonSessionData?.user?.image) as string | undefined) ?? undefined
-    const provider = (claims.provider ?? payload.iss) as string | undefined
-    const emailVerified = Boolean(claims.email_verified ?? neonSessionData?.user?.emailVerified)
+    // Extract email from JWT payload (prefer JWT claim over fallback)
+    const email = payload.email ?? neonSessionData?.user?.email
+
+    // Extract display name from JWT payload
+    const name = payload.name ?? neonSessionData?.user?.name
+
+    // Extract avatar from JWT payload
+    const avatar = payload.picture ?? neonSessionData?.user?.image ?? undefined
+
+    // Extract provider from JWT payload
+    const provider = payload.provider ?? (payload.iss as string | undefined)
+
+    // Check email verification status
+    const emailVerified = payload.email_verified ?? neonSessionData?.user?.emailVerified ?? false
 
     let syncResult: Awaited<ReturnType<typeof syncUserFromAuth>> | null = null
 
@@ -124,11 +142,13 @@ export async function getAuthContext(): Promise<AuthContext> {
     }
 
     const role = syncResult?.role ?? "user"
-    const roles = Array.isArray(claims.roles)
-      ? (claims.roles as string[])
-      : claims.role
-        ? [String(claims.role)]
-        : [role]
+    
+    // Extract roles from JWT payload (standard claim) or fallback to single role
+    const roles = Array.isArray(payload.roles)
+      ? payload.roles
+      : role
+        ? [role]
+        : ["user"]
 
     // Extract token expiration
     const tokenExpiresAt = payload.exp ? new Date(payload.exp * 1000) : undefined
@@ -170,4 +190,4 @@ export async function getAuthContext(): Promise<AuthContext> {
       isAuthenticated: false,
     }
   }
-}
+})

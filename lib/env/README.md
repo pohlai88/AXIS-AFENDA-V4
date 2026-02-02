@@ -4,113 +4,46 @@
 
 ## Purpose
 
-Typed environment variable access with performance optimizations and validation.
+Typed environment variable access for this repo (Neon Auth + Next.js).
 
 - `server.ts`: server-only env (`getServerEnv`, `requireServerEnv`)
 - `public.ts`: client-safe env (`getPublicEnv`)
 
-## Performance Optimizations
+## Behavior (stability)
 
-### Cached Environment Access
-
-Environment variables are cached after first access for better performance:
-
-```typescript
-import { getServerEnv } from "@/lib/env/server";
-
-// First access - reads from process.env
-const env1 = getServerEnv();
-
-// Subsequent accesses - returns cached value
-const env2 = getServerEnv(); // Fast!
-```
-
-### Validation at Runtime
-
-Environment variables are validated on first access:
-
-```typescript
-// Validates all required variables on first use
-const env = getServerEnv();
-// Throws if required variables are missing
-```
+- Values are **validated once** on first access (Zod) and then **cached** in-process.
+- `requireServerEnv(key)` throws a clear error if a required value is missing.
 
 ## Server Environment (`server.ts`)
 
-### Access Patterns
+### Required (runtime)
+
+- `NEON_AUTH_BASE_URL`
+- `NEON_AUTH_COOKIE_SECRET`
+
+### Optional (feature-specific)
+
+- `DATABASE_URL` (required for DB tooling like drizzle-kit)
+- `NEON_DATA_API_URL` (only if using `lib/server/neon/data-api.ts`)
+- `NEON_PROJECT_ID`, `NEON_BRANCH_ID`
+- `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_NEON_AUTH_URL`
+- `DEV_TENANT_ID`
+- `CAPTCHA_PROVIDER`, `CAPTCHA_SECRET_KEY`
+
+### Access patterns
 
 ```typescript
-import { getServerEnv, requireServerEnv } from "@/lib/env/server";
+import { getServerEnv, requireServerEnv } from "@/lib/env/server"
 
-// Optional access with defaults
-const dbUrl = getServerEnv().DATABASE_URL;
-const port = getServerEnv().PORT || 3000;
+const env = getServerEnv()
+const optionalDbUrl = env.DATABASE_URL
 
-// Required access (throws if missing)
-const jwtSecret = requireServerEnv().JWT_SECRET;
-const dbUrl = requireServerEnv().DATABASE_URL;
-```
-
-### Environment Schema
-
-```typescript
-const ServerEnvSchema = z.object({
-  // Database
-  DATABASE_URL: z.string().url(),
-  DATABASE_POOL_SIZE: z.coerce.number().default(20),
-
-  // Auth
-  JWT_SECRET: z.string().min(32),
-  AUTH_URL: z.string().url().optional(),
-
-  // External services
-  REDIS_URL: z.string().url().optional(),
-  EMAIL_FROM: z.string().email(),
-
-  // Feature flags
-  ENABLE_ANALYTICS: z.coerce.boolean().default(false),
-  ENABLE_CACHE: z.coerce.boolean().default(true),
-
-  // Performance
-  API_TIMEOUT: z.coerce.number().default(30000),
-  MAX_RETRIES: z.coerce.number().default(3),
-});
+const neonAuthBaseUrl = requireServerEnv("NEON_AUTH_BASE_URL")
 ```
 
 ## Public Environment (`public.ts`)
 
-### Access Patterns
-
-```typescript
-import { getPublicEnv } from "@/lib/env/public";
-
-// Safe client-side access
-const env = getPublicEnv();
-const apiUrl = env.NEXT_PUBLIC_API_URL;
-const siteName = env.NEXT_PUBLIC_SITE_NAME;
-```
-
-### Public Environment Schema
-
-```typescript
-const PublicEnvSchema = z.object({
-  // Site configuration
-  NEXT_PUBLIC_SITE_NAME: z.string().default("AFENDA"),
-  NEXT_PUBLIC_SITE_URL: z.string().url(),
-  NEXT_PUBLIC_API_URL: z.string().url(),
-
-  // Feature flags
-  NEXT_PUBLIC_BETA_FEATURES: z.coerce.boolean().default(false),
-  NEXT_PUBLIC_DEBUG_MODE: z.coerce.boolean().default(false),
-
-  // External services
-  NEXT_PUBLIC_GA_ID: z.string().optional(),
-  NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
-
-  // Performance
-  NEXT_PUBLIC_CACHE_TTL: z.coerce.number().default(300000),
-});
-```
+Use `getPublicEnv()` for client-side safe values (must be prefixed with `NEXT_PUBLIC_`).
 
 ## Best Practices
 

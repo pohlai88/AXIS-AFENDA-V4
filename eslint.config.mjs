@@ -136,12 +136,48 @@ const eslintConfig = defineConfig([
     },
   },
 
+  // 3b) API governance: enforce standard patterns in `app/api/**/route.*`
+  // - No console usage (use `logger` from `@/lib/server/logger`)
+  // - No ad-hoc JSON responses (use `ok()` / `fail()` from `@/lib/server/api/response`)
+  {
+    files: ["app/api/**/route.ts", "app/api/**/route.tsx"],
+    rules: {
+      "no-console": "error",
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "NextResponse",
+          property: "json",
+          message:
+            "Do not call `NextResponse.json()` directly in API routes. Use `ok()` / `fail()` from `@/lib/server/api/response`.",
+        },
+        {
+          object: "Response",
+          property: "json",
+          message:
+            "Do not call `Response.json()` directly in API routes. Use `ok()` / `fail()` from `@/lib/server/api/response`.",
+        },
+      ],
+    },
+  },
+  // Exception: Neon Auth proxy route must preserve Neon SDK semantics and may return custom JSON payloads.
+  {
+    // NOTE: brackets in the filename require escaping for glob matching.
+    files: ["app/api/auth/(auth)/\\[...path\\]/route.ts"],
+    rules: {
+      "no-restricted-properties": "off",
+    },
+  },
+
   // 4) Anti-drift: forbid raw "/app" and "/api" strings outside lib/routes.ts
   //    Use `routes.ui.*` and `routes.api.*` from `lib/routes.ts` instead.
   {
     files: ["**/*.{ts,tsx,js,jsx}"],
     ignores: [
       "lib/routes.ts",
+      // Route classification registry & request proxy need to match by prefix.
+      "lib/api/meta.ts",
+      "proxy.ts",
       // Non-module runtime assets (cannot import routes)
       "public/**",
     ],

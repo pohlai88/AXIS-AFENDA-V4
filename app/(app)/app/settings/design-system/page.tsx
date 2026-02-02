@@ -1,3 +1,9 @@
+/**
+ * @domain orchestra
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/settings/design-system
+ */
+
 "use client"
 
 import { useEffect } from "react"

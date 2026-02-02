@@ -1,3 +1,9 @@
+/**
+ * @domain auth
+ * @layer ui
+ * @responsibility UI route entrypoint for /reset-password
+ */
+
 import { Suspense } from "react"
 import ResetPasswordClient from "./reset-password-client"
 import { AuthShell } from "@/components/auth/auth-shell"

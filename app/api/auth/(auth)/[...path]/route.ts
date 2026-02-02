@@ -1,3 +1,9 @@
+/**
+ * @domain auth
+ * @layer api
+ * @responsibility API route handler for /api/auth/:path*
+ */
+
 import { NextRequest, NextResponse } from "next/server"
 import { auth } from "@/lib/auth/server"
 import { extractIpAddress, logAuthEvent } from "@/lib/server/auth/audit-log"

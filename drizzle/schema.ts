@@ -157,3 +157,24 @@ export const teams = pgTable("teams", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 });
+/**
+ * Subdomain Configuration (Multi-Tenant Routing)
+ * Maps custom subdomains to tenant/organization IDs
+ * Used by middleware for dynamic tenant resolution
+ */
+export const subdomainConfig = pgTable("subdomain_config", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	subdomain: varchar({ length: 63 }).notNull().unique(),
+	organizationId: uuid("organization_id").notNull(),
+	teamId: uuid("team_id"),
+	isActive: boolean("is_active").default(true).notNull(),
+	isPrimary: boolean("is_primary").default(false).notNull(),
+	createdBy: uuid("created_by").notNull(),
+	customization: jsonb().default({
+		brandColor: null,
+		logo: null,
+		description: null,
+	}),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+});

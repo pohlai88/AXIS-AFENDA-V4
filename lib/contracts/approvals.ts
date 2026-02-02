@@ -12,3 +12,9 @@ export const UpdateApprovalStatusSchema = z.object({
 
 export type UpdateApprovalStatusInput = z.infer<typeof UpdateApprovalStatusSchema>
 
+// ============ Param Validation Schemas ============
+export const approvalParamsSchema = z.object({
+  id: z.string().uuid("Invalid approval ID"),
+})
+
+export type ApprovalParams = z.infer<typeof approvalParamsSchema>

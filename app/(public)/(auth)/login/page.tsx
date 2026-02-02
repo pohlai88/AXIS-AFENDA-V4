@@ -1,3 +1,9 @@
+/**
+ * @domain auth
+ * @layer ui
+ * @responsibility UI route entrypoint for /login
+ */
+
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
@@ -163,6 +169,7 @@ export default function LoginPage() {
             id="email"
             type="email"
             placeholder="your@email.com"
+            autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
@@ -175,6 +182,7 @@ export default function LoginPage() {
             id="password"
             type="password"
             placeholder="••••••••"
+            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required

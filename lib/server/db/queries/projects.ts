@@ -1,3 +1,5 @@
+import "@/lib/server/only"
+
 import { and, desc, eq, isNull } from "drizzle-orm"
 
 import { getDb } from "../client"

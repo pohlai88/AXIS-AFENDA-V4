@@ -1,13 +1,12 @@
 /**
- * Logout API Endpoint
- * 
- * Handles user logout by invalidating sessions and clearing cookies.
- * Supports session revocation and audit logging.
- * 
- * @route POST /api/auth/logout
+ * @domain auth
+ * @layer api
+ * @responsibility API route handler for /api/auth/logout
  */
 
-import { NextRequest, NextResponse } from 'next/server'
+import "@/lib/server/only"
+
+import { NextRequest } from "next/server"
 import { db } from '@/lib/server/db'
 import { sessions } from '@/lib/server/db/schema'
 import { eq } from 'drizzle-orm'
@@ -15,16 +14,15 @@ import { getAuthContext } from '@/lib/server/auth/context'
 import { logAuthEvent } from '@/lib/server/auth/audit-log'
 import { logger } from '@/lib/server/logger'
 import { COOKIE_NAMES } from '@/lib/constants'
+import { fail, ok } from "@/lib/server/api/response"
+import { withApiErrorBoundary } from "@/lib/server/api/handler"
 
 export async function POST(request: NextRequest) {
-  try {
+  return withApiErrorBoundary(request, async () => {
     const authContext = await getAuthContext()
 
     if (!authContext.isAuthenticated || !authContext.sessionId) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401 }
-      )
+      return fail({ code: "UNAUTHORIZED", message: "Not authenticated" }, 401)
     }
 
     // Delete session from database
@@ -49,7 +47,7 @@ export async function POST(request: NextRequest) {
     }, 'User logged out successfully')
 
     // Clear auth cookies
-    const response = NextResponse.json({
+    const response = ok({
       success: true,
       message: 'Logged out successfully',
     })
@@ -64,12 +62,6 @@ export async function POST(request: NextRequest) {
     })
 
     return response
-  } catch (error) {
-    logger.error({ error }, 'Error during logout')
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    )
-  }
+  })
 }
 

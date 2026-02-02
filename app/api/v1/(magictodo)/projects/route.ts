@@ -1,12 +1,18 @@
+/**
+ * @domain magictodo
+ * @layer api
+ * @responsibility API route handler for /api/v1/projects
+ */
+
 import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
 import { HEADER_NAMES } from "@/lib/constants/headers"
-import { createProjectRequestSchema } from "@/lib/contracts/tasks"
+import { createProjectRequestSchema, projectQuerySchema } from "@/lib/contracts/tasks"
 import { HttpError, Unauthorized } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
-import { parseJson } from "@/lib/server/api/validate"
+import { parseJson, parseSearchParams } from "@/lib/server/api/validate"
 import { invalidateTag } from "@/lib/server/cache/revalidate"
 import { cacheTags } from "@/lib/server/cache/tags"
 import { getAuthContext } from "@/lib/server/auth/context"
@@ -23,7 +29,8 @@ export async function GET(request: Request) {
     if (!tenantId) throw Unauthorized("Missing tenant")
 
     const url = new URL(request.url)
-    const includeArchived = url.searchParams.get("includeArchived") === "true"
+    const query = parseSearchParams(url.searchParams, projectQuerySchema)
+    const includeArchived = query.includeArchived
 
     const projects = includeArchived
       ? await listAllProjects(auth.userId)

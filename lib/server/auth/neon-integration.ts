@@ -21,12 +21,10 @@ export function getNeonAuthConfig(): NeonAuthConfig {
     enabled: Boolean(
       env.NEON_AUTH_BASE_URL || env.NEXT_PUBLIC_NEON_AUTH_URL
     ),
-    dataApiUrl: "", // Managed by Neon Auth SDK
+    // Neon Data API is optional; only required if you use `lib/server/neon/data-api.ts`.
+    dataApiUrl: env.NEON_DATA_API_URL ?? "",
     projectId: env.NEON_PROJECT_ID,
     branchId: env.NEON_BRANCH_ID,
     authBaseUrl: env.NEON_AUTH_BASE_URL,
-    // Legacy env vars no longer needed - Neon Auth SDK handles JWT verification
-    // jwtVerificationSecret: env.NEON_JWT_SECRET (removed)
-    // jwksUrl: env.JWKS_URL (removed)
   }
 }

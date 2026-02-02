@@ -1,3 +1,9 @@
+/**
+ * @domain orchestra
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/modules
+ */
+
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"

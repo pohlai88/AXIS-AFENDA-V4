@@ -1,3 +1,9 @@
+/**
+ * @domain orchestra
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/analytics
+ */
+
 "use client"
 
 import { useEffect, useState } from "react"

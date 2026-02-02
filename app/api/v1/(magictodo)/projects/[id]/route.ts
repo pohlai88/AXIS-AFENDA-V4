@@ -1,10 +1,16 @@
+/**
+ * @domain magictodo
+ * @layer api
+ * @responsibility API route handler for /api/v1/projects/:id
+ */
+
 import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
 import { HEADER_NAMES } from "@/lib/constants/headers"
-import { updateProjectRequestSchema } from "@/lib/contracts/tasks"
-import { HttpError, Unauthorized, NotFound } from "@/lib/server/api/errors"
+import { updateProjectRequestSchema, projectParamsSchema } from "@/lib/contracts/tasks"
+import { HttpError, Unauthorized, NotFound, BadRequest } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
 import { parseJson } from "@/lib/server/api/validate"
 import { invalidateTag } from "@/lib/server/cache/revalidate"
@@ -20,7 +26,8 @@ export async function GET(
   const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
-    const { id } = await params
+    const rawParams = await params
+    const { id } = projectParamsSchema.parse(rawParams)
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
     const tenantId = tenant.tenantId
@@ -43,7 +50,8 @@ export async function PATCH(
   const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
-    const { id } = await params
+    const rawParams = await params
+    const { id } = projectParamsSchema.parse(rawParams)
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
     const tenantId = tenant.tenantId
@@ -68,7 +76,8 @@ export async function DELETE(
   const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
-    const { id } = await params
+    const rawParams = await params
+    const { id } = projectParamsSchema.parse(rawParams)
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
     const tenantId = tenant.tenantId

@@ -1,12 +1,22 @@
+/**
+ * @domain tenancy
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/tenancy/teams/:id/members
+ */
+
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { routes } from "@/lib/routes"
 
+export const revalidate = 3600
+
 type Props = {
   params: Promise<{ id: string }>
 }
+
+// NOTE: Auth-based static params removed; headers aren't available at build time.
 
 export default async function TeamMembersPage({ params }: Props) {
   const { id } = await params

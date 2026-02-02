@@ -1,3 +1,9 @@
+/**
+ * @domain marketing
+ * @layer ui
+ * @responsibility UI route entrypoint for /
+ */
+
 import Link from "next/link"
 
 import { Button } from "@/components/ui/button"
@@ -15,7 +21,7 @@ import { SiteLogo } from "../_components/site-logo"
 
 export default function HomePage() {
   return (
-    <main className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-16">
+    <main className="container mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-16">
       <header className="mb-8 flex items-center justify-between">
         <SiteLogo />
       </header>
@@ -23,7 +29,7 @@ export default function HomePage() {
         <h1 className="text-4xl font-semibold tracking-tight">
           {siteConfig.name}
         </h1>
-        <p className="text-muted-foreground max-w-2xl text-lg">
+        <p className="max-w-2xl text-lg text-muted-foreground">
           {siteConfig.description} This is the shell that will orchestrate
           modules, tenants, and workflows.
         </p>

@@ -1,3 +1,9 @@
+/**
+ * @domain auth
+ * @layer ui
+ * @responsibility UI route entrypoint for /register
+ */
+
 "use client"
 
 import { useEffect, useMemo, useState } from "react"

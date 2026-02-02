@@ -1,3 +1,9 @@
+/**
+ * @domain auth
+ * @layer ui
+ * @responsibility UI route entrypoint for /forgot-password
+ */
+
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
@@ -7,7 +13,6 @@ import { routes } from "@/lib/routes"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Spinner } from "@/components/ui/spinner"
-import { authClient } from "@/lib/auth/client"
 import { useAuth } from "@/lib/client/hooks/useAuth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -67,15 +72,19 @@ export default function ForgotPasswordPage() {
             setErrorMessage(null)
             setStatus("submitting")
             try {
-              const { error } = await authClient.requestPasswordReset({
-                email,
-                redirectTo,
+              const res = await fetch(routes.api.publicAuth.forgotPassword(), {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ email, redirectTo }),
               })
-              if (error) {
-                setErrorMessage(error.message || "Could not send reset link")
+
+              if (!res.ok) {
+                const payload = (await res.json().catch(() => null)) as { error?: string } | null
+                setErrorMessage(payload?.error || "Could not send reset link")
                 setStatus("error")
                 return
               }
+
               setSubmittedEmail(email)
               setEmail("")
               setStatus("success")

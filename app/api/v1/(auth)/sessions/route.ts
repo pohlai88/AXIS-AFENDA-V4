@@ -1,3 +1,9 @@
+/**
+ * @domain auth
+ * @layer api
+ * @responsibility API route handler for /api/v1/sessions
+ */
+
 import "@/lib/server/only"
 
 import { headers, cookies } from "next/headers"

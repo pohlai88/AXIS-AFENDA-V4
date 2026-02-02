@@ -1,7 +1,17 @@
+/**
+ * @domain orchestra
+ * @layer api
+ * @responsibility API route handler for /api/cron/generate-recurrence
+ */
+
 import { ok, fail } from "@/lib/server/api/response"
 import { generateNextOccurrences, cleanupOverdueTasks } from "@/lib/server/scheduler/recurrence"
 import { logger } from "@/lib/server/logger"
 import { routes } from "@/lib/routes"
+
+// Route Segment Config: Cron jobs should always be dynamic and need extended timeouts
+export const dynamic = 'force-dynamic'
+export const maxDuration = 300 // 5 minutes for background scheduler
 
 /**
  * POST /api/cron/generate-recurrence

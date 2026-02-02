@@ -1,3 +1,9 @@
+/**
+ * @domain orchestra
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/settings/sessions
+ */
+
 "use client"
 
 import * as React from "react"

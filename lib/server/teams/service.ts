@@ -1,5 +1,6 @@
 import "@/lib/server/only"
 import { db } from "@/lib/server/db"
+import { unstable_cache } from "next/cache"
 import { teams, organizations, memberships, users } from "@/lib/server/db/schema"
 import { eq, and, desc, ilike, count } from "drizzle-orm"
 import { logger } from "@/lib/server/logger"
@@ -188,70 +189,86 @@ export class TeamService {
    * List teams for a user
    */
   async listForUser(userId: string, query: TeamQuery) {
-    const offset = (query.page - 1) * query.limit
+    const cacheKey = [
+      "teams:listForUser",
+      userId,
+      String(query.page),
+      String(query.limit),
+      query.search ?? "",
+    ]
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let whereClause: any = eq(memberships.userId, userId)
+    const getCachedList = unstable_cache(
+      async () => {
+        const offset = (query.page - 1) * query.limit
 
-    if (query.search) {
-      whereClause = and(
-        whereClause,
-        ilike(teams.name, `%${query.search}%`)
-      )
-    }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let whereClause: any = eq(memberships.userId, userId)
 
-    const teamList = await db
-      .select({
-        id: teams.id,
-        organizationId: teams.organizationId,
-        name: teams.name,
-        slug: teams.slug,
-        description: teams.description,
-        parentId: teams.parentId,
-        isActive: teams.isActive,
-        createdAt: teams.createdAt,
-        updatedAt: teams.updatedAt,
-        memberCount: count(memberships.id),
-        organization: {
-          id: organizations.id,
-          name: organizations.name,
-          slug: organizations.slug,
+        if (query.search) {
+          whereClause = and(
+            whereClause,
+            ilike(teams.name, `%${query.search}%`)
+          )
         }
-      })
-      .from(teams)
-      .innerJoin(memberships, eq(teams.id, memberships.teamId))
-      .innerJoin(organizations, eq(teams.organizationId, organizations.id))
-      .where(and(
-        whereClause,
-        eq(memberships.isActive, true),
-        eq(teams.isActive, true)
-      ))
-      .groupBy(teams.id, organizations.id)
-      .orderBy(desc(teams.createdAt))
-      .limit(query.limit)
-      .offset(offset)
 
-    // Get total count
-    const totalCountResult = await db
-      .select({ count: count() })
-      .from(teams)
-      .innerJoin(memberships, eq(teams.id, memberships.teamId))
-      .where(and(
-        eq(memberships.userId, userId),
-        eq(memberships.isActive, true),
-        eq(teams.isActive, true),
-        query.search ? ilike(teams.name, `%${query.search}%`) : undefined
-      ))
+        const teamList = await db
+          .select({
+            id: teams.id,
+            organizationId: teams.organizationId,
+            name: teams.name,
+            slug: teams.slug,
+            description: teams.description,
+            parentId: teams.parentId,
+            isActive: teams.isActive,
+            createdAt: teams.createdAt,
+            updatedAt: teams.updatedAt,
+            memberCount: count(memberships.id),
+            organization: {
+              id: organizations.id,
+              name: organizations.name,
+              slug: organizations.slug,
+            }
+          })
+          .from(teams)
+          .innerJoin(memberships, eq(teams.id, memberships.teamId))
+          .innerJoin(organizations, eq(teams.organizationId, organizations.id))
+          .where(and(
+            whereClause,
+            eq(memberships.isActive, true),
+            eq(teams.isActive, true)
+          ))
+          .groupBy(teams.id, organizations.id)
+          .orderBy(desc(teams.createdAt))
+          .limit(query.limit)
+          .offset(offset)
 
-    return {
-      teams: teamList,
-      pagination: {
-        page: query.page,
-        limit: query.limit,
-        total: totalCountResult[0].count,
-        totalPages: Math.ceil(totalCountResult[0].count / query.limit),
-      }
-    }
+        // Get total count
+        const totalCountResult = await db
+          .select({ count: count() })
+          .from(teams)
+          .innerJoin(memberships, eq(teams.id, memberships.teamId))
+          .where(and(
+            eq(memberships.userId, userId),
+            eq(memberships.isActive, true),
+            eq(teams.isActive, true),
+            query.search ? ilike(teams.name, `%${query.search}%`) : undefined
+          ))
+
+        return {
+          teams: teamList,
+          pagination: {
+            page: query.page,
+            limit: query.limit,
+            total: totalCountResult[0].count,
+            totalPages: Math.ceil(totalCountResult[0].count / query.limit),
+          }
+        }
+      },
+      cacheKey,
+      { tags: [`teams:${userId}`], revalidate: 3600 }
+    )
+
+    return getCachedList()
   }
 
   /**

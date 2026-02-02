@@ -1,3 +1,9 @@
+/**
+ * @domain magictodo
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/tasks
+ */
+
 "use client"
 
 import { useEffect, useState, useRef } from "react"

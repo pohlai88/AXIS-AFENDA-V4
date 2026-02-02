@@ -98,38 +98,43 @@ function loadProjectEnv() {
   return { ...base, ...local, ...process.env }
 }
 
-// Required variables for Neon Auth
+// Required variables for Neon Auth (current repo contract)
 const REQUIRED_VARS = {
-  DATABASE_URL: {
-    description: 'PostgreSQL connection string',
-    pattern: /^postgresql:\/\//,
-  },
-  NEON_PROJECT_ID: {
-    description: 'Neon project ID',
-  },
   NEON_AUTH_BASE_URL: {
     description: 'Neon Auth base URL',
-    pattern: /^https:\/\/.*\.neonauth\..+\/neondb\/auth$/,
+    pattern: /^https:\/\//,
   },
-  JWKS_URL: {
-    description: 'JWT Key Set URL for token validation',
-    pattern: /^https:\/\/.*\.neonauth\..+\/neondb\/auth\/\.well-known\/jwks\.json$/,
-  },
-  NEON_DATA_API_URL: {
-    description: 'Neon Data API URL',
-    pattern: /^https:\/\/.*\.apirest\..+\/neondb\/rest\/v1$/,
+  NEON_AUTH_COOKIE_SECRET: {
+    description: 'Cookie secret for Neon Auth session management',
   },
 }
 
+// Optional variables (only required for specific features/workflows)
 const OPTIONAL_VARS = {
-  NEON_JWT_SECRET: {
-    description: 'JWT secret for token signing (auto-generated if not provided)',
+  DATABASE_URL: {
+    description: 'PostgreSQL connection string (required for DB access/migrations)',
+    pattern: /^postgres(ql)?:\/\//,
   },
-  NEON_AUTH_COOKIE_SECRET: {
-    description: 'Cookie secret for session management',
+  NEON_PROJECT_ID: {
+    description: 'Neon project ID (optional)',
+  },
+  NEON_BRANCH_ID: {
+    description: 'Neon branch ID (optional)',
+  },
+  NEON_DATA_API_URL: {
+    description: 'Neon Data API base URL (optional; only if using the Data API client)',
+    pattern: /^https:\/\//,
+  },
+  NEXT_PUBLIC_APP_URL: {
+    description: 'Public app base URL (optional)',
+    pattern: /^https?:\/\//,
+  },
+  NEXT_PUBLIC_NEON_AUTH_URL: {
+    description: 'Public Neon Auth URL (optional)',
+    pattern: /^https?:\/\//,
   },
   NEON_API_KEY: {
-    description: 'Neon API key for CLI operations',
+    description: 'Neon API key for CLI operations (optional)',
   },
 }
 
@@ -154,58 +159,44 @@ function validateUrl(url, pattern) {
   return pattern ? pattern.test(url) : /^https?:\/\//.test(url)
 }
 
-// Validate database connection string
 async function validateDatabaseConnection(dbUrl) {
   try {
-    const { Pool } = await import('pg')
-    const pool = new Pool({ connectionString: dbUrl })
-    const client = await pool.connect()
-    const result = await client.query('SELECT NOW()')
-    client.release()
-    await pool.end()
-    return true
-  } catch (error) {
-    console.error('Database connection error:', error.message)
-    return false
-  }
-}
-
-// Validate JWKS endpoint
-async function validateJwksUrl(jwksUrl) {
-  try {
-    const response = await fetch(jwksUrl, {
-      headers: {
-        'User-Agent': 'neon-auth-validator/1.0',
-      },
-      timeout: 5000,
-    })
-
-    if (!response.ok) {
-      return false
+    const postgres = (await import('postgres')).default
+    const sql = postgres(dbUrl, { max: 1, idle_timeout: 5 })
+    try {
+      await sql`SELECT 1 as ok;`
+      return true
+    } finally {
+      await sql.end({ timeout: 5 })
     }
-
-    const data = await response.json()
-    return data.keys && Array.isArray(data.keys) && data.keys.length > 0
   } catch (error) {
+    console.error('Database connection error:', error?.message ?? String(error))
     return false
   }
 }
 
-// Validate Neon Auth endpoints
+async function fetchWithTimeout(url, init, timeoutMs) {
+  const controller = new AbortController()
+  const t = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    return await fetch(url, { ...init, signal: controller.signal })
+  } finally {
+    clearTimeout(t)
+  }
+}
+
+// Validate Neon Auth endpoint (via JWKS reachability)
 async function validateNeonAuthEndpoints(baseUrl) {
   try {
-    // Neon Auth reliably exposes JWKS under the auth base URL.
-    // Use that to validate the auth service is reachable.
-    const response = await fetch(`${baseUrl}/.well-known/jwks.json`, {
+    const response = await fetchWithTimeout(`${baseUrl}/.well-known/jwks.json`, {
       method: 'GET',
-      headers: {
-        'User-Agent': 'neon-auth-validator/1.0',
-      },
-      timeout: 5000,
-    })
+      headers: { 'User-Agent': 'neon-auth-validator/1.0' },
+    }, 5000)
 
-    return response.ok
-  } catch (error) {
+    if (!response.ok) return false
+    const data = await response.json().catch(() => null)
+    return Boolean(data && data.keys && Array.isArray(data.keys) && data.keys.length > 0)
+  } catch {
     return false
   }
 }
@@ -290,23 +281,9 @@ async function validateNeonAuthCredentials() {
   }
 
   // Validate endpoints (async operations)
-  if (env.JWKS_URL || env.NEON_AUTH_BASE_URL) {
+  if (env.NEON_AUTH_BASE_URL || env.DATABASE_URL) {
     log('\n🌐 Checking Endpoint Accessibility:', 'cyan')
     separator()
-
-    if (env.JWKS_URL) {
-      info('Validating JWKS endpoint...')
-      const jwksValid = await validateJwksUrl(env.JWKS_URL)
-      if (jwksValid) {
-        success('JWKS endpoint is accessible and valid')
-        results.endpoints.valid.push('JWKS_URL')
-      } else {
-        warning(
-          'JWKS endpoint validation failed - may be offline or require authentication'
-        )
-        results.endpoints.invalid.push('JWKS_URL')
-      }
-    }
 
     if (env.NEON_AUTH_BASE_URL) {
       info('Validating Neon Auth endpoint...')
@@ -319,6 +296,18 @@ async function validateNeonAuthCredentials() {
           'Neon Auth endpoint validation failed - may be offline or require authentication'
         )
         results.endpoints.invalid.push('NEON_AUTH_BASE_URL')
+      }
+    }
+
+    if (env.DATABASE_URL) {
+      info('Validating database connectivity (DATABASE_URL)...')
+      const dbValid = await validateDatabaseConnection(env.DATABASE_URL)
+      if (dbValid) {
+        success('Database connection OK')
+        results.endpoints.valid.push('DATABASE_URL')
+      } else {
+        warning('Database connection failed (check DATABASE_URL)')
+        results.endpoints.invalid.push('DATABASE_URL')
       }
     }
   }
@@ -341,7 +330,7 @@ async function validateNeonAuthCredentials() {
   if (oauthConfigured) {
     success(`OAuth configured: ${results.oauth.configured.length} provider(s)`)
   } else {
-    warning('No OAuth providers configured - authentication may not work')
+    info('No OAuth providers configured (optional)')
   }
 
   if (results.optional.configured.length > 0) {

@@ -1,22 +1,31 @@
-import { NextRequest, NextResponse } from "next/server"
+/**
+ * @domain orchestra
+ * @layer api
+ * @responsibility API route handler for /api/debug/neon-auth
+ */
+
+import "@/lib/server/only"
+
+import { NextRequest } from "next/server"
 
 import { getAuthContext } from "@/lib/server/auth/context"
 import { createNeonDataApiClient } from "@/lib/server/neon/data-api"
+import { fail, ok } from "@/lib/server/api/response"
+
+// Route Segment Config: Debug routes should never cache
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
     // Debug endpoint only; don't expose in production.
     if (process.env.NODE_ENV === "production") {
-      return NextResponse.json({ data: null, error: "Not found" }, { status: 404 })
+      return fail({ code: "NOT_FOUND", message: "Not found" }, 404)
     }
 
     const authContext = await getAuthContext()
 
     if (!authContext.userId) {
-      return NextResponse.json(
-        { data: null, error: "Unauthorized" },
-        { status: 401 }
-      )
+      return fail({ code: "UNAUTHORIZED", message: "Unauthorized" }, 401)
     }
 
     // Call Neon Data API as the authenticated user (JWT bearer token).
@@ -29,31 +38,28 @@ export async function GET() {
     })
 
     if (usersResponse.error) {
-      return NextResponse.json(
+      return fail(
         {
-          data: null,
-          error: `Neon API Error: ${usersResponse.error}`,
-          authContext,
+          code: "NEON_API_ERROR",
+          message: `Neon API Error: ${usersResponse.error}`,
+          details: { authSource: authContext.authSource },
         },
-        { status: 500 }
+        500
       )
     }
 
-    return NextResponse.json({
-      data: {
-        users: usersResponse.data,
-        authSource: authContext.authSource,
-        message: "Successfully retrieved data via Neon Auth integration",
-      },
-      error: null,
+    return ok({
+      users: usersResponse.data,
+      authSource: authContext.authSource,
+      message: "Successfully retrieved data via Neon Auth integration",
     })
   } catch (error) {
-    return NextResponse.json(
+    return fail(
       {
-        data: null,
-        error: error instanceof Error ? error.message : "Unknown error",
+        code: "INTERNAL",
+        message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      500
     )
   }
 }
@@ -62,16 +68,13 @@ export async function POST(request: NextRequest) {
   try {
     // Debug endpoint only; don't expose in production.
     if (process.env.NODE_ENV === "production") {
-      return NextResponse.json({ data: null, error: "Not found" }, { status: 404 })
+      return fail({ code: "NOT_FOUND", message: "Not found" }, 404)
     }
 
     const authContext = await getAuthContext()
 
     if (!authContext.userId) {
-      return NextResponse.json(
-        { data: null, error: "Unauthorized" },
-        { status: 401 }
-      )
+      return fail({ code: "UNAUTHORIZED", message: "Unauthorized" }, 401)
     }
 
     const body = await request.json()
@@ -85,30 +88,27 @@ export async function POST(request: NextRequest) {
     })
 
     if (createResponse.error) {
-      return NextResponse.json(
+      return fail(
         {
-          data: null,
-          error: `Create Error: ${createResponse.error}`,
+          code: "NEON_API_ERROR",
+          message: `Create Error: ${createResponse.error}`,
         },
-        { status: 500 }
+        500
       )
     }
 
-    return NextResponse.json({
-      data: {
-        created: createResponse.data,
-        authSource: authContext.authSource,
-        message: "Successfully created record via Neon Auth integration",
-      },
-      error: null,
+    return ok({
+      created: createResponse.data,
+      authSource: authContext.authSource,
+      message: "Successfully created record via Neon Auth integration",
     })
   } catch (error) {
-    return NextResponse.json(
+    return fail(
       {
-        data: null,
-        error: error instanceof Error ? error.message : "Unknown error",
+        code: "INTERNAL",
+        message: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      500
     )
   }
 }

@@ -1,10 +1,16 @@
+/**
+ * @domain magictodo
+ * @layer api
+ * @responsibility API route handler for /api/v1/tasks/:id
+ */
+
 import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
 import { HEADER_NAMES } from "@/lib/constants/headers"
-import { updateTaskRequestSchema } from "@/lib/contracts/tasks"
-import { HttpError, Unauthorized, NotFound } from "@/lib/server/api/errors"
+import { updateTaskRequestSchema, taskParamsSchema } from "@/lib/contracts/tasks"
+import { HttpError, Unauthorized, NotFound, BadRequest } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
 import { parseJson } from "@/lib/server/api/validate"
 import { invalidateTag } from "@/lib/server/cache/revalidate"
@@ -12,6 +18,9 @@ import { cacheTags } from "@/lib/server/cache/tags"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { getTenantContext } from "@/lib/server/tenant/context"
 import { getTask, updateTask, deleteTask } from "@/lib/server/db/queries/tasks"
+
+// Route Segment Config: Auth-dependent routes must be dynamic
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/v1/tasks/[id]
@@ -24,7 +33,8 @@ export async function GET(
   const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
-    const { id } = await params
+    const rawParams = await params
+    const { id } = taskParamsSchema.parse(rawParams)
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
     const tenantId = tenant.tenantId
@@ -51,7 +61,8 @@ export async function PATCH(
   const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
-    const { id } = await params
+    const rawParams = await params
+    const { id } = taskParamsSchema.parse(rawParams)
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
     const tenantId = tenant.tenantId
@@ -83,7 +94,8 @@ export async function DELETE(
   const requestId = (await headers()).get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
-    const { id } = await params
+    const rawParams = await params
+    const { id } = taskParamsSchema.parse(rawParams)
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
     const tenantId = tenant.tenantId

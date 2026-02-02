@@ -1,3 +1,9 @@
+/**
+ * @domain orchestra
+ * @layer api
+ * @responsibility API route handler for /api/orchestra/analytics/quick-stats
+ */
+
 import { ok, fail } from "@/lib/server/api/response"
 import { AnalyticsService } from "@/lib/server/analytics"
 import { logger } from "@/lib/server/logger"

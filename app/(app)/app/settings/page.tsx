@@ -1,3 +1,9 @@
+/**
+ * @domain orchestra
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/settings
+ */
+
 import { redirect } from "next/navigation"
 import { routes } from "@/lib/routes"
 

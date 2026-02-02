@@ -1,3 +1,9 @@
+/**
+ * @domain tenancy
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/tenancy/teams/new
+ */
+
 "use client"
 
 import { useEffect, useState } from "react"

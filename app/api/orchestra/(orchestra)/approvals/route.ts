@@ -1,3 +1,9 @@
+/**
+ * @domain orchestra
+ * @layer api
+ * @responsibility API route handler for /api/orchestra/approvals
+ */
+
 import "@/lib/server/only"
 
 import { headers } from "next/headers"

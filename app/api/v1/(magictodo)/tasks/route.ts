@@ -1,17 +1,26 @@
+/**
+ * @domain magictodo
+ * @layer api
+ * @responsibility API route handler for /api/v1/tasks
+ */
+
 import "@/lib/server/only"
 
 import { headers } from "next/headers"
 
 import { HEADER_NAMES } from "@/lib/constants/headers"
-import { createTaskRequestSchema, TaskPriority, TaskStatus } from "@/lib/contracts/tasks"
-import { HttpError, Unauthorized, BadRequest } from "@/lib/server/api/errors"
+import { createTaskRequestSchema, taskQuerySchema } from "@/lib/contracts/tasks"
+import { HttpError, Unauthorized } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
-import { parseJson } from "@/lib/server/api/validate"
+import { parseJson, parseSearchParams } from "@/lib/server/api/validate"
 import { invalidateTag } from "@/lib/server/cache/revalidate"
 import { cacheTags } from "@/lib/server/cache/tags"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { getTenantContext } from "@/lib/server/tenant/context"
 import { listTasks, createTask } from "@/lib/server/db/queries/tasks"
+
+// Route Segment Config: Auth-dependent routes must be dynamic
+export const dynamic = 'force-dynamic'
 
 /**
  * GET /api/v1/tasks
@@ -29,30 +38,12 @@ export async function GET(request: Request) {
 
     // Parse query parameters
     const url = new URL(request.url)
-    const statusParam = url.searchParams.get("status") || undefined
-    const priorityParam = url.searchParams.get("priority") || undefined
-    const projectId = url.searchParams.get("projectId") || undefined
-    const limit = Math.min(parseInt(url.searchParams.get("limit") || "50"), 100)
-    const offset = parseInt(url.searchParams.get("offset") || "0")
-
-    if (isNaN(limit) || isNaN(offset) || limit < 1) {
-      throw BadRequest("Invalid pagination parameters")
-    }
-
-    const status = statusParam
-      ? TaskStatus.safeParse(statusParam).data
-      : undefined
-    const priority = priorityParam
-      ? TaskPriority.safeParse(priorityParam).data
-      : undefined
-
-    if (statusParam && !status) throw BadRequest("Invalid status")
-    if (priorityParam && !priority) throw BadRequest("Invalid priority")
+    const query = parseSearchParams(url.searchParams, taskQuerySchema)
 
     const result = await listTasks(
       auth.userId,
-      { status, priority, projectId },
-      { limit, offset }
+      { status: query.status, priority: query.priority, projectId: query.projectId },
+      { limit: query.limit, offset: query.offset }
     )
 
     return ok({

@@ -34,6 +34,7 @@ export function PWAInstallPrompt() {
     return !dismissed
   })
   const [isInstalled, setIsInstalled] = useState(false)
+  const [hasInteracted, setHasInteracted] = useState(false)
 
   useEffect(() => {
     // Check if app is already installed
@@ -45,8 +46,20 @@ export function PWAInstallPrompt() {
 
     checkInstalled()
 
+    const handleFirstInteraction = () => {
+      setHasInteracted(true)
+      window.removeEventListener("pointerdown", handleFirstInteraction)
+      window.removeEventListener("keydown", handleFirstInteraction)
+    }
+
     // Listen for beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
+      const dismissed = sessionStorage.getItem("pwa-install-dismissed")
+      if (dismissed || isInstalled || !hasInteracted) {
+        return
+      }
+
+      // Prevent default only when we intend to show the custom prompt
       e.preventDefault()
       setDeferredPrompt(e as BeforeInstallPromptEvent)
 
@@ -67,12 +80,16 @@ export function PWAInstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
     window.addEventListener("appinstalled", handleAppInstalled)
+    window.addEventListener("pointerdown", handleFirstInteraction)
+    window.addEventListener("keydown", handleFirstInteraction)
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
       window.removeEventListener("appinstalled", handleAppInstalled)
+      window.removeEventListener("pointerdown", handleFirstInteraction)
+      window.removeEventListener("keydown", handleFirstInteraction)
     }
-  }, [isInstalled])
+  }, [isInstalled, hasInteracted])
 
   const handleInstall = async () => {
     if (!deferredPrompt) return

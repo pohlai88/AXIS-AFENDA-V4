@@ -1,10 +1,7 @@
 /**
- * Email Verification Page
- * 
- * Displays verification status after user clicks email verification link.
- * Enterprise UI: provides a clear "check inbox" + "resend" experience.
- * 
- * @route /verify-email
+ * @domain auth
+ * @layer ui
+ * @responsibility UI route entrypoint for /verify-email
  */
 
 'use client'
@@ -17,7 +14,6 @@ import { Mail, Loader2 } from 'lucide-react'
 import { AuthShell } from '@/components/auth/auth-shell'
 import { routes } from '@/lib/routes'
 import { Input } from '@/components/ui/input'
-import { authClient } from '@/lib/auth/client'
 
 export default function VerifyEmailPage() {
   const router = useRouter()
@@ -72,13 +68,16 @@ export default function VerifyEmailPage() {
           setStatus("sending")
           setMessage(null)
           try {
-            const { error, data } = await authClient.sendVerificationEmail({
-              email,
-              callbackURL: routes.ui.auth.authCallback(next),
+            const res = await fetch(routes.api.publicAuth.verifyEmailResend(), {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ email, callbackURL: routes.ui.auth.authCallback(next) }),
             })
-            if (error) {
+
+            if (!res.ok) {
+              const payload = (await res.json().catch(() => null)) as { error?: string } | null
               setStatus("error")
-              setMessage(error.message || "Failed to send verification email.")
+              setMessage(payload?.error || "Failed to send verification email.")
               return
             }
             setStatus("sent")

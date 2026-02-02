@@ -1,10 +1,26 @@
+/**
+ * @domain orchestra
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/modules/:slug
+ */
+
 import { notFound } from "next/navigation"
 
 import { Card, CardContent } from "@/components/ui/card"
-import { getModuleBySlug } from "@/lib/shared/modules"
+import { getModuleBySlug, modules } from "@/lib/shared/modules"
+
+export const revalidate = 3600
 
 type Props = {
   params: Promise<{ slug: string }>
+}
+
+export async function generateStaticParams() {
+  return modules
+    .filter((mod) => mod.enabled !== false)
+    .map((mod) => ({
+      slug: mod.slug,
+    }))
 }
 
 export default async function ModuleEmbedPage({ params }: Props) {

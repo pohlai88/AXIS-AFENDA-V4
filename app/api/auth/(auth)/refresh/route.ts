@@ -1,10 +1,17 @@
+/**
+ * @domain auth
+ * @layer api
+ * @responsibility API route handler for /api/auth/refresh
+ */
+
 import "@/lib/server/only"
 
-import { NextRequest, NextResponse } from "next/server"
+import { NextRequest } from "next/server"
 import { auth } from "@/lib/auth/server"
 import { extractIpAddress, logAuthEvent } from "@/lib/server/auth/audit-log"
-import { logger } from "@/lib/server/logger"
 import { routes } from "@/lib/routes"
+import { fail, ok } from "@/lib/server/api/response"
+import { withApiErrorBoundary } from "@/lib/server/api/handler"
 
 /**
  * POST /api/auth/refresh
@@ -16,7 +23,7 @@ import { routes } from "@/lib/routes"
  */
 
 export async function POST(request: NextRequest) {
-  try {
+  return withApiErrorBoundary(request, async (log, requestId) => {
     const ipAddress = extractIpAddress(request.headers)
 
     // Delegate to Neon Auth for session refresh
@@ -39,7 +46,13 @@ export async function POST(request: NextRequest) {
         success: true,
         ipAddress,
       })
-      logger.info({ ipAddress }, "Session refreshed successfully")
+      log.info({ ipAddress, requestId }, "Session refreshed successfully")
+      return ok({ refreshed: true }, {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store', // Never cache token refresh responses
+        },
+      })
     } else {
       await logAuthEvent({
         action: "token_refresh",
@@ -47,16 +60,12 @@ export async function POST(request: NextRequest) {
         ipAddress,
         errorMessage: "Session refresh failed",
       })
-      logger.warn({ ipAddress }, "Session refresh failed")
+      log.warn({ ipAddress, requestId }, "Session refresh failed")
+      return fail(
+        { code: "UNAUTHORIZED", message: "Session refresh failed" },
+        401
+      )
     }
-
-    return response
-  } catch (error) {
-    logger.error({ error }, "Error refreshing session")
-    return NextResponse.json(
-      { error: "Failed to refresh session" },
-      { status: 500 }
-    )
-  }
+  })
 }
 

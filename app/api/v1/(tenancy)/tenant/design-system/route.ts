@@ -1,3 +1,9 @@
+/**
+ * @domain tenancy
+ * @layer api
+ * @responsibility API route handler for /api/v1/tenant/design-system
+ */
+
 import "@/lib/server/only"
 
 import { headers } from "next/headers"

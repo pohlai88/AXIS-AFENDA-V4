@@ -1,14 +1,21 @@
+/**
+ * @domain tenancy
+ * @layer api
+ * @responsibility API route handler for /api/v1/organizations/:id
+ */
+
 import "@/lib/server/only"
 import { parseJson } from "@/lib/server/api/validate"
+import { invalidateTag } from "@/lib/server/cache/revalidate"
 import { ok, fail } from "@/lib/server/api/response"
 import { HttpError } from "@/lib/server/api/errors"
 import { organizationService } from "@/lib/server/organizations/service"
 import { getAuthContext } from "@/lib/server/auth/context"
+import { withApiErrorBoundary } from "@/lib/server/api/handler"
 import {
   updateOrganizationSchema,
   organizationParamsSchema
 } from "@/lib/contracts/organizations"
-import type { UpdateOrganizationInput } from "@/lib/contracts/organizations"
 import { requireOrganizationAdmin } from "@/lib/server/permissions/middleware"
 
 interface Context {
@@ -16,7 +23,7 @@ interface Context {
 }
 
 export async function GET(req: Request, context: Context) {
-  try {
+  return withApiErrorBoundary(req, async () => {
     const auth = await getAuthContext()
     if (!auth.userId) {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
@@ -34,17 +41,11 @@ export async function GET(req: Request, context: Context) {
     const organization = await organizationService.getById(id)
 
     return ok(organization)
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return fail({ code: error.code, message: error.message }, error.status)
-    }
-    console.error("Error getting organization:", error)
-    return fail({ code: "INTERNAL_ERROR", message: "Internal server error" }, 500)
-  }
+  })
 }
 
 export async function PATCH(req: Request, context: Context) {
-  try {
+  return withApiErrorBoundary(req, async () => {
     const auth = await getAuthContext()
     if (!auth.userId) {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
@@ -58,19 +59,14 @@ export async function PATCH(req: Request, context: Context) {
     await requireOrganizationAdmin()(req)
 
     const organization = await organizationService.update(id, data)
+    invalidateTag(`organizations:${auth.userId}`)
 
     return ok(organization)
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return fail({ code: error.code, message: error.message }, error.status)
-    }
-    console.error("Error updating organization:", error)
-    return fail({ code: "INTERNAL_ERROR", message: "Internal server error" }, 500)
-  }
+  })
 }
 
 export async function DELETE(req: Request, context: Context) {
-  try {
+  return withApiErrorBoundary(req, async () => {
     const auth = await getAuthContext()
     if (!auth.userId) {
       throw new HttpError(401, "UNAUTHORIZED", "Authentication required")
@@ -83,14 +79,9 @@ export async function DELETE(req: Request, context: Context) {
     await requireOrganizationAdmin()(req)
 
     const organization = await organizationService.delete(id)
+    invalidateTag(`organizations:${auth.userId}`)
 
     return ok(organization)
-  } catch (error) {
-    if (error instanceof HttpError) {
-      return fail({ code: error.code, message: error.message }, error.status)
-    }
-    console.error("Error deleting organization:", error)
-    return fail({ code: "INTERNAL_ERROR", message: "Internal server error" }, 500)
-  }
+  })
 }
 

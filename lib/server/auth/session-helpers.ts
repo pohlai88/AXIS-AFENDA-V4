@@ -1,5 +1,6 @@
 import "@/lib/server/only"
 
+import { cache } from "react"
 import { eq, and, gt, lt, not, desc } from "drizzle-orm"
 
 import { db } from "@/lib/server/db"
@@ -62,8 +63,11 @@ export function parseUserAgent(userAgent: string | null): {
 
 /**
  * Get all active sessions for a user
+ * 
+ * Memoized with React cache to prevent duplicate queries
+ * during the same render pass (e.g., if called multiple times)
  */
-export async function getUserActiveSessions(
+export const getUserActiveSessions = cache(async function getUserActiveSessions(
   userId: string,
   currentSessionToken?: string
 ): Promise<SessionInfo[]> {
@@ -100,7 +104,7 @@ export async function getUserActiveSessions(
     logger.error({ error, userId }, "Failed to get user active sessions")
     return []
   }
-}
+})
 
 /**
  * Revoke a specific session by ID

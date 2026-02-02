@@ -19,6 +19,7 @@ import { Label } from "@/components/ui/label"
 import { apiFetch } from "@/lib/api/client"
 import { routes } from "@/lib/routes"
 import { AlertCircleIcon } from "lucide-react"
+import { createApprovalAction } from "./actions"
 
 const ApprovalSchema = z.object({
   id: z.string(),
@@ -35,6 +36,10 @@ export function ApprovalsClient() {
   const [title, setTitle] = React.useState("")
   const [loading, setLoading] = React.useState(false)
   const [error, setError] = React.useState<string | null>(null)
+  const [state, formAction, pending] = React.useActionState(createApprovalAction, {
+    status: "idle",
+    message: "",
+  })
 
   const refresh = React.useCallback(async () => {
     setLoading(true)
@@ -57,27 +62,15 @@ export function ApprovalsClient() {
     refresh()
   }, [refresh])
 
-  async function create() {
-    if (!title.trim()) return
-    setLoading(true)
-    setError(null)
-    try {
-      await apiFetch(
-        routes.api.orchestra.approvals.list(),
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ title }),
-        },
-        ApprovalSchema
-      )
+  React.useEffect(() => {
+    if (state.status === "success") {
+      setError(null)
       setTitle("")
-      await refresh()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create approval")
-      setLoading(false)
+      refresh()
+    } else if (state.status === "error") {
+      setError(state.message ?? "Failed to create approval")
     }
-  }
+  }, [state.status, state.message, refresh])
 
   async function setStatus(id: string, status: "approved" | "rejected") {
     setLoading(true)
@@ -114,20 +107,21 @@ export function ApprovalsClient() {
           <CardDescription>Create → approve/reject → audit later.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
+          <form action={formAction} className="grid grid-cols-1 gap-3 md:grid-cols-[1fr_auto] md:items-end">
             <div className="space-y-2">
               <Label htmlFor="title">Title</Label>
               <Input
                 id="title"
+                name="title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Escalate customer request to CEO"
               />
             </div>
-            <Button onClick={create} disabled={loading || !title.trim()}>
-              Create
+            <Button type="submit" disabled={loading || pending || !title.trim()}>
+              {pending ? "Creating..." : "Create"}
             </Button>
-          </div>
+          </form>
         </CardContent>
       </Card>
 

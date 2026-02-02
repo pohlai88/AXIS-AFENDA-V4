@@ -1,5 +1,6 @@
 import "@/lib/server/only"
 import { db } from "@/lib/server/db"
+import { unstable_cache } from "next/cache"
 import { organizations, teams, memberships, users } from "@/lib/server/db/schema"
 import { eq, and, desc, ilike, count } from "drizzle-orm"
 import { logger } from "@/lib/server/logger"
@@ -90,59 +91,75 @@ export class OrganizationService {
    * List organizations for a user
    */
   async listForUser(userId: string, query: OrganizationQuery) {
-    const offset = (query.page - 1) * query.limit
+    const cacheKey = [
+      "organizations:listForUser",
+      userId,
+      String(query.page),
+      String(query.limit),
+      query.search ?? "",
+    ]
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let whereClause: any = eq(memberships.userId, userId)
+    const getCachedList = unstable_cache(
+      async () => {
+        const offset = (query.page - 1) * query.limit
 
-    if (query.search) {
-      whereClause = and(
-        whereClause,
-        ilike(organizations.name, `%${query.search}%`)
-      )
-    }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        let whereClause: any = eq(memberships.userId, userId)
 
-    const orgList = await db
-      .select({
-        id: organizations.id,
-        name: organizations.name,
-        slug: organizations.slug,
-        description: organizations.description,
-        logo: organizations.logo,
-        isActive: organizations.isActive,
-        createdAt: organizations.createdAt,
-        updatedAt: organizations.updatedAt,
-        memberCount: count(memberships.id),
-        teamCount: count(teams.id),
-      })
-      .from(organizations)
-      .innerJoin(memberships, eq(organizations.id, memberships.organizationId))
-      .leftJoin(teams, eq(organizations.id, teams.organizationId))
-      .where(whereClause)
-      .groupBy(organizations.id)
-      .orderBy(desc(organizations.createdAt))
-      .limit(query.limit)
-      .offset(offset)
+        if (query.search) {
+          whereClause = and(
+            whereClause,
+            ilike(organizations.name, `%${query.search}%`)
+          )
+        }
 
-    // Get total count
-    const totalCountResult = await db
-      .select({ count: count() })
-      .from(organizations)
-      .innerJoin(memberships, eq(organizations.id, memberships.organizationId))
-      .where(and(
-        eq(memberships.userId, userId),
-        query.search ? ilike(organizations.name, `%${query.search}%`) : undefined
-      ))
+        const orgList = await db
+          .select({
+            id: organizations.id,
+            name: organizations.name,
+            slug: organizations.slug,
+            description: organizations.description,
+            logo: organizations.logo,
+            isActive: organizations.isActive,
+            createdAt: organizations.createdAt,
+            updatedAt: organizations.updatedAt,
+            memberCount: count(memberships.id),
+            teamCount: count(teams.id),
+          })
+          .from(organizations)
+          .innerJoin(memberships, eq(organizations.id, memberships.organizationId))
+          .leftJoin(teams, eq(organizations.id, teams.organizationId))
+          .where(whereClause)
+          .groupBy(organizations.id)
+          .orderBy(desc(organizations.createdAt))
+          .limit(query.limit)
+          .offset(offset)
 
-    return {
-      organizations: orgList,
-      pagination: {
-        page: query.page,
-        limit: query.limit,
-        total: totalCountResult[0].count,
-        totalPages: Math.ceil(totalCountResult[0].count / query.limit),
-      }
-    }
+        // Get total count
+        const totalCountResult = await db
+          .select({ count: count() })
+          .from(organizations)
+          .innerJoin(memberships, eq(organizations.id, memberships.organizationId))
+          .where(and(
+            eq(memberships.userId, userId),
+            query.search ? ilike(organizations.name, `%${query.search}%`) : undefined
+          ))
+
+        return {
+          organizations: orgList,
+          pagination: {
+            page: query.page,
+            limit: query.limit,
+            total: totalCountResult[0].count,
+            totalPages: Math.ceil(totalCountResult[0].count / query.limit),
+          }
+        }
+      },
+      cacheKey,
+      { tags: [`organizations:${userId}`], revalidate: 3600 }
+    )
+
+    return getCachedList()
   }
 
   /**

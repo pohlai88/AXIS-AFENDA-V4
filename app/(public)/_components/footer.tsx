@@ -3,6 +3,7 @@ import { Shield, Lock, CheckCircle2, Database, Zap, BarChart3, GitBranch, Clock,
 import { routes } from "@/lib/routes"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { HoverPrefetchLink } from "@/components/hover-prefetch-link"
 
 export function Footer() {
   const currentYear = new Date().getFullYear()
@@ -37,7 +38,7 @@ export function Footer() {
           <div className="space-y-4">
             <h3 className="text-sm font-semibold">Security & Compliance</h3>
             <div className="space-y-3">
-              <Link href="/security" className="flex items-start gap-2 hover:opacity-80 transition-opacity">
+              <HoverPrefetchLink href="/security" className="flex items-start gap-2 hover:opacity-80 transition-opacity">
                 <Shield className="h-4 w-4 flex-shrink-0 text-green-600 mt-0.5" />
                 <div className="text-xs">
                   <p className="font-medium text-foreground">SOC 2 Type II</p>
@@ -45,8 +46,8 @@ export function Footer() {
                     Security, availability & integrity
                   </p>
                 </div>
-              </Link>
-              <Link href="/security" className="flex items-start gap-2 hover:opacity-80 transition-opacity">
+              </HoverPrefetchLink>
+              <HoverPrefetchLink href="/security" className="flex items-start gap-2 hover:opacity-80 transition-opacity">
                 <Lock className="h-4 w-4 flex-shrink-0 text-blue-600 mt-0.5" />
                 <div className="text-xs">
                   <p className="font-medium text-foreground">HIPAA Compliant</p>
@@ -54,8 +55,8 @@ export function Footer() {
                     PHI encryption & BAA available
                   </p>
                 </div>
-              </Link>
-              <Link href="/security" className="flex items-start gap-2 hover:opacity-80 transition-opacity">
+              </HoverPrefetchLink>
+              <HoverPrefetchLink href="/security" className="flex items-start gap-2 hover:opacity-80 transition-opacity">
                 <CheckCircle2 className="h-4 w-4 flex-shrink-0 text-purple-600 mt-0.5" />
                 <div className="text-xs">
                   <p className="font-medium text-foreground">GDPR & CCPA</p>
@@ -63,7 +64,7 @@ export function Footer() {
                     Data residency & deletion rights
                   </p>
                 </div>
-              </Link>
+              </HoverPrefetchLink>
             </div>
           </div>
 
@@ -101,39 +102,39 @@ export function Footer() {
             <div className="space-y-2">
               <div className="flex items-start gap-2">
                 <FileText className="h-4 w-4 flex-shrink-0 text-slate-600 mt-0.5" />
-                <Link
+                <HoverPrefetchLink
                   href={routes.ui.marketing.privacy()}
                   className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Privacy Policy
-                </Link>
+                </HoverPrefetchLink>
               </div>
               <div className="flex items-start gap-2">
                 <Scroll className="h-4 w-4 flex-shrink-0 text-slate-600 mt-0.5" />
-                <Link
+                <HoverPrefetchLink
                   href={routes.ui.marketing.terms()}
                   className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Terms of Service
-                </Link>
+                </HoverPrefetchLink>
               </div>
               <div className="flex items-start gap-2">
                 <Shield className="h-4 w-4 flex-shrink-0 text-slate-600 mt-0.5" />
-                <Link
+                <HoverPrefetchLink
                   href="/security"
                   className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Security Declaration
-                </Link>
+                </HoverPrefetchLink>
               </div>
               <div className="flex items-start gap-2">
                 <HardDrive className="h-4 w-4 flex-shrink-0 text-slate-600 mt-0.5" />
-                <Link
+                <HoverPrefetchLink
                   href="/infrastructure"
                   className="text-xs text-muted-foreground transition-colors hover:text-foreground"
                 >
                   Infrastructure Details
-                </Link>
+                </HoverPrefetchLink>
               </div>
             </div>
           </div>
@@ -180,33 +181,33 @@ export function Footer() {
             Secure. Compliant. Enterprise-ready.
           </p>
           <nav className="flex flex-wrap items-center justify-center gap-2 text-xs">
-            <Link
+            <HoverPrefetchLink
               href={routes.ui.marketing.privacy()}
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
               Privacy
-            </Link>
+            </HoverPrefetchLink>
             <span className="text-muted-foreground">•</span>
-            <Link
+            <HoverPrefetchLink
               href={routes.ui.marketing.terms()}
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
               Terms
-            </Link>
+            </HoverPrefetchLink>
             <span className="text-muted-foreground">•</span>
-            <Link
+            <HoverPrefetchLink
               href="/security"
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
               Security
-            </Link>
+            </HoverPrefetchLink>
             <span className="text-muted-foreground">•</span>
-            <Link
+            <HoverPrefetchLink
               href="/infrastructure"
               className="text-muted-foreground transition-colors hover:text-foreground"
             >
               Infrastructure
-            </Link>
+            </HoverPrefetchLink>
           </nav>
         </div>
       </div>

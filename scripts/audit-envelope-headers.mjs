@@ -142,6 +142,7 @@ function detectExpectedOwner(file) {
   if (rel.startsWith("app/api/v1/(tenancy)/")) return { domain: "tenancy", layer: "api" }
   if (rel.startsWith("app/api/v1/(magictodo)/")) return { domain: "magictodo", layer: "api" }
   if (rel.startsWith("app/api/auth/(auth)/")) return { domain: "auth", layer: "api" }
+  if (rel.startsWith("app/api/(public)/(auth)/")) return { domain: "auth", layer: "api" }
   if (rel.startsWith("app/api/orchestra/(orchestra)/")) return { domain: "orchestra", layer: "api" }
   if (rel.startsWith("app/api/debug/(debug)/")) return { domain: "orchestra", layer: "api" }
   if (rel.startsWith("app/api/admin/")) return { domain: "auth", layer: "api" }
@@ -257,6 +258,15 @@ async function main() {
         const nextSrc = replaceOrInsertHeader(src, newHeader)
         if (nextSrc !== src) {
           await fs.writeFile(file, nextSrc, "utf8")
+        }
+
+        // Treat this file as fixed for the current run (no need to re-read).
+        // This prevents `--write` from exiting non-zero due to pre-write parsing.
+        parsed = {
+          raw: newHeader,
+          domain: expected.domain,
+          layer: expected.layer,
+          responsibility,
         }
       }
     }

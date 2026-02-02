@@ -1,3 +1,9 @@
+/**
+ * @domain tenancy
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/tenancy/design-system
+ */
+
 import Link from "next/link"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"

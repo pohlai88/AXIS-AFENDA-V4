@@ -1,3 +1,9 @@
+/**
+ * @domain orchestra
+ * @layer api
+ * @responsibility API route handler for /api/orchestra/analytics
+ */
+
 import { ok, fail } from "@/lib/server/api/response"
 import { parseSearchParams } from "@/lib/server/api/validate"
 import { AnalyticsService } from "@/lib/server/analytics"

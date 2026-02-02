@@ -1,3 +1,9 @@
+/**
+ * @domain magictodo
+ * @layer api
+ * @responsibility API route handler for /api/v1/tasks/filter
+ */
+
 import { ok, fail } from "@/lib/server/api/response"
 import { parseJson } from "@/lib/server/api/validate"
 import { TaskFilterService } from "@/lib/server/search"

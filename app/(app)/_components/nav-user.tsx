@@ -1,11 +1,13 @@
 "use client"
 
+import Link from "next/link"
 import {
   IconCreditCard,
   IconDotsVertical,
   IconLogout,
   IconNotification,
   IconUserCircle,
+  IconShield,
 } from "@tabler/icons-react"
 
 import {
@@ -28,6 +30,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { authClient } from "@/lib/auth/client"
 
 export function NavUser({
   user,
@@ -39,6 +42,11 @@ export function NavUser({
   }
 }) {
   const { isMobile } = useSidebar()
+
+  const handleSignOut = async () => {
+    await authClient.signOut()
+    window.location.href = "/auth/sign-in"
+  }
 
   return (
     <SidebarMenu>
@@ -84,21 +92,27 @@ export function NavUser({
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem>
-                <IconUserCircle />
-                Account
+              <DropdownMenuItem asChild>
+                <Link href="/account/settings">
+                  <IconUserCircle />
+                  Account Settings
+                </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconCreditCard />
-                Billing
+              <DropdownMenuItem asChild>
+                <Link href="/account/security">
+                  <IconShield />
+                  Security
+                </Link>
               </DropdownMenuItem>
-              <DropdownMenuItem>
-                <IconNotification />
-                Notifications
+              <DropdownMenuItem asChild>
+                <Link href="/app/settings">
+                  <IconNotification />
+                  App Settings
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={handleSignOut}>
               <IconLogout />
               Log out
             </DropdownMenuItem>

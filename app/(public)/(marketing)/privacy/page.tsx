@@ -1,3 +1,9 @@
+/**
+ * @domain marketing
+ * @layer ui
+ * @responsibility UI route entrypoint for /privacy
+ */
+
 import type { Metadata } from "next"
 
 import { Button } from "@/components/ui/button"
@@ -30,16 +36,16 @@ export default function PrivacyPage() {
             </CardDescription>
             <div className="flex flex-wrap justify-center gap-2">
               <Badge variant="outline" className="gap-1">
-                <Shield className="h-3 w-3" /> SOC 2 Type II
+                <Shield className="h-3 w-3" aria-hidden="true" /> SOC 2 Type II
               </Badge>
               <Badge variant="outline" className="gap-1">
-                <Lock className="h-3 w-3" /> HIPAA
+                <Lock className="h-3 w-3" aria-hidden="true" /> HIPAA
               </Badge>
               <Badge variant="outline" className="gap-1">
-                <CheckCircle2 className="h-3 w-3" /> GDPR
+                <CheckCircle2 className="h-3 w-3" aria-hidden="true" /> GDPR
               </Badge>
               <Badge variant="outline" className="gap-1">
-                <Database className="h-3 w-3" /> Neon PostgreSQL
+                <Database className="h-3 w-3" aria-hidden="true" /> Neon PostgreSQL
               </Badge>
             </div>
           </CardHeader>

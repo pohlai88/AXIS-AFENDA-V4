@@ -1,3 +1,9 @@
+/**
+ * @domain orchestra
+ * @layer ui
+ * @responsibility UI route entrypoint for /app/approvals
+ */
+
 import { getServerEnv } from "@/lib/env/server"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
