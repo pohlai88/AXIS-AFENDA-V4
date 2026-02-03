@@ -46,8 +46,8 @@ export async function GET(request: Request) {
       await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
 
       return includeArchived
-        ? await listAllProjects(auth.userId, scope.organizationId, db)
-        : await listProjects(auth.userId, scope.organizationId, db)
+        ? await listAllProjects(auth.userId, scope.organizationId, scope.teamId, db)
+        : await listProjects(auth.userId, scope.organizationId, scope.teamId, db)
     })
 
     return ok({ items: projects })
@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
       await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
 
-      return await createProject(auth.userId, body, scope.organizationId, db)
+      return await createProject(auth.userId, body, scope.organizationId, scope.teamId, db)
     })
 
     invalidateTag(cacheTags.projects(tenantId))

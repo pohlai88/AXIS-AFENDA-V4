@@ -3,7 +3,7 @@ import "@/lib/server/only"
 import { drizzle } from "drizzle-orm/postgres-js"
 import type postgres from "postgres"
 
-import { assertRlsConfiguredOnce, getDbClient, type Db } from "@/lib/server/db/client"
+import { assertRlsConfiguredOnce, getDbClient, getDbSessionDefaults, type Db } from "@/lib/server/db/client"
 import * as schema from "@/lib/server/db/schema"
 
 export type RlsContext = {
@@ -26,6 +26,12 @@ export async function withRlsDbEx<T>(
     const txSql = tx as unknown as postgres.Sql
 
     await assertRlsConfiguredOnce(txSql)
+
+    const defaults = getDbSessionDefaults()
+    // Neon pooler-safe: apply timeouts transaction-locally (avoid startup packet options).
+    await txSql`set local statement_timeout = ${defaults.statementTimeoutMs};`
+    await txSql`set local lock_timeout = ${defaults.lockTimeoutMs};`
+    await txSql`set local idle_in_transaction_session_timeout = ${defaults.idleInTxTimeoutMs};`
 
     const expectedRole = process.env.DB_ASSERT_RLS_ROLE
     if (expectedRole) {

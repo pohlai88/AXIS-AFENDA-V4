@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { GitHubLogoIcon } from "@radix-ui/react-icons"
 import { AUTH_BUTTON_LABELS } from "@/lib/constants/auth"
+import { GoogleGIcon } from "@/components/auth/icons/google-g-icon"
 
 export interface OAuthButtonProps {
   provider: "google" | "github"
@@ -46,13 +47,13 @@ export function OAuthButton({
   const config = {
     google: {
       label: AUTH_BUTTON_LABELS.SIGN_IN_WITH_GOOGLE,
-      icon: null as OAuthIcon | null, // No icon available for Google
-      className: "w-4 h-4",
+      icon: GoogleGIcon as OAuthIcon,
+      className: "h-4 w-4 shrink-0",
     },
     github: {
       label: AUTH_BUTTON_LABELS.SIGN_IN_WITH_GITHUB,
       icon: GitHubLogoIcon,
-      className: "w-4 h-4",
+      className: "h-4 w-4 shrink-0",
     },
   }
 

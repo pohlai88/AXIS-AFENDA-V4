@@ -1,0 +1,8 @@
+# Optional Python deps for MagicFolder OCR fallback (PaddleOCR + EasyOCR).
+# Install when OCR_PYTHON_FALLBACK=1 to improve accuracy when Tesseract is weak.
+# Usage: pip install -r scripts/requirements-ocr.txt
+# Requires Python 3.8+.
+
+paddlepaddle>=2.5.0
+paddleocr>=2.7.0
+easyocr>=1.7.0

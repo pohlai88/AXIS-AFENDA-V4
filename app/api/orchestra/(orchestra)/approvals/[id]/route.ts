@@ -10,7 +10,7 @@ import { headers } from "next/headers"
 
 import { HEADER_NAMES } from "@/lib/constants/headers"
 import { UpdateApprovalStatusSchema, approvalParamsSchema } from "@/lib/contracts/approvals"
-import { HttpError, NotFound, Unauthorized, BadRequest } from "@/lib/server/api/errors"
+import { HttpError, NotFound, Unauthorized } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
 import { parseJson } from "@/lib/server/api/validate"
 import { invalidateTag } from "@/lib/server/cache/revalidate"

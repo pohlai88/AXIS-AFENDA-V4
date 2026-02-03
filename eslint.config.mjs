@@ -2,9 +2,26 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+/** Ignore intentionally unused vars/args (convention: prefix with _). */
+const unusedVarsIgnorePattern = {
+  argsIgnorePattern: "^_",
+  varsIgnorePattern: "^_",
+  caughtErrorsIgnorePattern: "^_",
+}
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+
+  // Ignore _-prefixed identifiers in no-unused-vars (intentionally unused: API params, fixtures, stubs).
+  // Only override the TypeScript rule options; do not enable core no-unused-vars (would duplicate warnings).
+  {
+    files: ["**/*.{ts,tsx,js,jsx,mjs}"],
+    rules: {
+      "@typescript-eslint/no-unused-vars": ["warn", unusedVarsIgnorePattern],
+    },
+  },
+
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
@@ -14,6 +31,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated service worker output (built artifact)
     "public/sw.js",
+    // Legacy reference directory (reference only)
+    ".afenda-legacy/**",
   ]),
 
   // ---- Drift-prevention rules (new standard) ----

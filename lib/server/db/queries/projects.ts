@@ -13,6 +13,7 @@ export async function createProject(
   userId: string,
   projectData: CreateProjectRequest,
   organizationId?: string | null,
+  teamId?: string | null,
   db?: Db
 ) {
   const dbx = db ?? getDb()
@@ -21,6 +22,7 @@ export async function createProject(
     .values({
       userId,
       organizationId: organizationId ?? null,
+      teamId: teamId ?? null,
       ...projectData,
     })
     .returning()
@@ -31,7 +33,7 @@ export async function createProject(
 /**
  * Get all projects for a user (excluding archived)
  */
-export async function listProjects(userId: string, organizationId?: string | null, db?: Db) {
+export async function listProjects(userId: string, organizationId?: string | null, teamId?: string | null, db?: Db) {
   const dbx = db ?? getDb()
   const orgCond =
     organizationId === undefined
@@ -39,6 +41,8 @@ export async function listProjects(userId: string, organizationId?: string | nul
       : organizationId === null
         ? isNull(projects.organizationId)
         : eq(projects.organizationId, organizationId)
+  const teamCond =
+    teamId === undefined ? undefined : teamId === null ? isNull(projects.teamId) : eq(projects.teamId, teamId)
 
   return await dbx
     .select({
@@ -56,14 +60,19 @@ export async function listProjects(userId: string, organizationId?: string | nul
         .as("taskCount"),
     })
     .from(projects)
-    .where(and(eq(projects.userId, userId), eq(projects.archived, false), orgCond))
+    .where(and(eq(projects.userId, userId), eq(projects.archived, false), orgCond, teamCond))
     .orderBy(desc(projects.updatedAt))
 }
 
 /**
  * Get all projects for a user (including archived)
  */
-export async function listAllProjects(userId: string, organizationId?: string | null, db?: Db) {
+export async function listAllProjects(
+  userId: string,
+  organizationId?: string | null,
+  teamId?: string | null,
+  db?: Db
+) {
   const dbx = db ?? getDb()
   const orgCond =
     organizationId === undefined
@@ -71,6 +80,8 @@ export async function listAllProjects(userId: string, organizationId?: string | 
       : organizationId === null
         ? isNull(projects.organizationId)
         : eq(projects.organizationId, organizationId)
+  const teamCond =
+    teamId === undefined ? undefined : teamId === null ? isNull(projects.teamId) : eq(projects.teamId, teamId)
 
   return await dbx
     .select({
@@ -88,14 +99,20 @@ export async function listAllProjects(userId: string, organizationId?: string | 
         .as("taskCount"),
     })
     .from(projects)
-    .where(and(eq(projects.userId, userId), orgCond))
+    .where(and(eq(projects.userId, userId), orgCond, teamCond))
     .orderBy(desc(projects.updatedAt))
 }
 
 /**
  * Get a single project by ID
  */
-export async function getProject(userId: string, projectId: string, organizationId?: string | null, db?: Db) {
+export async function getProject(
+  userId: string,
+  projectId: string,
+  organizationId?: string | null,
+  teamId?: string | null,
+  db?: Db
+) {
   const dbx = db ?? getDb()
   const orgCond =
     organizationId === undefined
@@ -103,6 +120,8 @@ export async function getProject(userId: string, projectId: string, organization
       : organizationId === null
         ? isNull(projects.organizationId)
         : eq(projects.organizationId, organizationId)
+  const teamCond =
+    teamId === undefined ? undefined : teamId === null ? isNull(projects.teamId) : eq(projects.teamId, teamId)
 
   const [project] = await dbx
     .select({
@@ -120,7 +139,7 @@ export async function getProject(userId: string, projectId: string, organization
         .as("taskCount"),
     })
     .from(projects)
-    .where(and(eq(projects.userId, userId), eq(projects.id, projectId), orgCond))
+    .where(and(eq(projects.userId, userId), eq(projects.id, projectId), orgCond, teamCond))
 
   return project
 }
@@ -133,6 +152,7 @@ export async function updateProject(
   projectId: string,
   updates: UpdateProjectRequest,
   organizationId?: string | null,
+  teamId?: string | null,
   db?: Db
 ) {
   const dbx = db ?? getDb()
@@ -142,11 +162,13 @@ export async function updateProject(
       : organizationId === null
         ? isNull(projects.organizationId)
         : eq(projects.organizationId, organizationId)
+  const teamCond =
+    teamId === undefined ? undefined : teamId === null ? isNull(projects.teamId) : eq(projects.teamId, teamId)
 
   const [project] = await dbx
     .update(projects)
     .set({ ...updates, updatedAt: new Date() })
-    .where(and(eq(projects.userId, userId), eq(projects.id, projectId), orgCond))
+    .where(and(eq(projects.userId, userId), eq(projects.id, projectId), orgCond, teamCond))
     .returning()
 
   return project
@@ -200,6 +222,7 @@ export async function deleteProjectScoped(
   userId: string,
   projectId: string,
   organizationId?: string | null,
+  teamId?: string | null,
   db?: Db
 ) {
   const dbx = db ?? getDb()
@@ -209,10 +232,12 @@ export async function deleteProjectScoped(
       : organizationId === null
         ? isNull(projects.organizationId)
         : eq(projects.organizationId, organizationId)
+  const teamCond =
+    teamId === undefined ? undefined : teamId === null ? isNull(projects.teamId) : eq(projects.teamId, teamId)
 
   const [project] = await dbx
     .delete(projects)
-    .where(and(eq(projects.userId, userId), eq(projects.id, projectId), orgCond))
+    .where(and(eq(projects.userId, userId), eq(projects.id, projectId), orgCond, teamCond))
     .returning()
 
   return project
@@ -230,7 +255,12 @@ export async function getProjectTasks(userId: string, projectId: string) {
     .orderBy(desc(tasks.createdAt))
 }
 
-export async function getProjectTasksScoped(userId: string, projectId: string, organizationId?: string | null) {
+export async function getProjectTasksScoped(
+  userId: string,
+  projectId: string,
+  organizationId?: string | null,
+  teamId?: string | null
+) {
   const db = getDb()
   const orgCond =
     organizationId === undefined
@@ -238,10 +268,11 @@ export async function getProjectTasksScoped(userId: string, projectId: string, o
       : organizationId === null
         ? isNull(tasks.organizationId)
         : eq(tasks.organizationId, organizationId)
+  const teamCond = teamId === undefined ? undefined : teamId === null ? isNull(tasks.teamId) : eq(tasks.teamId, teamId)
   return await db
     .select()
     .from(tasks)
-    .where(and(eq(tasks.userId, userId), eq(tasks.projectId, projectId), orgCond))
+    .where(and(eq(tasks.userId, userId), eq(tasks.projectId, projectId), orgCond, teamCond))
     .orderBy(desc(tasks.createdAt))
 }
 
@@ -257,7 +288,11 @@ export async function getUnassignedTasks(userId: string) {
     .orderBy(desc(tasks.createdAt))
 }
 
-export async function getUnassignedTasksScoped(userId: string, organizationId?: string | null) {
+export async function getUnassignedTasksScoped(
+  userId: string,
+  organizationId?: string | null,
+  teamId?: string | null
+) {
   const db = getDb()
   const orgCond =
     organizationId === undefined
@@ -265,10 +300,11 @@ export async function getUnassignedTasksScoped(userId: string, organizationId?: 
       : organizationId === null
         ? isNull(tasks.organizationId)
         : eq(tasks.organizationId, organizationId)
+  const teamCond = teamId === undefined ? undefined : teamId === null ? isNull(tasks.teamId) : eq(tasks.teamId, teamId)
 
   return await db
     .select()
     .from(tasks)
-    .where(and(eq(tasks.userId, userId), isNull(tasks.projectId), orgCond))
+    .where(and(eq(tasks.userId, userId), isNull(tasks.projectId), orgCond, teamCond))
     .orderBy(desc(tasks.createdAt))
 }

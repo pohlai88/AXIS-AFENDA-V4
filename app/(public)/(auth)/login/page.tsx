@@ -26,10 +26,12 @@ import {
   FormItem,
   FormLabel,
   FormControl,
+  FormDescription,
   FormMessage,
   Form,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import HCaptcha from "@hcaptcha/react-hcaptcha"
@@ -91,10 +93,10 @@ export default function LoginPage() {
         callbackURL: routes.ui.auth.authCallback(next),
         fetchOptions: captchaToken
           ? {
-              headers: {
-                "x-captcha-token": captchaToken,
-              },
-            }
+            headers: {
+              "x-captcha-token": captchaToken,
+            },
+          }
           : undefined,
       })
 
@@ -186,12 +188,12 @@ export default function LoginPage() {
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem>
+              <FormItem idBase="auth-login-email">
                 <FormLabel>{AUTH_LABELS.EMAIL}</FormLabel>
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="your@email.com"
+                    placeholder={AUTH_LABELS.EMAIL_PLACEHOLDER}
                     autoComplete="email"
                     disabled={isPending}
                     {...field}
@@ -206,7 +208,7 @@ export default function LoginPage() {
             control={form.control}
             name="password"
             render={({ field }) => (
-              <FormItem>
+              <FormItem idBase="auth-login-password">
                 <div className="flex items-center justify-between">
                   <FormLabel>{AUTH_LABELS.PASSWORD}</FormLabel>
                   <Link
@@ -217,14 +219,18 @@ export default function LoginPage() {
                   </Link>
                 </div>
                 <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
+                  <PasswordInput
+                    placeholder={AUTH_LABELS.PASSWORD_PLACEHOLDER}
                     autoComplete="current-password"
                     disabled={isPending}
+                    showPasswordLabel={AUTH_LABELS.PASSWORD_SHOW}
+                    hidePasswordLabel={AUTH_LABELS.PASSWORD_HIDE}
                     {...field}
                   />
                 </FormControl>
+                <FormDescription className="text-xs">
+                  {AUTH_LABELS.PASSWORD_CONSTRAINT_HINT}
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}

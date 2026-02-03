@@ -5,6 +5,7 @@
  */
 
 import { ok, fail } from "@/lib/server/api/response"
+import { validateCronSecret } from "@/lib/server/api/cron-auth"
 import { generateNextOccurrences, cleanupOverdueTasks } from "@/lib/server/scheduler/recurrence"
 import { logger } from "@/lib/server/logger"
 import { routes } from "@/lib/routes"
@@ -19,19 +20,11 @@ export const maxDuration = 300 // 5 minutes for background scheduler
  * Trigger background scheduler to generate next task occurrences.
  * Can be called by Vercel Cron, external scheduler, or manual requests.
  *
- * Authorization: Uses CRON_SECRET header to prevent unauthorized calls.
+ * Authorization: CRON_SECRET via Authorization: Bearer (Vercel Cron) or x-cron-secret header.
  */
 export async function POST(request: Request) {
-  // Validate cron secret (required for security)
-  const secret = request.headers.get("x-cron-secret")
-  const expectedSecret = process.env.CRON_SECRET
-
-  if (!expectedSecret || secret !== expectedSecret) {
-    return fail(
-      { message: "Unauthorized: invalid or missing x-cron-secret header", code: "UNAUTHORIZED" },
-      401
-    )
-  }
+  const unauth = validateCronSecret(request)
+  if (unauth) return unauth
 
   try {
     const result = await generateNextOccurrences(100)
@@ -62,7 +55,7 @@ export async function GET() {
     status: "ok",
     endpoint: routes.api.cron.generateRecurrence(),
     method: "POST",
-    headers_required: ["x-cron-secret"],
+    headers_required: ["Authorization: Bearer <CRON_SECRET> or x-cron-secret"],
     timestamp: new Date().toISOString(),
   })
 }

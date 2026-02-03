@@ -1,5 +1,5 @@
 import { z } from "zod"
-import { ORGANIZATION, TEAM, PERMISSIONS, RESOURCE_SHARING } from "@/lib/constants"
+import { ORGANIZATION, TEAM, RESOURCE_SHARING } from "@/lib/constants"
 
 /**
  * Organization schemas for API validation

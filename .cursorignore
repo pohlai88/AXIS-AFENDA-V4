@@ -1,0 +1,15 @@
+﻿# Cursor: files excluded from codebase index (not from git).
+# See https://docs.cursor.com/context/ignore-files
+
+# Env and secrets (do not index)
+.env
+.env.*
+!.env.example
+
+# MagicFolder OCR Python fallback - production-frozen; do not touch except security/critical fixes.
+scripts/ocr-fallback.py
+scripts/requirements-ocr.txt
+docs/magicfolder-ocr-fallback-contract.md
+
+# Legacy reference directory (reference only)
+.afenda-legacy/

@@ -73,8 +73,22 @@ const FormItemContext = React.createContext<FormItemContextValue>(
   {} as FormItemContextValue
 )
 
-function FormItem({ className, ...props }: React.ComponentProps<"div">) {
-  const id = React.useId()
+type FormItemProps = React.ComponentProps<"div"> & {
+  /**
+   * Stable base ID used to generate:
+   * - `${idBase}-form-item` (input id)
+   * - `${idBase}-form-item-description`
+   * - `${idBase}-form-item-message`
+   *
+   * Use this when the surrounding tree can differ between SSR and client,
+   * to avoid React hydration mismatches caused by `useId()` shifts.
+   */
+  idBase?: string
+}
+
+function FormItem({ className, idBase, ...props }: FormItemProps) {
+  const reactId = React.useId()
+  const id = idBase ?? reactId
 
   return (
     <FormItemContext.Provider value={{ id }}>

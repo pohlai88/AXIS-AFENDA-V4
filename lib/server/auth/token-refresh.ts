@@ -14,7 +14,7 @@ import "@/lib/server/only"
 import { auth } from "@/lib/auth/server"
 import { logger } from "@/lib/server/logger"
 import { shouldRefreshToken } from "@/lib/server/auth/context"
-import type { NextRequest, NextResponse } from "next/server"
+import type { NextResponse } from "next/server"
 
 export interface TokenRefreshResult {
   refreshed: boolean
@@ -46,7 +46,7 @@ export async function checkAndRefreshToken(): Promise<TokenRefreshResult> {
       }
     }
 
-    const token = sessionData.session.token
+    const _token = sessionData.session.token
     const expiresAt = sessionData.session?.expiresAt
 
     if (!expiresAt) {

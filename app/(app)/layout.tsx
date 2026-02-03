@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react"
 import { redirect } from "next/navigation"
 import { Separator } from "@/components/ui/separator"
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
@@ -27,7 +28,15 @@ export default async function AppShellLayout({ children }: Props) {
   }
 
   return (
-    <SidebarProvider defaultOpen>
+    <SidebarProvider
+      defaultOpen
+      style={
+        {
+          "--sidebar-width": "calc(var(--spacing) * 72)",
+          "--header-height": "calc(var(--spacing) * 12)",
+        } as CSSProperties
+      }
+    >
       <TokenRefreshProvider />
       <AppSidebar userId={authContext.userId} />
       <SidebarInset>
@@ -39,7 +48,7 @@ export default async function AppShellLayout({ children }: Props) {
             <AnimatedThemeToggler />
           </div>
         </header>
-        <div className="p-4 md:p-6">
+        <div className="flex flex-1 flex-col p-4 md:p-6">
           <div className="mx-auto w-full max-w-6xl">{children}</div>
         </div>
       </SidebarInset>

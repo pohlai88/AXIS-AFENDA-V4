@@ -1,5 +1,4 @@
-import Link from "next/link"
-import { Shield, Lock, CheckCircle2, Database, Zap, BarChart3, GitBranch, Clock, Network, FileText, Scroll, HardDrive } from "lucide-react"
+import { Shield, Lock, CheckCircle2, Database, Zap, GitBranch, Clock, Network, FileText, Scroll, HardDrive } from "lucide-react"
 import { routes } from "@/lib/routes"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"

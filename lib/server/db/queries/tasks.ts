@@ -29,6 +29,7 @@ export async function createTask(
     tags?: string[]
   },
   organizationId?: string | null,
+  teamId?: string | null,
   db?: Db
 ) {
   const dbx = db ?? getDb()
@@ -37,6 +38,7 @@ export async function createTask(
     .values({
       userId,
       organizationId: organizationId ?? null,
+      teamId: teamId ?? null,
       title: taskData.title,
       description: taskData.description,
       dueDate: taskData.dueDate,
@@ -48,7 +50,15 @@ export async function createTask(
     .returning()
 
   // Log in task history
-  await logTaskHistory(userId, task.id, TASK_HISTORY_ACTION.CREATED, organizationId ?? null, undefined, dbx)
+  await logTaskHistory(
+    userId,
+    task.id,
+    TASK_HISTORY_ACTION.CREATED,
+    organizationId ?? null,
+    teamId ?? null,
+    undefined,
+    dbx
+  )
 
   return task
 }
@@ -66,6 +76,7 @@ export async function updateTask(
     tags?: string[]
   },
   organizationId?: string | null,
+  teamId?: string | null,
   db?: Db
 ) {
   const dbx = db ?? getDb()
@@ -83,19 +94,26 @@ export async function updateTask(
           ? undefined
           : organizationId === null
             ? isNull(tasks.organizationId)
-            : eq(tasks.organizationId, organizationId)
+            : eq(tasks.organizationId, organizationId),
+        teamId === undefined ? undefined : teamId === null ? isNull(tasks.teamId) : eq(tasks.teamId, teamId)
       )
     )
     .returning()
 
   if (task) {
-    await logTaskHistory(userId, taskId, TASK_HISTORY_ACTION.UPDATED, organizationId ?? null, updates, dbx)
+    await logTaskHistory(userId, taskId, TASK_HISTORY_ACTION.UPDATED, organizationId ?? null, teamId ?? null, updates, dbx)
   }
 
   return task
 }
 
-export async function deleteTask(userId: string, taskId: string, organizationId?: string | null, db?: Db) {
+export async function deleteTask(
+  userId: string,
+  taskId: string,
+  organizationId?: string | null,
+  teamId?: string | null,
+  db?: Db
+) {
   const dbx = db ?? getDb()
   const [task] = await dbx
     .delete(tasks)
@@ -107,19 +125,26 @@ export async function deleteTask(userId: string, taskId: string, organizationId?
           ? undefined
           : organizationId === null
             ? isNull(tasks.organizationId)
-            : eq(tasks.organizationId, organizationId)
+            : eq(tasks.organizationId, organizationId),
+        teamId === undefined ? undefined : teamId === null ? isNull(tasks.teamId) : eq(tasks.teamId, teamId)
       )
     )
     .returning()
 
   if (task) {
-    await logTaskHistory(userId, taskId, TASK_HISTORY_ACTION.DELETED, organizationId ?? null, undefined, dbx)
+    await logTaskHistory(userId, taskId, TASK_HISTORY_ACTION.DELETED, organizationId ?? null, teamId ?? null, undefined, dbx)
   }
 
   return task
 }
 
-export async function getTask(userId: string, taskId: string, organizationId?: string | null, db?: Db) {
+export async function getTask(
+  userId: string,
+  taskId: string,
+  organizationId?: string | null,
+  teamId?: string | null,
+  db?: Db
+) {
   const dbx = db ?? getDb()
   const [task] = await dbx
     .select()
@@ -132,7 +157,8 @@ export async function getTask(userId: string, taskId: string, organizationId?: s
           ? undefined
           : organizationId === null
             ? isNull(tasks.organizationId)
-            : eq(tasks.organizationId, organizationId)
+            : eq(tasks.organizationId, organizationId),
+        teamId === undefined ? undefined : teamId === null ? isNull(tasks.teamId) : eq(tasks.teamId, teamId)
       )
     )
   return task
@@ -141,6 +167,7 @@ export async function getTask(userId: string, taskId: string, organizationId?: s
 export async function listTasks(
   userId: string,
   organizationId?: string | null,
+  teamId?: string | null,
   filters?: {
     projectId?: string
     status?: TaskStatus
@@ -165,6 +192,9 @@ export async function listTasks(
     conditions.push(
       organizationId === null ? isNull(tasks.organizationId) : eq(tasks.organizationId, organizationId)
     )
+  }
+  if (teamId !== undefined) {
+    conditions.push(teamId === null ? isNull(tasks.teamId) : eq(tasks.teamId, teamId))
   }
 
   if (filters?.projectId) conditions.push(eq(tasks.projectId, filters.projectId))
@@ -194,7 +224,7 @@ export async function listTasks(
 
 export async function completeTask(userId: string, taskId: string, db?: Db) {
   const dbx = db ?? getDb()
-  return updateTask(userId, taskId, { status: TASK_STATUS.DONE, completedAt: new Date() }, undefined, dbx)
+  return updateTask(userId, taskId, { status: TASK_STATUS.DONE, completedAt: new Date() }, undefined, undefined, dbx)
 }
 
 // ============ Helper: Task History ============
@@ -203,6 +233,7 @@ async function logTaskHistory(
   taskId: string,
   action: TaskHistoryAction,
   organizationId: string | null,
+  teamId: string | null,
   previousValues?: unknown,
   dbOverride?: Db
 ) {
@@ -211,6 +242,7 @@ async function logTaskHistory(
     taskId,
     userId,
     organizationId,
+    teamId,
     action,
     previousValues: previousValues ? JSON.stringify(previousValues) : null,
   })

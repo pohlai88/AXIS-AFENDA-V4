@@ -1,0 +1,37 @@
+---
+description: OCR fallback is production-frozen; do not modify except security/critical fixes
+globs: lib/server/magicfolder/ocr.ts, scripts/ocr-fallback.py
+alwaysApply: false
+---
+
+# OCR fallback — production-frozen
+
+The MagicFolder OCR Python fallback is **production-ready and frozen** to avoid drift.
+
+## Do not modify
+
+- **scripts/ocr-fallback.py** — Do not change behaviour, argv contract, env, or stdout format. Only security or critical bug fixes are allowed.
+- **lib/server/magicfolder/ocr.ts** — Do not change `runPythonOcrFallback` or the constants `OCR_PYTHON_*`, `OCR_PYTHON_MAX_STDOUT_CHARS`. Only security or critical bug fixes are allowed.
+
+## Contract
+
+The interface between Node and the script is defined in **docs/magicfolder-ocr-fallback-contract.md**. Any change to argv, env, stdout, exit codes, or timeouts must be documented there and keep backward compatibility or bump the contract version.
+
+## Allowed changes
+
+- Security: dependency updates, vulnerability fixes, path/env sanitisation.
+- Critical: fixes for incorrect extraction, crashes, or contract violations.
+
+## Not allowed
+
+- New features, refactors, or behaviour changes that alter the contract.
+- "Improvements" or "cleanups" to the fallback path unless they are security/critical.
+
+When in doubt, leave the fallback unchanged and extend behaviour elsewhere (e.g. Tesseract or a new provider).
+
+## Ignore (like .env)
+
+To avoid accidentally opening or editing the fallback, add the same “ignore” treatment as `.env`:
+
+- **`.cursorignore`** (project root): add `scripts/ocr-fallback.py`, `scripts/requirements-ocr.txt`, `docs/magicfolder-ocr-fallback-contract.md` so Cursor does not index them.
+- **`.vscode/settings.json`** `files.exclude`: these paths are already excluded in this repo so they are hidden from the file explorer.

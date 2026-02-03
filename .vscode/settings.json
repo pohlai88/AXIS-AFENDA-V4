@@ -4,5 +4,12 @@
   // We intentionally ignore these warnings at the workspace level.
   "css.lint.unknownAtRules": "ignore",
   "scss.lint.unknownAtRules": "ignore",
-  "less.lint.unknownAtRules": "ignore"
+  "less.lint.unknownAtRules": "ignore",
+
+  // MagicFolder OCR Python fallback — production-frozen; hide from explorer to avoid accidental edits (same idea as .env).
+  "files.exclude": {
+    "scripts/ocr-fallback.py": true,
+    "scripts/requirements-ocr.txt": true,
+    "docs/magicfolder-ocr-fallback-contract.md": true
+  }
 }

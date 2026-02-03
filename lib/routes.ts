@@ -16,6 +16,7 @@ export const routes = {
       resetPassword: (token?: string) =>
         token ? `/reset-password?token=${token}` : "/reset-password",
       verifyEmail: () => "/verify-email",
+      signOut: () => "/sign-out",
       accountSettings: () => "/account/settings",
       accountSecurity: () => "/account/security",
       /**
@@ -38,6 +39,16 @@ export const routes = {
     magictodo: {
       tasks: () => "/app/tasks",
       projects: () => "/app/projects",
+    },
+    magicfolder: {
+      landing: () => "/app/magicfolder",
+      inbox: () => "/app/magicfolder/inbox",
+      duplicates: () => "/app/magicfolder/duplicates",
+      unsorted: () => "/app/magicfolder/unsorted",
+      search: () => "/app/magicfolder/search",
+      collections: () => "/app/magicfolder/collections",
+      documentById: (id: string) => `/app/magicfolder/documents/${id}`,
+      audit: () => "/app/magicfolder/audit",
     },
     tenancy: {
       root: () => "/app/tenancy",
@@ -98,6 +109,8 @@ export const routes = {
       refresh: () => "/api/auth/refresh",
       logout: () => "/api/auth/logout",
       unlock: () => "/api/auth/unlock",
+      /** Activity/audit for current user (empty stack; ready for future use) */
+      activity: () => "/api/auth/activity",
       internal: {
         refreshSession: () => "/api/auth/refresh-session",
         email: {
@@ -114,6 +127,8 @@ export const routes = {
     },
     cron: {
       generateRecurrence: () => "/api/cron/generate-recurrence",
+      auditHash: () => "/api/cron/audit-hash",
+      processMagicfolderQueue: () => "/api/cron/process-magicfolder-queue",
     },
     admin: {
       unlockAccount: () => "/api/admin/unlock-account",
@@ -159,6 +174,29 @@ export const routes = {
           list: () => "/api/v1/projects",
           byId: (id: string) => `/api/v1/projects/${id}`,
         },
+      },
+      magicfolder: {
+        presign: () => "/api/v1/magicfolder/presign",
+        ingest: () => "/api/v1/magicfolder/ingest",
+        keepBest: () => "/api/v1/magicfolder/keep-best",
+        list: () => "/api/v1/magicfolder",
+        duplicateGroups: () => "/api/v1/magicfolder/duplicate-groups",
+        duplicateGroupById: (id: string) => `/api/v1/magicfolder/duplicate-groups/${id}`,
+        bulk: () => "/api/v1/magicfolder/bulk",
+        objectById: (id: string) => `/api/v1/magicfolder/objects/${id}`,
+        objectSourceUrl: (id: string) => `/api/v1/magicfolder/objects/${id}/source-url`,
+        objectPreviewUrl: (id: string) => `/api/v1/magicfolder/objects/${id}/preview-url`,
+        objectThumbUrl: (id: string, page?: number) =>
+          page != null
+            ? `/api/v1/magicfolder/objects/${id}/thumb-url?page=${page}`
+            : `/api/v1/magicfolder/objects/${id}/thumb-url`,
+        objectTags: (id: string) => `/api/v1/magicfolder/objects/${id}/tags`,
+        tags: () => "/api/v1/magicfolder/tags",
+        auditHash: () => "/api/v1/magicfolder/audit/hash",
+      },
+      storage: {
+        presignUpload: () => "/api/v1/storage/presign-upload",
+        saveMetadata: () => "/api/v1/storage/save-metadata",
       },
       tenancy: {
         tenant: {

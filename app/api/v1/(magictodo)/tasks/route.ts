@@ -57,6 +57,7 @@ export async function GET(request: Request) {
       return await listTasks(
         auth.userId,
         scope.organizationId,
+        scope.teamId,
         { status: query.status, priority: query.priority, projectId: query.projectId },
         { limit: query.limit, offset: query.offset },
         db
@@ -107,6 +108,7 @@ export async function POST(request: Request) {
           dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
         },
         scope.organizationId,
+        scope.teamId,
         db
       )
     })

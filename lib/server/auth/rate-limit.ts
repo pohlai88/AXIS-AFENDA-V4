@@ -1,8 +1,8 @@
 import "@/lib/server/only"
 
-import { getDb } from "@/lib/server/db"
 import { loginAttempts } from "@/lib/server/db/schema"
-import { and, desc, eq, gt } from "drizzle-orm"
+import { and, desc, eq, gt, sql } from "drizzle-orm"
+import { getDb } from "@/lib/server/db"
 
 export type RateLimitScope = "email" | "ip"
 
@@ -89,48 +89,67 @@ export class RateLimiter {
     const now = new Date()
     const windowStart = new Date(Date.now() - config.windowMs)
 
-    const [latest] = await db
-      .select()
-      .from(loginAttempts)
-      .where(and(eq(loginAttempts.identifier, identifier), gt(loginAttempts.windowStart, windowStart)))
-      .orderBy(desc(loginAttempts.windowStart))
-      .limit(1)
+    const newLockedUntil = new Date(now.getTime() + config.lockoutMs)
 
-    if (!latest) {
-      await db.insert(loginAttempts).values({
+    // Concurrency-safe update:
+    // - Require a UNIQUE index on `identifier` (added via migration).
+    // - Within the active window, increment attempts atomically.
+    // - Outside window, reset attempts/windowStart/lockedUntil.
+    const [row] = await db
+      .insert(loginAttempts)
+      .values({
         identifier,
         attempts: 1,
         windowStart: now,
+        lockedUntil: null,
         createdAt: now,
         updatedAt: now,
       })
-
-      return {
-        allowed: true,
-        remainingAttempts: config.maxAttempts - 1,
-        requiresCaptcha: 1 >= config.captchaAfter,
-      }
-    }
-
-    const nextAttempts = latest.attempts + 1
-    const shouldLock = nextAttempts >= config.maxAttempts
-    const lockedUntil = shouldLock ? new Date(Date.now() + config.lockoutMs) : null
-
-    await db
-      .update(loginAttempts)
-      .set({
-        attempts: nextAttempts,
-        lockedUntil,
-        updatedAt: now,
+      .onConflictDoUpdate({
+        target: loginAttempts.identifier,
+        set: {
+          attempts: sql<number>`
+            case
+              when ${loginAttempts.windowStart} <= ${windowStart} then 1
+              else ${loginAttempts.attempts} + 1
+            end
+          `,
+          windowStart: sql<Date>`
+            case
+              when ${loginAttempts.windowStart} <= ${windowStart} then ${now}
+              else ${loginAttempts.windowStart}
+            end
+          `,
+          lockedUntil: sql<Date | null>`
+            case
+              when ${loginAttempts.windowStart} <= ${windowStart} then null
+              else case
+                when (${loginAttempts.attempts} + 1) >= ${config.maxAttempts} then ${newLockedUntil}
+                else null
+              end
+            end
+          `,
+          updatedAt: now,
+        },
       })
-      .where(eq(loginAttempts.id, latest.id))
+      .returning({
+        attempts: loginAttempts.attempts,
+        lockedUntil: loginAttempts.lockedUntil,
+      })
+
+    const attempts = row?.attempts ?? 1
+    const lockedUntil = row?.lockedUntil ?? undefined
+
+    const isLocked = Boolean(lockedUntil && lockedUntil > now)
+    const remainingAttempts = isLocked ? 0 : Math.max(0, config.maxAttempts - attempts)
+    const requiresCaptcha = attempts >= config.captchaAfter
 
     return {
-      allowed: !shouldLock,
-      remainingAttempts: Math.max(0, config.maxAttempts - nextAttempts),
-      requiresCaptcha: nextAttempts >= config.captchaAfter,
-      lockedUntil: lockedUntil ?? undefined,
-      retryAfterSeconds: getRetryAfterSeconds(lockedUntil ?? undefined),
+      allowed: !isLocked && remainingAttempts > 0,
+      remainingAttempts,
+      requiresCaptcha,
+      lockedUntil,
+      retryAfterSeconds: getRetryAfterSeconds(lockedUntil),
     }
   }
 

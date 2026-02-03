@@ -1,8 +1,8 @@
 "use client"
 
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
-  IconCreditCard,
   IconDotsVertical,
   IconLogout,
   IconNotification,
@@ -30,7 +30,6 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar"
-import { authClient } from "@/lib/auth/client"
 import { routes } from "@/lib/routes"
 
 export function NavUser({
@@ -42,11 +41,11 @@ export function NavUser({
     avatar: string
   }
 }) {
+  const router = useRouter()
   const { isMobile } = useSidebar()
 
-  const handleSignOut = async () => {
-    await authClient.signOut()
-    window.location.href = "/auth/sign-in"
+  const handleSignOut = () => {
+    router.push(routes.ui.auth.signOut())
   }
 
   return (

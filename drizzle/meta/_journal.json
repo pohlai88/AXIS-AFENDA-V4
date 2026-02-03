@@ -8,7 +8,83 @@
       "when": 1760000000000,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1760000000001,
+      "tag": "0001_org_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1760000000002,
+      "tag": "0002_subdomain_rls_hardening",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1760000000003,
+      "tag": "0003_team_scope",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1760000000004,
+      "tag": "0004_security_tables_rls",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1760000000005,
+      "tag": "0005_login_attempts_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1760000000006,
+      "tag": "0006_r2_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1760000000007,
+      "tag": "0007_magicfolder",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1760000000008,
+      "tag": "0008_magicfolder_uploads_object_version",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1760000000009,
+      "tag": "0009_magicfolder_object_index",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1760000000010,
+      "tag": "0010_magicfolder_tags",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1760000000011,
+      "tag": "0011_magicfolder_object_index_fts",
+      "breakpoints": true
     }
   ]
 }
-

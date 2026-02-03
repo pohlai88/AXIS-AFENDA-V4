@@ -11,6 +11,7 @@ import {
   varchar,
   index,
   foreignKey,
+  primaryKey,
   serial,
 } from "drizzle-orm/pg-core"
 
@@ -136,6 +137,176 @@ export const securityEventLog = pgTable(
     actionIdx: index("neon_security_event_log_action_idx").on(table.action),
     createdAtIdx: index("neon_security_event_log_created_at_idx").on(table.createdAt),
     identifierHashIdx: index("neon_security_event_log_identifier_hash_idx").on(table.identifierHash),
+  })
+)
+
+// ============ R2 file metadata (Cloudflare R2 + Neon — see neon.com/docs/guides/cloudflare-r2) ============
+export const r2Files = pgTable(
+  "neon_r2_files",
+  {
+    id: serial("id").primaryKey(),
+    objectKey: text("object_key").notNull().unique(),
+    fileUrl: text("file_url").notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => neonAuthUsers.id, { onDelete: "cascade" }),
+    uploadTimestamp: timestamp("upload_timestamp", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    objectKeyIdx: index("neon_r2_files_object_key_idx").on(table.objectKey),
+    userIdIdx: index("neon_r2_files_user_id_idx").on(table.userId),
+    uploadTimestampIdx: index("neon_r2_files_upload_timestamp_idx").on(table.uploadTimestamp),
+  })
+)
+
+// ============ MagicFolder (document-first: objects, versions, uploads, duplicate groups) ============
+export const magicfolderObjects = pgTable(
+  "magicfolder_objects",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => neonAuthUsers.id, { onDelete: "cascade" }),
+    currentVersionId: uuid("current_version_id"),
+    title: varchar("title", { length: 500 }),
+    docType: varchar("doc_type", { length: 50 }).notNull().default("other"),
+    status: varchar("status", { length: 50 }).notNull().default("inbox"),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tenantIdIdx: index("magicfolder_objects_tenant_id_idx").on(table.tenantId),
+    ownerIdIdx: index("magicfolder_objects_owner_id_idx").on(table.ownerId),
+    statusIdx: index("magicfolder_objects_status_idx").on(table.status),
+    deletedAtIdx: index("magicfolder_objects_deleted_at_idx").on(table.deletedAt),
+  })
+)
+
+export const magicfolderObjectVersions = pgTable(
+  "magicfolder_object_versions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    objectId: uuid("object_id")
+      .notNull()
+      .references(() => magicfolderObjects.id, { onDelete: "cascade" }),
+    versionNo: integer("version_no").notNull(),
+    r2Key: text("r2_key").notNull(),
+    mimeType: varchar("mime_type", { length: 255 }).notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: varchar("sha256", { length: 64 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    objectIdIdx: index("magicfolder_object_versions_object_id_idx").on(table.objectId),
+    tenantSha256Idx: index("magicfolder_object_versions_sha256_idx").on(table.sha256),
+  })
+)
+
+export const magicfolderUploads = pgTable(
+  "magicfolder_uploads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => neonAuthUsers.id, { onDelete: "cascade" }),
+    objectId: uuid("object_id").notNull(),
+    versionId: uuid("version_id").notNull(),
+    filename: varchar("filename", { length: 500 }).notNull(),
+    mimeType: varchar("mime_type", { length: 255 }).notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: varchar("sha256", { length: 64 }).notNull(),
+    r2KeyQuarantine: text("r2_key_quarantine").notNull(),
+    status: varchar("status", { length: 50 }).notNull().default("presigned"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tenantIdIdx: index("magicfolder_uploads_tenant_id_idx").on(table.tenantId),
+    statusIdx: index("magicfolder_uploads_status_idx").on(table.status),
+    sha256Idx: index("magicfolder_uploads_sha256_idx").on(table.sha256),
+  })
+)
+
+export const magicfolderDuplicateGroups = pgTable(
+  "magicfolder_duplicate_groups",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+    reason: varchar("reason", { length: 20 }).notNull(),
+    keepVersionId: uuid("keep_version_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tenantIdIdx: index("magicfolder_duplicate_groups_tenant_id_idx").on(table.tenantId),
+    keepVersionIdIdx: index("magicfolder_duplicate_groups_keep_version_id_idx").on(table.keepVersionId),
+  })
+)
+
+export const magicfolderDuplicateGroupVersions = pgTable(
+  "magicfolder_duplicate_group_versions",
+  {
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => magicfolderDuplicateGroups.id, { onDelete: "cascade" }),
+    versionId: uuid("version_id")
+      .notNull()
+      .references(() => magicfolderObjectVersions.id, { onDelete: "cascade" }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.groupId, table.versionId] }),
+    groupIdIdx: index("magicfolder_dup_group_versions_group_id_idx").on(table.groupId),
+  })
+)
+
+export const magicfolderObjectIndex = pgTable(
+  "magicfolder_object_index",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    objectId: uuid("object_id")
+      .notNull()
+      .references(() => magicfolderObjects.id, { onDelete: "cascade" }),
+    extractedText: text("extracted_text"),
+    extractedFields: jsonb("extracted_fields").$type<Record<string, unknown>>(),
+    textHash: varchar("text_hash", { length: 64 }),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    objectIdIdx: index("magicfolder_object_index_object_id_idx").on(table.objectId),
+    textHashIdx: index("magicfolder_object_index_text_hash_idx").on(table.textHash),
+  })
+)
+
+export const magicfolderTags = pgTable(
+  "magicfolder_tags",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+    name: varchar("name", { length: 255 }).notNull(),
+    slug: varchar("slug", { length: 255 }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tenantSlugIdx: index("magicfolder_tags_tenant_slug_idx").on(table.tenantId, table.slug),
+  })
+)
+
+export const magicfolderObjectTags = pgTable(
+  "magicfolder_object_tags",
+  {
+    objectId: uuid("object_id")
+      .notNull()
+      .references(() => magicfolderObjects.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id")
+      .notNull()
+      .references(() => magicfolderTags.id, { onDelete: "cascade" }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.objectId, table.tagId] }),
+    objectIdIdx: index("magicfolder_object_tags_object_id_idx").on(table.objectId),
+    tagIdIdx: index("magicfolder_object_tags_tag_id_idx").on(table.tagId),
   })
 )
 

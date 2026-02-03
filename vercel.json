@@ -3,7 +3,9 @@
   "devCommand": "pnpm dev",
   "installCommand": "pnpm install",
   "framework": "nextjs",
-  "regions": ["syd1"],
+  "regions": [
+    "syd1"
+  ],
   "headers": [
     {
       "source": "/(.*)",
@@ -25,6 +27,14 @@
     {
       "path": "/api/cron/generate-recurrence",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/audit-hash",
+      "schedule": "0 3 * * 0"
+    },
+    {
+      "path": "/api/cron/process-magicfolder-queue",
+      "schedule": "*/5 * * * *"
     }
   ],
   "env": {

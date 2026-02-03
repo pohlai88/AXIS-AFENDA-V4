@@ -40,6 +40,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Python venv (OCR fallback)
+.venv/
+venv/
+
 # serwist / service worker
 /public/sw.js
 /public/sw.js.map
@@ -47,3 +51,8 @@ next-env.d.ts
 /public/swe-worker-*.js.map
 /public/workbox-*.js
 /public/workbox-*.js.map
+
+.vercel
+
+# Legacy reference directory (reference only)
+.afenda-legacy/

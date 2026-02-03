@@ -365,6 +365,8 @@ export function DataTable({
     [data]
   )
 
+  // TanStack Table's useReactTable() returns non-memoizable functions; used inside Client Component per Next.js third-party guidance.
+  // eslint-disable-next-line react-hooks/incompatible-library -- third-party API; see https://react.dev/learn/you-might-not-need-an-effect
   const table = useReactTable({
     data,
     columns,
@@ -497,9 +499,9 @@ export function DataTable({
                           {header.isPlaceholder
                             ? null
                             : flexRender(
-                                header.column.columnDef.header,
-                                header.getContext()
-                              )}
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
                         </TableHead>
                       )
                     })}

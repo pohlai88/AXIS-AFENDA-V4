@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
       : redirectTo
 
     // Delegate to Neon Auth to request password reset
-    await auth.handler().POST(
+    const neonResponse = await auth.handler().POST(
       new NextRequest(new URL(routes.api.auth.internal.password.reset(), origin), {
         method: "POST",
         headers: {
@@ -72,11 +72,27 @@ export async function POST(request: NextRequest) {
       { params: Promise.resolve({ path: ["password", "reset"] }) }
     )
 
+    if (!neonResponse.ok) {
+      const bodyText = await neonResponse.text()
+      logger.warn(
+        {
+          neonStatus: neonResponse.status,
+          neonStatusText: neonResponse.statusText,
+          neonBody: bodyText.slice(0, 500),
+          emailHint: email.slice(0, 3) + "***",
+        },
+        "Neon Auth password reset returned non-OK – user may not receive email. Check Neon Console → Auth → Email configuration (e.g. Resend/SendGrid)."
+      )
+    }
+
     await logAuthEvent({
       action: "password_reset_requested",
-      success: true,
+      success: neonResponse.ok,
       ipAddress,
-      metadata: { email: email.toLowerCase() },
+      metadata: {
+        email: email.toLowerCase(),
+        ...(neonResponse.ok ? {} : { neonStatus: neonResponse.status }),
+      },
     })
 
     // Always return success to avoid email enumeration

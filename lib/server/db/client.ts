@@ -1,6 +1,7 @@
 import "@/lib/server/only"
 
 import { drizzle } from "drizzle-orm/postgres-js"
+import type { PostgresJsDatabase } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 
 import { requireServerEnv } from "@/lib/env/server"
@@ -8,7 +9,7 @@ import { Result, err, ok } from "@/lib/shared/result"
 
 import * as schema from "./schema"
 
-export type Db = ReturnType<typeof drizzle>
+export type Db = PostgresJsDatabase<typeof schema>
 
 type GlobalDbCache = {
   __afendaDb?: Db
@@ -52,13 +53,8 @@ const SESSION_DEFAULTS = {
   idleInTxTimeoutMs: readMs("DB_IDLE_IN_TX_TIMEOUT_MS") ?? 30_000,
 } as const
 
-function buildServerOptions(): string {
-  // Postgres connection startup options (`-c key=value`) apply per-session (works well with pooled connections).
-  return [
-    `-c statement_timeout=${SESSION_DEFAULTS.statementTimeoutMs}`,
-    `-c lock_timeout=${SESSION_DEFAULTS.lockTimeoutMs}`,
-    `-c idle_in_transaction_session_timeout=${SESSION_DEFAULTS.idleInTxTimeoutMs}`,
-  ].join(" ")
+export function getDbSessionDefaults() {
+  return SESSION_DEFAULTS
 }
 
 let cachedDb: Db | null = null
@@ -74,7 +70,6 @@ function createDb(): { db: Db; client: postgres.Sql } {
     ...DB_CONFIG,
     connection: {
       application_name: SESSION_DEFAULTS.applicationName,
-      options: buildServerOptions(),
     },
     // Enable SSL when required by connection string or in production
     ssl: (sslRequired || process.env.NODE_ENV === "production") ? "require" : false,
@@ -132,8 +127,14 @@ export async function withTransaction<T>(
 
   try {
     const value = (await client.begin(async (tx) => {
+      const defaults = getDbSessionDefaults()
+      const txSql = tx as unknown as postgres.Sql
+      await txSql`set local statement_timeout = ${defaults.statementTimeoutMs};`
+      await txSql`set local lock_timeout = ${defaults.lockTimeoutMs};`
+      await txSql`set local idle_in_transaction_session_timeout = ${defaults.idleInTxTimeoutMs};`
+
       // Create a new db instance with the transaction client
-      const txDb = drizzle(tx as unknown as postgres.Sql, { schema })
+      const txDb = drizzle(txSql, { schema })
       return await callback(txDb)
     })) as unknown as T
     return ok(value)

@@ -309,6 +309,21 @@ await authClient.getSession({ refresh: true })
 
 ---
 
+## Password Reset Configuration
+
+Reset password is **not stored in the app DB**. Neon Auth holds tokens and credentials in the `neon_auth` schema. To have reset password work:
+
+1. **Neon Console → Project → Branch → Auth → Settings**
+   - Ensure **Sign-up with Email** is enabled (password reset is available when email auth is enabled).
+2. **Email delivery**  
+   - Neon Auth must be able to send the reset link. Configure the email provider (e.g. Resend/SendGrid) in Neon Console if required.
+3. **App env**  
+   - `NEON_AUTH_BASE_URL` and `NEON_AUTH_COOKIE_SECRET` must be set (already used by the app).
+
+For full validation and troubleshooting, see **[RESET-PASSWORD-VALIDATION.md](./RESET-PASSWORD-VALIDATION.md)**.
+
+---
+
 ## Next Steps
 
 - [ ] Configure email verification (requires Resend/SendGrid)

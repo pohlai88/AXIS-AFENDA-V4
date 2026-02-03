@@ -10,7 +10,7 @@ import { headers } from "next/headers"
 
 import { HEADER_NAMES } from "@/lib/constants/headers"
 import { updateTaskRequestSchema, taskParamsSchema } from "@/lib/contracts/tasks"
-import { HttpError, Unauthorized, NotFound, BadRequest } from "@/lib/server/api/errors"
+import { HttpError, Unauthorized, NotFound } from "@/lib/server/api/errors"
 import { fail, ok } from "@/lib/server/api/response"
 import { parseJson } from "@/lib/server/api/validate"
 import { invalidateTag } from "@/lib/server/cache/revalidate"
@@ -53,7 +53,7 @@ export async function GET(
       await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
       await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
 
-      return await getTask(auth.userId, id, scope.organizationId, db)
+      return await getTask(auth.userId, id, scope.organizationId, scope.teamId, db)
     })
     if (!task) throw NotFound("Task not found")
 
@@ -102,6 +102,7 @@ export async function PATCH(
           dueDate: body.dueDate ? new Date(body.dueDate) : undefined,
         },
         scope.organizationId,
+        scope.teamId,
         db
       )
     })
@@ -144,7 +145,7 @@ export async function DELETE(
       await sql`select set_config('app.organization_id', ${scope.organizationId ?? ""}, true);`
       await sql`select set_config('app.team_id', ${scope.teamId ?? ""}, true);`
 
-      return await deleteTask(auth.userId, id, scope.organizationId, db)
+      return await deleteTask(auth.userId, id, scope.organizationId, scope.teamId, db)
     })
     if (!deleted) throw NotFound("Task not found")
 

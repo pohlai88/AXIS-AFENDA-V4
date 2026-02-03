@@ -33,25 +33,28 @@ export async function verifyUnlockToken(email: string, token: string): Promise<b
   const identifierHash = buildUnlockIdentifierHash(email)
   const now = new Date()
 
-  const [entry] = await db
-    .select()
-    .from(unlockTokens)
-    .where(and(eq(unlockTokens.identifierHash, identifierHash), gt(unlockTokens.expiresAt, now)))
-    .limit(1)
+  // Make verification + consumption atomic: only one concurrent caller should succeed.
+  // This also avoids a race where two calls read the same row before deletion.
+  const deleted = await db
+    .delete(unlockTokens)
+    .where(
+      and(
+        eq(unlockTokens.identifierHash, identifierHash),
+        eq(unlockTokens.token, token),
+        gt(unlockTokens.expiresAt, now)
+      )
+    )
+    .returning({ token: unlockTokens.token })
 
-  if (!entry) return false
+  if (deleted.length === 0) return false
 
-  const stored = Buffer.from(entry.token)
+  // Keep timingSafeEqual to maintain behavior parity (even though the match was in SQL).
+  const stored = Buffer.from(deleted[0]!.token)
   const provided = Buffer.from(token)
-
-  if (stored.length !== provided.length) {
-    return false
-  }
-
+  if (stored.length !== provided.length) return false
   const valid = timingSafeEqual(stored, provided)
 
   if (valid) {
-    await db.delete(unlockTokens).where(eq(unlockTokens.id, entry.id))
     // Clear lockout state for this email.
     await resetLoginAttempts({ email })
   }

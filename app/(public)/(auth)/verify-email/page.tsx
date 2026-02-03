@@ -31,6 +31,10 @@ import {
   FormMessage,
 } from "@/components/ui/form"
 import { FormError } from "@/components/auth"
+import {
+  AUTH_LABELS,
+  AUTH_ALERT_TITLES,
+} from "@/lib/constants/auth"
 
 export default function VerifyEmailPage() {
   const router = useRouter()
@@ -62,26 +66,32 @@ export default function VerifyEmailPage() {
   })
 
   return (
-    <AuthShell title="Verify your email" description="Check your inbox for a verification email.">
+    <AuthShell
+      title={AUTH_LABELS.VERIFY_EMAIL}
+      description={AUTH_LABELS.VERIFY_EMAIL_DESCRIPTION}
+    >
       <div className="flex items-start gap-3 rounded-lg border bg-card p-4">
         <Mail className="mt-0.5 h-5 w-5 text-muted-foreground" />
         <div className="space-y-1">
-          <div className="text-sm font-medium">Verification required</div>
+          <div className="text-sm font-medium">{AUTH_LABELS.VERIFICATION_REQUIRED}</div>
           <div className="text-sm text-muted-foreground">
-            Open the email we sent and click the verification link to continue.
+            {AUTH_LABELS.OPEN_VERIFICATION_EMAIL}
           </div>
         </div>
       </div>
 
       {status === "sent" ? (
         <Alert>
-          <AlertTitle>Email sent</AlertTitle>
-          <AlertDescription>{message ?? "Please check your inbox."}</AlertDescription>
+          <AlertTitle>{AUTH_ALERT_TITLES.EMAIL_SENT}</AlertTitle>
+          <AlertDescription>{message ?? AUTH_LABELS.CHECK_INBOX}</AlertDescription>
         </Alert>
       ) : null}
 
       {status === "error" ? (
-        <FormError title="Could not send email" message={message ?? "Please try again in a moment."} />
+        <FormError
+          title={AUTH_ALERT_TITLES.COULD_NOT_SEND_EMAIL}
+          message={message ?? AUTH_LABELS.TRY_AGAIN_MOMENT}
+        />
       ) : null}
 
       <Form {...form}>
@@ -105,10 +115,12 @@ export default function VerifyEmailPage() {
               )
 
               setStatus("sent")
-              setMessage("Verification email sent. Please check your inbox.")
+              setMessage(AUTH_LABELS.VERIFICATION_EMAIL_SENT)
             } catch (err) {
               setStatus("error")
-              setMessage(err instanceof Error ? err.message : "Failed to send verification email.")
+              setMessage(
+                err instanceof Error ? err.message : AUTH_LABELS.VERIFICATION_EMAIL_FAILED
+              )
             }
           })}
         >
@@ -116,11 +128,11 @@ export default function VerifyEmailPage() {
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem>
+              <FormItem idBase="auth-verify-email-email">
                 <FormControl>
                   <Input
                     {...field}
-                    placeholder="you@company.com"
+                    placeholder={AUTH_LABELS.EMAIL_PLACEHOLDER_ALT}
                     type="email"
                     autoComplete="email"
                     disabled={status === "sending"}
@@ -135,10 +147,10 @@ export default function VerifyEmailPage() {
             {status === "sending" ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Sending…
+                {AUTH_LABELS.SENDING}
               </>
             ) : (
-              "Resend verification email"
+              AUTH_LABELS.RESEND_VERIFICATION_EMAIL
             )}
           </Button>
         </form>
@@ -150,7 +162,7 @@ export default function VerifyEmailPage() {
           className="w-full"
           onClick={() => router.push(routes.ui.auth.login())}
         >
-          Go to sign in
+          {AUTH_LABELS.GO_TO_SIGN_IN}
         </Button>
       </div>
     </AuthShell>

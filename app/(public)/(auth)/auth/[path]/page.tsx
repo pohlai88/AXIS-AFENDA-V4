@@ -1,47 +1,52 @@
 /**
  * @domain auth
  * @layer page
- * @responsibility Dynamic Neon Auth pages (sign-in, sign-up, sign-out, forgot-password, reset-password)
- * 
- * Validation: ✅ VERIFIED
- * - Domain: auth (correct per ARCHITECTURE.md)
- * - Route group: (public)/(auth) (correct)
- * - Path: /auth/[path] (canonical)
- * - Uses: Neon Auth built-in CSS exclusively
- * 
- * NOTE: Uses Neon Auth pre-built UI components with built-in CSS
- * https://neon.com/docs/auth/quick-start/nextjs
- * 
- * Supported paths:
- * - /auth/sign-in - Sign in with email/password and OAuth (Google, GitHub)
- * - /auth/sign-up - New account registration
- * - /auth/sign-out - Sign out
- * - /auth/forgot-password - Request password reset
- * - /auth/reset-password - Complete password reset
- * 
- * STYLING STRATEGY:
- * - AuthView component: Uses Neon Auth built-in CSS exclusively
- * - No custom wrapper layouts (uses root layout only)
- * 
- * IMPORTANT: Uses dynamic import with ssr: false to prevent hydration mismatches
- * caused by Radix UI components (Drawer, Dialog) generating different IDs on server vs client
+ * @responsibility Redirect legacy /auth/[path] to canonical auth routes (single route strategy)
+ *
+ * Canonical routes only: /login, /register, /forgot-password, /reset-password, /auth/callback.
+ * No Neon AuthView – all UI uses shadcn in components/auth.
  */
 
 "use client"
 
-import dynamic from "next/dynamic"
-import { use } from "react"
+import { use, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { routes } from "@/lib/routes"
+import { AuthShell } from "@/components/auth/auth-shell"
+import { Spinner } from "@/components/ui/spinner"
+import { AUTH_LOADING_STATES } from "@/lib/constants/auth"
 
-// Disable SSR for AuthView to prevent hydration mismatches
-// Using named export pattern per Next.js 16.1.6 guidelines
-const AuthView = dynamic(
-  () => import("@neondatabase/auth/react").then((mod) => mod.AuthView),
-  { ssr: false }
-)
+const PATH_TO_ROUTE: Record<string, () => string> = {
+  "sign-in": routes.ui.auth.login,
+  "sign-up": routes.ui.auth.register,
+  "forgot-password": routes.ui.auth.forgotPassword,
+  "reset-password": routes.ui.auth.resetPassword,
+  "sign-out": routes.ui.auth.signOut,
+}
 
-export default function AuthPage({ params }: { params: Promise<{ path: string }> }) {
+export default function AuthPathRedirectPage({
+  params,
+}: {
+  params: Promise<{ path: string }>
+}) {
   const { path } = use(params)
+  const router = useRouter()
 
-  // AuthView uses Neon Auth built-in CSS - no custom wrapper needed
-  return <AuthView path={path} />
+  useEffect(() => {
+    const target = PATH_TO_ROUTE[path]
+    if (target) {
+      router.replace(target())
+      return
+    }
+    router.replace(routes.ui.auth.login())
+  }, [path, router])
+
+  return (
+    <AuthShell title="" description="">
+      <div className="flex items-center justify-center gap-3 py-4">
+        <Spinner className="size-5" />
+        <span className="text-sm text-muted-foreground">{AUTH_LOADING_STATES.CHECKING}</span>
+      </div>
+    </AuthShell>
+  )
 }

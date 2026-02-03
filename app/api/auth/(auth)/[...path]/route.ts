@@ -14,6 +14,26 @@ import { verifyCaptchaToken } from "@/lib/server/auth/captcha"
 import { fail } from "@/lib/server/api/response"
 import { HEADER_NAMES } from "@/lib/constants"
 
+function agentLog(payload: {
+	runId: string
+	hypothesisId: string
+	location: string
+	message: string
+	data?: Record<string, unknown>
+}) {
+	// #region agent log
+	fetch("http://127.0.0.1:7248/ingest/f0fd3528-d7a4-4dbf-8586-1243b3044ad6", {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({
+			sessionId: "debug-session",
+			timestamp: Date.now(),
+			...payload,
+		}),
+	}).catch(() => { })
+	// #endregion
+}
+
 /**
  * Neon Auth Proxy Handler
  * 
@@ -43,6 +63,28 @@ export async function GET(
 	request: NextRequest,
 	context: { params: Promise<{ path: string[] }> }
 ) {
+	const p = await context.params
+	const pathname = request.nextUrl.pathname
+	const searchKeys = Array.from(request.nextUrl.searchParams.keys())
+
+	agentLog({
+		runId: "pre-fix",
+		hypothesisId: "H1",
+		location: "app/api/auth/(auth)/[...path]/route.ts:GET:entry",
+		message: "Auth proxy GET received",
+		data: {
+			pathname,
+			pathSegments: p.path,
+			searchKeys,
+			host: request.headers.get("host") ?? null,
+			xfHost: request.headers.get("x-forwarded-host") ?? null,
+			xfProto: request.headers.get("x-forwarded-proto") ?? null,
+			referer: request.headers.get("referer") ?? null,
+			hasCookieHeader: Boolean(request.headers.get("cookie")),
+			userAgentPrefix: (request.headers.get("user-agent") ?? "").slice(0, 32),
+		},
+	})
+
 	return authGET(request, context)
 }
 
@@ -85,9 +127,45 @@ export async function POST(
 	request: NextRequest,
 	context: { params: Promise<{ path: string[] }> }
 ) {
+	const p = await context.params
+	const pathname = request.nextUrl.pathname
+	const searchKeys = Array.from(request.nextUrl.searchParams.keys())
+
+	agentLog({
+		runId: "pre-fix",
+		hypothesisId: "H2",
+		location: "app/api/auth/(auth)/[...path]/route.ts:POST:entry",
+		message: "Auth proxy POST received",
+		data: {
+			pathname,
+			pathSegments: p.path,
+			searchKeys,
+			host: request.headers.get("host") ?? null,
+			xfHost: request.headers.get("x-forwarded-host") ?? null,
+			xfProto: request.headers.get("x-forwarded-proto") ?? null,
+			referer: request.headers.get("referer") ?? null,
+			hasCookieHeader: Boolean(request.headers.get("cookie")),
+		},
+	})
+
 	if (!isSignInRequest(request)) {
 		// Delegate to Neon Auth for non-sign-in requests (sign-up, password reset, etc.)
-		return authPOST(request, context)
+		const res = await authPOST(request, context)
+		agentLog({
+			runId: "pre-fix",
+			hypothesisId: "H1",
+			location: "app/api/auth/(auth)/[...path]/route.ts:POST:delegate",
+			message: "Auth proxy POST delegated to Neon Auth",
+			data: {
+				pathname,
+				status: res.status,
+				ok: res.ok,
+				hasLocation: res.headers.has("location"),
+				hasSetCookie: res.headers.has("set-cookie"),
+				locationPrefix: (res.headers.get("location") ?? "").slice(0, 80),
+			},
+		})
+		return res
 	}
 
 	// Rate limiting and security checks for sign-in
@@ -144,9 +222,30 @@ export async function POST(
 	}
 
 	const response = await authPOST(request, context)
+	agentLog({
+		runId: "pre-fix",
+		hypothesisId: "H3",
+		location: "app/api/auth/(auth)/[...path]/route.ts:POST:signin",
+		message: "Auth proxy sign-in POST completed",
+		data: {
+			status: response.status,
+			ok: response.ok,
+			hasLocation: response.headers.has("location"),
+			hasSetCookie: response.headers.has("set-cookie"),
+			locationPrefix: (response.headers.get("location") ?? "").slice(0, 80),
+		},
+	})
 
 	// Record failed authentication attempts (rate limit state is owned by us, not Neon Auth).
 	if (!response.ok) {
+		await logAuthEvent({
+			userId: undefined,
+			action: "login_failed",
+			success: false,
+			ipAddress,
+			metadata: email ? { email } : undefined,
+		})
+
 		const result = await recordFailedLoginAttempt({ email, ipAddress })
 
 		// Log account lock event (user may not be known yet; keep details in metadata).

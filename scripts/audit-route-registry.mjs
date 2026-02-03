@@ -123,9 +123,9 @@ function isRouteHandlerFile(file) {
 function computeUrlPatternFromAppFile(file) {
   const rel = path.relative(appDir, file)
   const parts = rel.split(path.sep)
-  const filename = parts.pop()
+  const _filename = parts.pop()
 
-  const isApi = parts[0] === "api" || file.includes(`${path.sep}api${path.sep}`)
+  const _isApi = parts[0] === "api" || file.includes(`${path.sep}api${path.sep}`)
 
   const segs = []
   for (const part of parts) {

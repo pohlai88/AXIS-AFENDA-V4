@@ -55,17 +55,37 @@ export function AppSidebar({ userId }: Props) {
   const isHome = pathname === routes.ui.marketing.home()
   const isComponents = pathname.startsWith(routes.ui.marketing.components())
   const isTenancy = pathname.startsWith(routes.ui.tenancy.root())
+  const isMagicFolder =
+    pathname.startsWith(routes.ui.magicfolder.landing()) ||
+    pathname.startsWith(routes.ui.magicfolder.inbox()) ||
+    pathname.startsWith(routes.ui.magicfolder.duplicates()) ||
+    pathname.startsWith(routes.ui.magicfolder.unsorted()) ||
+    pathname.startsWith(routes.ui.magicfolder.search()) ||
+    pathname.startsWith(routes.ui.magicfolder.collections())
 
   const navMain: NavMainItem[] = [
     {
       title: "App",
       url: routes.ui.orchestra.root(),
       icon: LayoutDashboardIcon as unknown as Icon,
-      isActive: isDashboard || isTasks || isProjects || isModules || isApprovals || isAnalytics,
+      isActive:
+        isDashboard ||
+        isTasks ||
+        isProjects ||
+        isModules ||
+        isApprovals ||
+        isAnalytics ||
+        isMagicFolder,
       items: [
         { title: "Dashboard", url: routes.ui.orchestra.dashboard() },
         { title: "Tasks", url: routes.ui.magictodo.tasks() },
         { title: "Projects", url: routes.ui.magictodo.projects() },
+        { title: "MagicFolder", url: routes.ui.magicfolder.landing() },
+        { title: "MagicFolder Inbox", url: routes.ui.magicfolder.inbox() },
+        { title: "MagicFolder Duplicates", url: routes.ui.magicfolder.duplicates() },
+        { title: "MagicFolder Unsorted", url: routes.ui.magicfolder.unsorted() },
+        { title: "MagicFolder Search", url: routes.ui.magicfolder.search() },
+        { title: "MagicFolder Collections", url: routes.ui.magicfolder.collections() },
         { title: "Analytics", url: routes.ui.orchestra.analytics() },
         { title: "Modules", url: routes.ui.orchestra.modules() },
         { title: "Approvals", url: routes.ui.orchestra.approvals() },

@@ -7,7 +7,6 @@
 "use client"
 
 import * as React from "react"
-import { useRouter } from "next/navigation"
 import {
   IconDeviceDesktop,
   IconDeviceMobile,
@@ -85,7 +84,6 @@ function formatExpires(expires: string): string {
 }
 
 export default function SessionsPage() {
-  const router = useRouter()
   const { toast } = useToast()
 
   const [sessions, setSessions] = React.useState<SessionResponse[]>([])
@@ -93,11 +91,7 @@ export default function SessionsPage() {
   const [revoking, setRevoking] = React.useState<string | null>(null)
   const [showRevokeAllDialog, setShowRevokeAllDialog] = React.useState(false)
 
-  React.useEffect(() => {
-    loadSessions()
-  }, [])
-
-  async function loadSessions() {
+  const loadSessions = React.useCallback(async () => {
     try {
       setLoading(true)
       const response = await apiFetch(
@@ -115,7 +109,11 @@ export default function SessionsPage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
+
+  React.useEffect(() => {
+    loadSessions()
+  }, [loadSessions])
 
   async function revokeSession(sessionId: string) {
     try {

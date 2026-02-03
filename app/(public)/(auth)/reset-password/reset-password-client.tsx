@@ -1,159 +1,59 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useSearchParams, useRouter } from "next/navigation"
-import { routes } from "@/lib/routes"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { useSearchParams } from "next/navigation"
+import Link from "next/link"
+import { ResetPasswordForm, authLocalization } from "@neondatabase/auth/react"
 import { AuthShell } from "@/components/auth/auth-shell"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Spinner } from "@/components/ui/spinner"
-import { useAuthUIStore } from "@/stores/auth-ui"
-import { apiFetch } from "@/lib/api/client"
+import { routes } from "@/lib/routes"
 import {
-  ResetPasswordSchema,
-  resetPasswordResponseSchema,
-} from "@/lib/contracts/auth"
+  AUTH_LABELS,
+  AUTH_ALERT_TITLES,
+  AUTH_VALIDATION,
+} from "@/lib/constants/auth"
 
+/**
+ * Reset-password client: Neon ResetPasswordForm when token present;
+ * invalid-link message and link to forgot-password when token missing.
+ */
 export default function ResetPasswordClient() {
-  const router = useRouter()
   const searchParams = useSearchParams()
-  const { setResetToken } = useAuthUIStore()
-
-  const [isLoading, setIsLoading] = useState(false)
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [error, setError] = useState("")
-  const [success, setSuccess] = useState(false)
-
   const token = searchParams.get("token")
 
-  useEffect(() => {
-    if (!token) {
-      setError("Invalid or missing reset token. Please request a new password reset.")
-      const timeout = setTimeout(() => {
-        router.push(routes.ui.auth.forgotPassword())
-      }, 3000)
-      return () => clearTimeout(timeout)
-    }
-
-    // Persist token for the duration of the reset flow (used by multi-step UI if needed).
-    setResetToken(token)
-    return () => setResetToken(null)
-  }, [token, router])
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsLoading(true)
-    setError("")
-
-    try {
-      const parsed = ResetPasswordSchema.safeParse({
-        token: token ?? "",
-        password,
-        confirmPassword,
-      })
-
-      if (!parsed.success) {
-        setError(parsed.error.issues[0]?.message ?? "Invalid password")
-        return
-      }
-
-      await apiFetch(
-        routes.api.publicAuth.resetPassword(),
-        {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ token: parsed.data.token, password: parsed.data.password }),
-        },
-        resetPasswordResponseSchema
-      )
-
-      setSuccess(true)
-
-      setTimeout(() => {
-        router.push(routes.ui.auth.login())
-      }, 2000)
-    } catch {
-      setError("An unexpected error occurred. Please try again.")
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  if (error && !token) {
+  if (token === null || token === "" || token === "INVALID_TOKEN") {
     return (
-      <AuthShell title="Reset link invalid" description="Request a new reset link to continue.">
+      <AuthShell
+        title={AUTH_LABELS.RESET_LINK_INVALID_TITLE}
+        description={AUTH_LABELS.RESET_LINK_INVALID_DESCRIPTION}
+      >
         <Alert variant="destructive">
-          <AlertTitle>Invalid reset link</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
+          <AlertTitle>{AUTH_ALERT_TITLES.INVALID_RESET_LINK}</AlertTitle>
+          <AlertDescription>{AUTH_LABELS.RESET_TOKEN_MISSING}</AlertDescription>
         </Alert>
-        <div className="text-sm text-muted-foreground text-center">
-          Redirecting to password recovery…
+        <div className="text-center text-sm text-muted-foreground">
+          <Link href={routes.ui.auth.forgotPassword()} className="text-primary hover:underline font-medium">
+            {AUTH_LABELS.REQUEST_NEW_LINK}
+          </Link>
+          {" · "}
+          <Link href={routes.ui.auth.login()} className="text-primary hover:underline font-medium">
+            {AUTH_LABELS.SIGN_IN}
+          </Link>
         </div>
       </AuthShell>
     )
   }
 
   return (
-    <AuthShell title="Create a new password" description="Choose a strong password for your account.">
-      {success ? (
-        <Alert>
-          <AlertTitle>Password updated</AlertTitle>
-          <AlertDescription>Redirecting you to sign in…</AlertDescription>
-        </Alert>
-      ) : null}
-
-      {isLoading ? (
-        <div className="flex items-center gap-3 rounded-lg border bg-card p-4">
-          <Spinner className="size-5" />
-          <div className="text-sm text-muted-foreground">Updating password…</div>
-        </div>
-      ) : null}
-
-      {error ? (
-        <Alert variant="destructive">
-          <AlertTitle>Could not reset password</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      ) : null}
-
-      <form onSubmit={handleResetPassword} className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="password">New password</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            disabled={isLoading || success}
-            required
-            minLength={8}
-          />
-          <p className="text-xs text-muted-foreground">Must be at least 8 characters long</p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="confirm-password">Confirm password</Label>
-          <Input
-            id="confirm-password"
-            type="password"
-            placeholder="••••••••"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            disabled={isLoading || success}
-            required
-            minLength={8}
-          />
-        </div>
-
-        <Button type="submit" className="w-full" disabled={isLoading || success}>
-          {isLoading ? "Resetting…" : "Reset password"}
-        </Button>
-      </form>
+    <AuthShell
+      title={AUTH_LABELS.CREATE_NEW_PASSWORD}
+      description={AUTH_LABELS.CHOOSE_STRONG_PASSWORD}
+    >
+      <ResetPasswordForm
+        localization={authLocalization}
+        passwordValidation={{
+          minLength: AUTH_VALIDATION.PASSWORD_MIN_LENGTH,
+        }}
+      />
     </AuthShell>
   )
 }
-

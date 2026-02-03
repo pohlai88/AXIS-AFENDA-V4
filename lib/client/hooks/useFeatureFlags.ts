@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback } from "react"
+import { useCallback, useMemo } from "react"
 
 import type { FeatureFlagValue } from "@/lib/constants/feature-flags"
 
@@ -12,7 +12,7 @@ import type { FeatureFlagValue } from "@/lib/constants/feature-flags"
  * and return the standard `{ data, error }` envelope.
  */
 export function useFeatureFlags() {
-  const flags: Record<string, boolean> = {}
+  const flags = useMemo<Record<string, boolean>>(() => ({}), [])
   const isLoading = false
 
   const isEnabled = useCallback(
@@ -33,12 +33,12 @@ export function useFeatureFlags() {
   )
 
   const enableFeature = useCallback(async (_feature: FeatureFlagValue): Promise<boolean> => {
-    // No server persistence in strict mode.
+    // No server persistence in strict mode; param kept for API compatibility.
     return false
   }, [])
 
   const disableFeature = useCallback(async (_feature: FeatureFlagValue): Promise<boolean> => {
-    // No server persistence in strict mode.
+    // No server persistence in strict mode; param kept for API compatibility.
     return false
   }, [])
 

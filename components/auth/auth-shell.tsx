@@ -25,6 +25,8 @@ import type { ReactNode } from "react"
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
+import { AuthBrandWordmark, AuthBrandSlogan } from "@/components/auth/auth-brand"
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
 
 interface AuthShellProps {
   /** Main heading for the auth page */
@@ -56,16 +58,20 @@ export function AuthShell({
   description,
   children,
   className,
-  metaTitle,
-  metaDescription,
+  metaTitle: _metaTitle,
+  metaDescription: _metaDescription,
 }: AuthShellProps) {
   return (
-    <div 
-      className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/50 px-4 py-8"
+    <div
+      className="relative flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-background to-muted/50 px-4 py-8"
       role="main"
       aria-label="Authentication"
     >
-      <Card className={cn("w-full max-w-md", className)}>
+      <div className="absolute top-4 right-4 z-10">
+        <AnimatedThemeToggler aria-label="Toggle theme" />
+      </div>
+      <AuthBrandWordmark className="mb-6 shrink-0" />
+      <Card className={cn("w-full max-w-md shrink-0", className)}>
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-bold">{title}</CardTitle>
           {description && (
@@ -78,6 +84,7 @@ export function AuthShell({
           {children}
         </CardContent>
       </Card>
+      <AuthBrandSlogan className="mt-6 shrink-0" />
     </div>
   )
 }

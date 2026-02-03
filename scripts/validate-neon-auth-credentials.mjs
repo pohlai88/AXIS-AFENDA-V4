@@ -242,7 +242,7 @@ async function validateNeonAuthCredentials() {
   log('\n⚙️  Checking Optional Variables:', 'cyan')
   separator()
 
-  for (const [key, config] of Object.entries(OPTIONAL_VARS)) {
+  for (const [key, _config] of Object.entries(OPTIONAL_VARS)) {
     const value = env[key]
 
     if (value) {
@@ -259,9 +259,9 @@ async function validateNeonAuthCredentials() {
   separator()
 
   const configuredOAuth = []
-  const missingOAuth = []
+  const _missingOAuth = []
 
-  for (const [key, config] of Object.entries(OAUTH_VARS)) {
+  for (const [key, _config] of Object.entries(OAUTH_VARS)) {
     const value = env[key]
 
     if (value) {

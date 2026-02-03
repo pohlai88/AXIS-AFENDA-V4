@@ -1,6 +1,4 @@
-import { redirect } from "next/navigation"
-
-import { REGEX_PATTERNS, STORAGE_KEYS, TIME_INTERVALS } from "@/lib/constants"
+import { REGEX_PATTERNS } from "@/lib/constants"
 
 export type UserRole = "user" | "admin" | "moderator"
 
@@ -115,10 +113,10 @@ export function validateUsername(username: string): {
 export function generateSecureToken(length: number = 32): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
   let result = ""
-  
+
   for (let i = 0; i < length; i++) {
     result += chars.charAt(Math.floor(Math.random() * chars.length))
   }
-  
+
   return result
 }

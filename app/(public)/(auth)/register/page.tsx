@@ -16,7 +16,7 @@ import { useForm, type Resolver } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import type { RegisterInput } from "@/lib/contracts/auth"
 import { RegisterSchema } from "@/lib/contracts/auth"
-import { AUTH_LABELS, AUTH_ERRORS } from "@/lib/constants/auth"
+import { AUTH_LABELS, AUTH_ERRORS, AUTH_PAGE_DESCRIPTIONS } from "@/lib/constants/auth"
 import { authClient } from "@/lib/auth/client"
 import { routes } from "@/lib/routes"
 import {
@@ -24,10 +24,12 @@ import {
   FormItem,
   FormLabel,
   FormControl,
+  FormDescription,
   FormMessage,
   Form,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { PasswordInput } from "@/components/ui/password-input"
 import { Mail } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
@@ -143,8 +145,8 @@ export default function RegisterPage() {
   if (showVerificationMessage) {
     return (
       <AuthShell
-        title="Verify your email"
-        description="We've sent a verification link to your inbox."
+        title={AUTH_LABELS.VERIFY_YOUR_EMAIL}
+        description={AUTH_LABELS.SENT_VERIFICATION_LINK}
       >
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-purple-100">
           <Mail className="h-8 w-8 text-purple-600" />
@@ -156,25 +158,24 @@ export default function RegisterPage() {
 
         <div className="space-y-2 text-sm text-muted-foreground">
           <p>
-            <strong>Next steps:</strong>
+            <strong>{AUTH_LABELS.NEXT_STEPS}</strong>
           </p>
           <ol className="list-decimal list-inside space-y-1 ml-2">
-            <li>Open your email inbox</li>
-            <li>Click the verification link</li>
-            <li>Return to sign in</li>
+            <li>{AUTH_LABELS.OPEN_EMAIL_INBOX}</li>
+            <li>{AUTH_LABELS.CLICK_VERIFICATION_LINK}</li>
+            <li>{AUTH_LABELS.RETURN_TO_SIGN_IN}</li>
           </ol>
         </div>
 
         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
           <p className="text-xs text-blue-800">
-            💡 <strong>Tip:</strong> Check your spam folder if you don&apos;t see the
-            email within a few minutes.
+            &#x1F4A1; <strong>{AUTH_LABELS.TIP_LABEL}</strong> {AUTH_LABELS.TIP_SPAM_FOLDER}
           </p>
         </div>
 
         <div className="space-y-2">
           <Button onClick={() => router.push(routes.ui.auth.login())} className="w-full">
-            Go to Sign In
+            {AUTH_LABELS.GO_TO_SIGN_IN}
           </Button>
           <Button
             variant="outline"
@@ -192,7 +193,7 @@ export default function RegisterPage() {
             }}
             className="w-full"
           >
-            Resend verification email
+            {AUTH_LABELS.RESEND_VERIFICATION_EMAIL}
           </Button>
         </div>
       </AuthShell>
@@ -202,7 +203,7 @@ export default function RegisterPage() {
   return (
     <AuthShell
       title={AUTH_LABELS.SIGN_UP}
-      description="Create your account to get started"
+      description={AUTH_PAGE_DESCRIPTIONS.SIGN_UP}
     >
       {isSessionLoading ? (
         <div className="flex items-center justify-center py-8">
@@ -252,12 +253,12 @@ export default function RegisterPage() {
             control={form.control}
             name="name"
             render={({ field }) => (
-              <FormItem>
+              <FormItem idBase="auth-register-name">
                 <FormLabel>{AUTH_LABELS.NAME}</FormLabel>
                 <FormControl>
                   <Input
                     type="text"
-                    placeholder="John Doe"
+                    placeholder={AUTH_LABELS.NAME_PLACEHOLDER}
                     autoComplete="name"
                     disabled={isPending}
                     {...field}
@@ -272,12 +273,12 @@ export default function RegisterPage() {
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem>
+              <FormItem idBase="auth-register-email">
                 <FormLabel>{AUTH_LABELS.EMAIL}</FormLabel>
                 <FormControl>
                   <Input
                     type="email"
-                    placeholder="your@email.com"
+                    placeholder={AUTH_LABELS.EMAIL_PLACEHOLDER}
                     autoComplete="email"
                     disabled={isPending}
                     {...field}
@@ -292,17 +293,21 @@ export default function RegisterPage() {
             control={form.control}
             name="password"
             render={({ field }) => (
-              <FormItem>
+              <FormItem idBase="auth-register-password">
                 <FormLabel>{AUTH_LABELS.PASSWORD}</FormLabel>
                 <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
+                  <PasswordInput
+                    placeholder={AUTH_LABELS.PASSWORD_PLACEHOLDER}
                     autoComplete="new-password"
                     disabled={isPending}
+                    showPasswordLabel={AUTH_LABELS.PASSWORD_SHOW}
+                    hidePasswordLabel={AUTH_LABELS.PASSWORD_HIDE}
                     {...field}
                   />
                 </FormControl>
+                <FormDescription className="text-xs">
+                  {AUTH_LABELS.PASSWORD_CONSTRAINT_HINT}
+                </FormDescription>
                 <FormMessage />
               </FormItem>
             )}
@@ -312,14 +317,15 @@ export default function RegisterPage() {
             control={form.control}
             name="confirmPassword"
             render={({ field }) => (
-              <FormItem>
+              <FormItem idBase="auth-register-confirm-password">
                 <FormLabel>{AUTH_LABELS.CONFIRM_PASSWORD}</FormLabel>
                 <FormControl>
-                  <Input
-                    type="password"
-                    placeholder="••••••••"
+                  <PasswordInput
+                    placeholder={AUTH_LABELS.PASSWORD_PLACEHOLDER}
                     autoComplete="new-password"
                     disabled={isPending}
+                    showPasswordLabel={AUTH_LABELS.PASSWORD_SHOW}
+                    hidePasswordLabel={AUTH_LABELS.PASSWORD_HIDE}
                     {...field}
                   />
                 </FormControl>
