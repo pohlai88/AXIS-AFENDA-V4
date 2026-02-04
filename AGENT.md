@@ -13,6 +13,12 @@ The goal is **stability + consistency**: prevent drift, avoid duplicate patterns
 - Typecheck (full suite): `pnpm typecheck:all`
 - Build (must be clean): `pnpm build`
 
+### Env and .env (mandatory safety)
+
+- **Never overwrite or delete `.env` without explicit user approval.**
+- **Before any operation that would modify or replace `.env`**, run `pnpm env:backup` so the user can restore with `pnpm env:restore` if needed.
+- Do not delete `.env.example`; it is the only committed template. App and tooling use `.env` (single env file).
+
 ### TypeScript config gotcha (prevents recurring failures)
 
 Next.js may auto-edit `tsconfig.json` during `pnpm build` to include `.next/types/**`.

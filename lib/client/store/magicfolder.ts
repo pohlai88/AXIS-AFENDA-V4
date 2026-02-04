@@ -22,3 +22,5 @@ export {
 } from "./magicfolder-upload"
 
 export { useMagicfolderDuplicatesStore } from "./magicfolder-duplicates"
+
+export { useThumbnailCache } from "./magicfolder-thumbnail-cache"

@@ -118,6 +118,15 @@ export function getDbClient(): postgres.Sql {
 }
 
 /**
+ * Export the database instance directly
+ */
+export const db = new Proxy({} as Db, {
+  get(_target, prop) {
+    return (getDb() as any)[prop]
+  },
+})
+
+/**
  * Executes a database transaction with automatic rollback
  */
 export async function withTransaction<T>(

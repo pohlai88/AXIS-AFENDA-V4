@@ -82,20 +82,12 @@ function loadEnv(filePath) {
 }
 
 /**
- * Load env vars from common Next.js locations.
- *
- * Next.js loads `.env`, `.env.local`, etc. automatically at runtime, but this
- * standalone Node script must do it explicitly.
- *
- * Precedence (last wins):
- * - .env
- * - .env.local
- * - process.env (explicit shell/CI env should override files)
+ * Load env vars from .env (single env file for this project).
+ * process.env (shell/CI) overrides file values.
  */
 function loadProjectEnv() {
-  const base = loadEnv(path.join(projectRoot, ".env"))
-  const local = loadEnv(path.join(projectRoot, ".env.local"))
-  return { ...base, ...local, ...process.env }
+  const fromFile = loadEnv(path.join(projectRoot, ".env"))
+  return { ...fromFile, ...process.env }
 }
 
 // Required variables for Neon Auth (current repo contract)

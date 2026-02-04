@@ -7,6 +7,7 @@ import { routes } from "@/lib/routes"
 import { getAuthContext } from "@/lib/server/auth/context"
 
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler"
+import { DomainMenu } from "@/components/domain-menu"
 import { AppBreadcrumbs } from "./_components/app-breadcrumbs"
 import { AppSidebar } from "./_components/app-sidebar"
 import { TokenRefreshProvider } from "./_components/token-refresh-provider"
@@ -44,8 +45,9 @@ export default async function AppShellLayout({ children }: Props) {
           <SidebarTrigger />
           <Separator orientation="vertical" className="h-4" />
           <AppBreadcrumbs appName={siteConfig.name} />
-          <div className="ml-auto flex items-center">
+          <div className="ml-auto flex items-center gap-1">
             <AnimatedThemeToggler />
+            <DomainMenu />
           </div>
         </header>
         <div className="flex flex-1 flex-col p-4 md:p-6">

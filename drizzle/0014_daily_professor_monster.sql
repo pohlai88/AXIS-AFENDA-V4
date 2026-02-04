@@ -1,0 +1,2 @@
+DROP INDEX "magicfolder_user_preferences_unique";--> statement-breakpoint
+ALTER TABLE "magicfolder_user_preferences" ADD CONSTRAINT "magicfolder_user_preferences_tenant_user_unique" UNIQUE("tenant_id","user_id");

@@ -1,0 +1,9 @@
+{
+  "name": "@afenda/afenda",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    ".": "./src/afenda.index.ts"
+  }
+}

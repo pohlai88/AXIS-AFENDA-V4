@@ -20,7 +20,7 @@ import { getAuthContext } from "@/lib/server/auth/context"
 import { getTenantContext } from "@/lib/server/tenant/context"
 import { getDb } from "@/lib/server/db/client"
 import { magicfolderUploads } from "@/lib/server/db/schema"
-import { getR2BucketName, getR2Client } from "@/lib/server/r2/client"
+import { getR2BucketName, getR2Client, isR2Configured } from "@/lib/server/r2/client"
 import { quarantineSourceKey } from "@/lib/server/r2/magicfolder-keys"
 
 export const dynamic = "force-dynamic"
@@ -31,6 +31,13 @@ export async function POST(request: Request) {
   const requestId = request.headers.get(HEADER_NAMES.REQUEST_ID) ?? undefined
 
   try {
+    if (!isR2Configured()) {
+      return fail(
+        { code: "UNAVAILABLE", message: "Storage not configured", requestId },
+        503
+      )
+    }
+
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
     const tenantId = tenant.tenantId

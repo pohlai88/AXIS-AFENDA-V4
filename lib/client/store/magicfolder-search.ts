@@ -15,6 +15,14 @@ export type MagicfolderSortBy = "createdAt" | "title" | "sizeBytes" | "docType"
 export type MagicfolderSortOrder = "asc" | "desc"
 export type MagicfolderViewMode = "list" | "grid"
 
+export type SavedView = {
+  id: string
+  name: string
+  filters: MagicfolderFilters
+  sortBy: MagicfolderSortBy
+  sortOrder: MagicfolderSortOrder
+}
+
 export type MagicfolderFilters = {
   status?: Status
   docType?: DocType

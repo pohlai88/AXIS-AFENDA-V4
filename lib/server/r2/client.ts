@@ -65,8 +65,6 @@ export function getR2BucketName(): string {
 }
 
 /**
- * Thin drop-in for skeleton-style code: single client and bucket name.
- * Equivalent to getR2Client() / getR2BucketName(); use those in new code.
+ * Use getR2Client() and getR2BucketName() so the module does not throw on import
+ * when R2 is not configured (e.g. when only using isR2Configured() or R2_PUBLIC_BASE_URL).
  */
-export const r2 = getR2Client()
-export const R2_BUCKET = getR2BucketName()

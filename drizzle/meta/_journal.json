@@ -85,6 +85,34 @@
       "when": 1760000000011,
       "tag": "0011_magicfolder_object_index_fts",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1770116676183,
+      "tag": "0012_gifted_johnny_blaze",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1770129828535,
+      "tag": "0013_confused_dakota_north",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1770131228211,
+      "tag": "0014_daily_professor_monster",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1770142522466,
+      "tag": "0015_messy_legion",
+      "breakpoints": true
     }
   ]
 }

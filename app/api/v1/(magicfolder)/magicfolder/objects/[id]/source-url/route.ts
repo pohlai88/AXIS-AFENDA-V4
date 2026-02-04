@@ -16,7 +16,7 @@ import { fail, ok } from "@/lib/server/api/response"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { getTenantContext } from "@/lib/server/tenant/context"
 import { getObjectById } from "@/lib/server/magicfolder/list"
-import { getR2BucketName, getR2Client } from "@/lib/server/r2/client"
+import { getR2BucketName, getR2Client, isR2Configured } from "@/lib/server/r2/client"
 import { canonicalSourceKey } from "@/lib/server/r2/magicfolder-keys"
 
 export const dynamic = "force-dynamic"
@@ -31,6 +31,13 @@ export async function GET(
   const { id } = await params
 
   try {
+    if (!isR2Configured()) {
+      return fail(
+        { code: "UNAVAILABLE", message: "Storage not configured", requestId },
+        503
+      )
+    }
+
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
     const tenantId = tenant.tenantId

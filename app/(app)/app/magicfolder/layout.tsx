@@ -9,7 +9,7 @@ import type { Metadata } from "next"
 
 export const metadata: Metadata = {
   title: "MagicFolder",
-  description: "Document inbox, duplicates, search, and collections",
+  description: "Intelligent document management with smart filtering and mobile-first design",
 }
 
 type Props = {

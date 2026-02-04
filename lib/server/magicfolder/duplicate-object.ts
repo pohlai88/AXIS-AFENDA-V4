@@ -1,0 +1,100 @@
+/**
+ * @domain magicfolder
+ * @layer server
+ * @responsibility Duplicate a document (object + current version) with R2 copy
+ */
+
+import "@/lib/server/only"
+
+import { CopyObjectCommand } from "@aws-sdk/client-s3"
+import { and, eq } from "drizzle-orm"
+import { randomUUID } from "node:crypto"
+
+import { getDb } from "@/lib/server/db/client"
+import {
+  magicfolderObjectVersions,
+  magicfolderObjects,
+} from "@/lib/server/db/schema"
+import { getR2BucketName, getR2Client } from "@/lib/server/r2/client"
+import { canonicalSourceKey } from "@/lib/server/r2/magicfolder-keys"
+
+export type DuplicateObjectResult =
+  | { ok: true; objectId: string; versionId: string }
+  | { ok: false; error: string }
+
+export async function duplicateObject(
+  tenantId: string,
+  ownerId: string,
+  objectId: string
+): Promise<DuplicateObjectResult> {
+  const db = getDb()
+
+  const [row] = await db
+    .select({
+      objectTitle: magicfolderObjects.title,
+      docType: magicfolderObjects.docType,
+      versionR2Key: magicfolderObjectVersions.r2Key,
+      versionMimeType: magicfolderObjectVersions.mimeType,
+      versionSizeBytes: magicfolderObjectVersions.sizeBytes,
+      versionSha256: magicfolderObjectVersions.sha256,
+    })
+    .from(magicfolderObjects)
+    .innerJoin(
+      magicfolderObjectVersions,
+      eq(magicfolderObjects.currentVersionId, magicfolderObjectVersions.id)
+    )
+    .where(
+      and(
+        eq(magicfolderObjects.id, objectId),
+        eq(magicfolderObjects.tenantId, tenantId)
+      )
+    )
+    .limit(1)
+
+  if (!row?.versionR2Key) return { ok: false, error: "Object or version not found" }
+
+  const newObjectId = randomUUID()
+  const newVersionId = randomUUID()
+  const newKey = canonicalSourceKey(tenantId, newObjectId, newVersionId)
+  const bucket = getR2BucketName()
+  const s3 = getR2Client()
+  const copySource = `${bucket}/${row.versionR2Key}`
+
+  try {
+    await s3.send(
+      new CopyObjectCommand({
+        Bucket: bucket,
+        CopySource: copySource,
+        Key: newKey,
+        ContentType: row.versionMimeType,
+      })
+    )
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { ok: false, error: `R2 copy failed: ${message}` }
+  }
+
+  const title = row.objectTitle ? `${row.objectTitle} (copy)` : "Copy"
+
+  await db.insert(magicfolderObjects).values({
+    id: newObjectId,
+    tenantId,
+    ownerId,
+    currentVersionId: newVersionId,
+    title,
+    docType: row.docType,
+    status: "inbox",
+  })
+
+  await db.insert(magicfolderObjectVersions).values({
+    id: newVersionId,
+    objectId: newObjectId,
+    versionNo: 1,
+    r2Key: newKey,
+    mimeType: row.versionMimeType,
+    sizeBytes: row.versionSizeBytes,
+    sha256: row.versionSha256,
+  })
+
+  return { ok: true, objectId: newObjectId, versionId: newVersionId }
+}

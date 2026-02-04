@@ -44,7 +44,38 @@ export async function updateObjectStatus(
   return { ok: true }
 }
 
-export type BulkAction = "archive" | "addTag"
+export type DeleteObjectResult =
+  | { ok: true }
+  | { ok: false; error: string }
+
+export async function deleteObject(
+  tenantId: string,
+  objectId: string
+): Promise<DeleteObjectResult> {
+  const db = getDb()
+  const [row] = await db
+    .select({ id: magicfolderObjects.id })
+    .from(magicfolderObjects)
+    .where(
+      and(
+        eq(magicfolderObjects.id, objectId),
+        eq(magicfolderObjects.tenantId, tenantId)
+      )
+    )
+    .limit(1)
+  if (!row) return { ok: false, error: "Object not found" }
+  await db
+    .update(magicfolderObjects)
+    .set({
+      status: STATUS.DELETED,
+      deletedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(magicfolderObjects.id, objectId))
+  return { ok: true }
+}
+
+export type BulkAction = "archive" | "addTag" | "delete" | "activate"
 export type BulkActionResult =
   | { ok: true; updated: number }
   | { ok: false; error: string }
@@ -62,6 +93,32 @@ export async function runBulkAction(
     await db
       .update(magicfolderObjects)
       .set({ status: STATUS.ARCHIVED, updatedAt: new Date() })
+      .where(
+        and(
+          inArray(magicfolderObjects.id, objectIds),
+          eq(magicfolderObjects.tenantId, tenantId)
+        )
+      )
+    return { ok: true, updated: objectIds.length }
+  }
+
+  if (action === "delete") {
+    await db
+      .update(magicfolderObjects)
+      .set({ status: STATUS.DELETED, deletedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          inArray(magicfolderObjects.id, objectIds),
+          eq(magicfolderObjects.tenantId, tenantId)
+        )
+      )
+    return { ok: true, updated: objectIds.length }
+  }
+
+  if (action === "activate") {
+    await db
+      .update(magicfolderObjects)
+      .set({ status: STATUS.ACTIVE, updatedAt: new Date() })
       .where(
         and(
           inArray(magicfolderObjects.id, objectIds),

@@ -1,22 +1,77 @@
 /**
- * Loading UI for MagicFolder segment (Next.js Suspense boundary).
- * Shown while child segment (page or nested layout) is loading.
- * @see https://nextjs.org/docs/app/api-reference/file-conventions/loading
+ * @domain magicfolder
+ * @layer ui
+ * @responsibility Loading state for main MagicFolder page
  */
 
+import { Card, CardContent } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function MagicFolderLoading() {
   return (
-    <div className="space-y-6" data-slot="magicfolder-loading">
-      <div className="space-y-1">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-64" />
+    <div className="space-y-4 sm:space-y-6">
+      {/* Header */}
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0 flex-1">
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Skeleton className="h-9 w-24" />
+            <Skeleton className="h-9 w-24" />
+          </div>
+        </div>
+
+        {/* Stats cards */}
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="animate-pulse">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex items-center gap-2 sm:gap-3">
+                  <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <Skeleton className="h-6 w-16" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
-      <Skeleton className="h-12 w-full max-w-md" />
-      <div className="space-y-2">
-        <Skeleton className="h-10 w-full" />
-        <Skeleton className="h-64 w-full" />
+
+      {/* Filters skeleton */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Skeleton className="h-10 w-full max-w-md" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-9 w-32" />
+          <Skeleton className="h-9 w-32" />
+        </div>
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <Skeleton className="h-4 w-32" />
+        <div className="flex items-center gap-2">
+          <Skeleton className="h-9 w-32" />
+          <Skeleton className="h-9 w-40" />
+        </div>
+      </div>
+
+      {/* Documents grid skeleton */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Card key={i} className="animate-pulse">
+            <CardContent className="p-4">
+              <div className="space-y-3">
+                <Skeleton className="h-24 w-full rounded" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-3 w-1/2" />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   )

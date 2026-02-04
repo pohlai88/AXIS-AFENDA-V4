@@ -9,4 +9,5 @@ import "@/lib/server/only"
 
 export { getDb, getDbClient, withTransaction, checkDbHealth, closeDb } from "./client"
 export { checkRlsHealth } from "./client"
+export { db } from "./client"
 

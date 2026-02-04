@@ -236,7 +236,9 @@ vi.mock("@/lib/env/server", () => ({
 
 ## Environment Files
 
-### Development (.env.local)
+### Development and production (`.env` only)
+
+Use a single `.env` file. Example:
 
 ```bash
 # Database
@@ -251,7 +253,7 @@ ENABLE_ANALYTICS=false
 ENABLE_CACHE=true
 ```
 
-### Production (.env.production)
+For production, set the same keys in your deployment env (e.g. Vercel); values can reference secrets:
 
 ```bash
 # Database

@@ -14,7 +14,7 @@ export default defineConfig({
       const url = process.env.DATABASE_URL_MIGRATIONS ?? process.env.DATABASE_URL
       if (!url) {
         throw new Error(
-          "DATABASE_URL_MIGRATIONS (preferred) or DATABASE_URL is required for drizzle-kit. Set it in .env.local (recommended) or your shell env."
+          "DATABASE_URL_MIGRATIONS (preferred) or DATABASE_URL is required for drizzle-kit. Set in .env."
         )
       }
       return url

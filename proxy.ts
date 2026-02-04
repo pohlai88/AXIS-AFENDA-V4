@@ -21,7 +21,7 @@ export default async function proxy(req: NextRequest) {
     default-src 'self';
     script-src 'self' 'nonce-${nonce}' 'sha256-rbbnijHn7DZ6ps39myQ3cVQF1H+U/PJfHh5ei/Q2kb8=' ${isDev ? "'unsafe-eval'" : ""};
     style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data: https://images.unsplash.com;
+    img-src 'self' blob: data: https://images.unsplash.com https://*.r2.cloudflarestorage.com;
     font-src 'self';
     connect-src 'self' ${isDev ? "ws: wss:" : ""};
     object-src 'none';

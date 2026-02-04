@@ -260,7 +260,7 @@
 
 **Environment Variables to Set:**
 ```bash
-# Add to .env.local / .env.production
+# Add to .env
 USE_NEON_DATA_API=false  # Set to "true" if using Data API
 ```
 
@@ -289,35 +289,35 @@ USE_NEON_DATA_API=false  # Set to "true" if using Data API
 ## Feature Comparison: Before & After
 
 ### Token Management
-| Aspect | Before | After |
-|--------|--------|-------|
-| Manual refresh | Required | Automatic |
-| Refresh timing | Manual | Proactive (< 10 min) |
-| Client integration | None | Hook-based |
-| Response headers | None | X-Token-* headers |
+| Aspect             | Before   | After                |
+| ------------------ | -------- | -------------------- |
+| Manual refresh     | Required | Automatic            |
+| Refresh timing     | Manual   | Proactive (< 10 min) |
+| Client integration | None     | Hook-based           |
+| Response headers   | None     | X-Token-* headers    |
 
 ### Session Management
-| Aspect | Before | After |
-|--------|--------|-------|
-| Session listing | Not available | GET /api/auth/sessions |
-| Session revocation | Not available | POST revoke endpoint |
-| Device info | Not tracked | Device/Browser/OS detection |
-| User control | Limited | Full session control |
+| Aspect             | Before        | After                       |
+| ------------------ | ------------- | --------------------------- |
+| Session listing    | Not available | GET /api/auth/sessions      |
+| Session revocation | Not available | POST revoke endpoint        |
+| Device info        | Not tracked   | Device/Browser/OS detection |
+| User control       | Limited       | Full session control        |
 
 ### JWT Handling
-| Aspect | Before | After |
-|--------|--------|-------|
-| Claim extraction | Generic fallback | Explicit structure |
-| Type safety | Partial | Full TypeScript |
-| Validation | Minimal | Complete validation |
-| Error logging | Basic | Detailed with context |
+| Aspect           | Before           | After                 |
+| ---------------- | ---------------- | --------------------- |
+| Claim extraction | Generic fallback | Explicit structure    |
+| Type safety      | Partial          | Full TypeScript       |
+| Validation       | Minimal          | Complete validation   |
+| Error logging    | Basic            | Detailed with context |
 
 ### Configuration
-| Aspect | Before | After |
-|--------|--------|-------|
-| Data API validation | Optional | Conditional |
-| Error handling | Silent failures | Fail-fast |
-| Error messages | Generic | Specific guidance |
+| Aspect              | Before          | After             |
+| ------------------- | --------------- | ----------------- |
+| Data API validation | Optional        | Conditional       |
+| Error handling      | Silent failures | Fail-fast         |
+| Error messages      | Generic         | Specific guidance |
 
 ---
 

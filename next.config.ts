@@ -16,10 +16,24 @@ const withSerwist = withSerwistInit({
 const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname, "."),
+    resolveAlias: {
+      // Add any custom module aliases here if needed
+    },
+    resolveExtensions: [
+      ".mdx",
+      ".tsx",
+      ".ts",
+      ".jsx",
+      ".js",
+      ".mjs",
+      ".json",
+    ],
   },
   experimental: {
     optimizePackageImports: ["lucide-react", "@radix-ui/react-icons"],
     webpackMemoryOptimizations: true,
+    turbopackFileSystemCacheForDev: true,
+    turbopackFileSystemCacheForBuild: true,
   },
   async headers() {
     return [

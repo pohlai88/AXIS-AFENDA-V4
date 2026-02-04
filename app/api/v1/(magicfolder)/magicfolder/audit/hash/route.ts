@@ -14,6 +14,7 @@ import { fail, ok } from "@/lib/server/api/response"
 import { getAuthContext } from "@/lib/server/auth/context"
 import { getTenantContext } from "@/lib/server/tenant/context"
 import { runHashAudit } from "@/lib/server/magicfolder/hash-audit"
+import { isR2Configured } from "@/lib/server/r2/client"
 
 export const dynamic = "force-dynamic"
 
@@ -29,6 +30,13 @@ export async function GET(request: Request) {
   )
 
   try {
+    if (!isR2Configured()) {
+      return fail(
+        { code: "UNAVAILABLE", message: "Storage not configured", requestId },
+        503
+      )
+    }
+
     const [auth, tenant] = await Promise.all([getAuthContext(), getTenantContext()])
     if (!auth.userId) throw Unauthorized()
     if (!tenant.tenantId) throw Unauthorized("Missing tenant")

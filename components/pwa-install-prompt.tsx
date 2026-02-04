@@ -124,7 +124,7 @@ export function PWAInstallPrompt() {
 
   return (
     <Dialog open={showPrompt} onOpenChange={setShowPrompt}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md" showCloseButton={false}>
         <DialogHeader>
           <button
             onClick={handleDismiss}

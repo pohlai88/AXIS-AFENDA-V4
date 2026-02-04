@@ -35,6 +35,32 @@ export function AppBreadcrumbs({ appName }: Props) {
     if (slug) crumbs.push({ label: getModuleBySlug(slug)?.name ?? slug })
   } else if (pathname.startsWith(routes.ui.orchestra.approvals())) {
     crumbs.push({ label: "Approvals" })
+  } else if (pathname.startsWith(routes.ui.magicfolder.landing())) {
+    // MagicFolder breadcrumb handling
+    const magicfolderPath = pathname.replace(routes.ui.magicfolder.landing(), "").split("/").filter(Boolean)
+
+    if (magicfolderPath.length === 0) {
+      // Main MagicFolder hub
+      crumbs.push({ label: "MagicFolder" })
+    } else if (magicfolderPath[0] === "documents" && magicfolderPath.length === 2) {
+      // Document detail view
+      crumbs.push({ label: "MagicFolder", href: routes.ui.magicfolder.landing() })
+      crumbs.push({ label: "Document" })
+    } else {
+      // Specialized MagicFolder views
+      const viewNames: Record<string, string> = {
+        inbox: "Inbox",
+        duplicates: "Duplicates",
+        unsorted: "Unsorted",
+        search: "Search",
+        collections: "Collections",
+        audit: "Audit"
+      }
+
+      const viewName = viewNames[magicfolderPath[0]] || magicfolderPath[0]
+      crumbs.push({ label: "MagicFolder", href: routes.ui.magicfolder.landing() })
+      crumbs.push({ label: viewName })
+    }
   } else {
     crumbs.push({ label: "App Shell" })
   }

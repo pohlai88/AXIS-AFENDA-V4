@@ -33,25 +33,16 @@
 
 ## Step 2: Update Environment Variables (5 minutes)
 
-### Add to `.env.local`:
+### Add to `.env`:
 
 ```env
 # =============================================================================
 # Caching (Upstash Redis)
 # =============================================================================
 REDIS_URL=redis://default:<password>@<hostname>:<port>
-REDIS_SUBDOMAIN_TTL=3600  # 1 hour for subdomain configs
-REDIS_ORG_CONFIG_TTL=1800  # 30 min for org settings
-REDIS_ENABLED=true
-```
-
-### Add to `.env` (git-tracked):
-
-```env
-# Caching flags (can be disabled if Redis fails)
-REDIS_ENABLED=true
 REDIS_SUBDOMAIN_TTL=3600
 REDIS_ORG_CONFIG_TTL=1800
+REDIS_ENABLED=true
 ```
 
 ### Vercel Dashboard:
@@ -471,7 +462,7 @@ vercel deploy --prod
 ### Manual Deployment
 
 ```bash
-# Ensure .env.production has REDIS_URL
+# Ensure .env has REDIS_URL
 # Build and deploy using your normal process
 pnpm build
 pnpm start

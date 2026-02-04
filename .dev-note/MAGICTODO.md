@@ -231,7 +231,7 @@ Postgres runs on `localhost:5432` with:
 
 ### 3. Setup Database
 
-Create `.env.local`:
+Create or edit `.env`:
 
 ```bash
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/magictodo
@@ -393,7 +393,7 @@ curl -X POST http://localhost:3000/api/cron/generate-recurrence \
 ### Configuration
 
 - **Schedule**: `0 2 * * *` (2 AM UTC daily) — edit in `vercel.json`
-- **Secret**: Set `CRON_SECRET=dev-secret-key` in `.env.local` for local testing
+- **Secret**: Set `CRON_SECRET=dev-secret-key` in `.env` for local testing
 - **Limit**: Generates up to 100 occurrences per run (batch-safe)
 
 ### History Tracking
@@ -623,15 +623,15 @@ The platform combines three proven approaches:
 
 | Component       | Backend | Frontend | Status            |
 | --------------- | ------- | -------- | ----------------- |
-| Task Management | ✅ 100% | ✅ 100%  | **Production**    |
-| Projects        | ✅ 100% | ✅ 100%  | **Production**    |
-| Analytics       | ✅ 100% | ✅ 100%  | **Production**    |
-| Approvals       | ✅ 100% | ✅ 100%  | **Production**    |
-| Organizations   | ✅ 100% | ⚠️ 0%    | **Backend Ready** |
-| Teams           | ✅ 100% | ⚠️ 0%    | **Backend Ready** |
-| Permissions     | ✅ 100% | ✅ 80%   | **Mostly Ready**  |
-| Sharing         | ✅ 100% | ⚠️ 0%    | **Backend Ready** |
-| Feature Flags   | ✅ 100% | ✅ 100%  | **Production**    |
+| Task Management | ✅ 100%  | ✅ 100%   | **Production**    |
+| Projects        | ✅ 100%  | ✅ 100%   | **Production**    |
+| Analytics       | ✅ 100%  | ✅ 100%   | **Production**    |
+| Approvals       | ✅ 100%  | ✅ 100%   | **Production**    |
+| Organizations   | ✅ 100%  | ⚠️ 0%     | **Backend Ready** |
+| Teams           | ✅ 100%  | ⚠️ 0%     | **Backend Ready** |
+| Permissions     | ✅ 100%  | ✅ 80%    | **Mostly Ready**  |
+| Sharing         | ✅ 100%  | ⚠️ 0%     | **Backend Ready** |
+| Feature Flags   | ✅ 100%  | ✅ 100%   | **Production**    |
 
 ### Key Files & Services
 

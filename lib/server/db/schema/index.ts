@@ -1,5 +1,7 @@
 import { relations } from "drizzle-orm"
+import { sql } from "drizzle-orm"
 import {
+  customType,
   pgSchema,
   pgTable,
   text,
@@ -13,10 +15,24 @@ import {
   foreignKey,
   primaryKey,
   serial,
+  unique,
 } from "drizzle-orm/pg-core"
 
 import { TASK_PRIORITY, TASK_STATUS } from "@/lib/contracts/tasks"
 import { ORGANIZATION, TEAM } from "@/lib/constants"
+
+// PostgreSQL tsvector for full-text search (magicfolder_object_index.search_vector, trigger-maintained)
+const tsvector = customType<{ data: string | null; driverData: string | null }>({
+  dataType() {
+    return "tsvector"
+  },
+  toDriver(value) {
+    return value
+  },
+  fromDriver(value) {
+    return value as string | null
+  },
+})
 
 /**
  * AFENDA Drizzle schema (best-practice Neon Auth integration).
@@ -182,6 +198,7 @@ export const magicfolderObjects = pgTable(
     ownerIdIdx: index("magicfolder_objects_owner_id_idx").on(table.ownerId),
     statusIdx: index("magicfolder_objects_status_idx").on(table.status),
     deletedAtIdx: index("magicfolder_objects_deleted_at_idx").on(table.deletedAt),
+    // current_version_id FK to magicfolder_object_versions.id (SET NULL) applied in migration 0007
   })
 )
 
@@ -242,6 +259,10 @@ export const magicfolderDuplicateGroups = pgTable(
   (table) => ({
     tenantIdIdx: index("magicfolder_duplicate_groups_tenant_id_idx").on(table.tenantId),
     keepVersionIdIdx: index("magicfolder_duplicate_groups_keep_version_id_idx").on(table.keepVersionId),
+    keepVersionFk: foreignKey({
+      columns: [table.keepVersionId],
+      foreignColumns: [magicfolderObjectVersions.id],
+    }).onDelete("set null"),
   })
 )
 
@@ -271,11 +292,14 @@ export const magicfolderObjectIndex = pgTable(
     extractedText: text("extracted_text"),
     extractedFields: jsonb("extracted_fields").$type<Record<string, unknown>>(),
     textHash: varchar("text_hash", { length: 64 }),
+    /** FTS column; maintained by trigger magicfolder_object_index_search_vector_trg (migration 0011). */
+    searchVector: tsvector("search_vector"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => ({
     objectIdIdx: index("magicfolder_object_index_object_id_idx").on(table.objectId),
     textHashIdx: index("magicfolder_object_index_text_hash_idx").on(table.textHash),
+    // GIN index on search_vector created by migration 0011 (trigger-maintained tsvector)
   })
 )
 
@@ -307,6 +331,95 @@ export const magicfolderObjectTags = pgTable(
     pk: primaryKey({ columns: [table.objectId, table.tagId] }),
     objectIdIdx: index("magicfolder_object_tags_object_id_idx").on(table.objectId),
     tagIdIdx: index("magicfolder_object_tags_tag_id_idx").on(table.tagId),
+  })
+)
+
+// ============ MagicFolder Saved Views ============
+export const magicfolderSavedViews = pgTable(
+  "magicfolder_saved_views",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => neonAuthUsers.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    filters: jsonb("filters").notNull().default({}),
+    viewMode: varchar("view_mode", { length: 50 }).notNull().default("cards"),
+    sortBy: varchar("sort_by", { length: 50 }).notNull().default("createdAt"),
+    sortOrder: varchar("sort_order", { length: 10 }).notNull().default("desc"),
+    isPublic: boolean("is_public").notNull().default(false),
+    isDefault: boolean("is_default").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    nameUniquePerUser: index("magicfolder_saved_views_name_unique_per_user").on(
+      table.tenantId,
+      table.userId,
+      table.name
+    ),
+    tenantIdIdx: index("magicfolder_saved_views_tenant_id_idx").on(table.tenantId),
+    userIdIdx: index("magicfolder_saved_views_user_id_idx").on(table.userId),
+  })
+)
+
+// ============ MagicFolder User Preferences ============
+export const magicfolderUserPreferences = pgTable(
+  "magicfolder_user_preferences",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => neonAuthUsers.id, { onDelete: "cascade" }),
+    defaultView: varchar("default_view", { length: 50 }).notNull().default("cards"),
+    itemsPerPage: integer("items_per_page").notNull().default(20),
+    defaultSort: varchar("default_sort", { length: 50 }).notNull().default("createdAt-desc"),
+    showFileExtensions: boolean("show_file_extensions").notNull().default(true),
+    showThumbnails: boolean("show_thumbnails").notNull().default(true),
+    compactMode: boolean("compact_mode").notNull().default(false),
+    quickSettings: jsonb("quick_settings").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    magicfolderUserPreferencesTenantUserUnique: unique(
+      "magicfolder_user_preferences_tenant_user_unique"
+    ).on(table.tenantId, table.userId),
+    tenantIdIdx: index("magicfolder_user_preferences_tenant_id_idx").on(table.tenantId),
+    userIdIdx: index("magicfolder_user_preferences_user_id_idx").on(table.userId),
+  })
+)
+
+// ============ MagicFolder Tenant Settings ============
+export const magicfolderTenantSettings = pgTable(
+  "magicfolder_tenant_settings",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    tenantId: varchar("tenant_id", { length: 255 }).notNull().unique(),
+    documentTypes: jsonb("document_types").notNull().default([
+      { value: "invoice", label: "Invoices", enabled: true },
+      { value: "contract", label: "Contracts", enabled: true },
+      { value: "receipt", label: "Receipts", enabled: true },
+      { value: "other", label: "Other", enabled: true },
+    ]),
+    statusWorkflow: jsonb("status_workflow").notNull().default([
+      { value: "inbox", label: "Inbox", color: "#3b82f6", enabled: true },
+      { value: "active", label: "Active", color: "#22c55e", enabled: true },
+      { value: "archived", label: "Archived", color: "#6b7280", enabled: true },
+      { value: "deleted", label: "Deleted", color: "#ef4444", enabled: true },
+    ]),
+    enableAiSuggestions: boolean("enable_ai_suggestions").notNull().default(true),
+    enablePublicShares: boolean("enable_public_shares").notNull().default(true),
+    maxFileSizeMb: integer("max_file_size_mb").notNull().default(100),
+    allowedFileTypes: text("allowed_file_types").array().notNull().default(sql`'{}'::text[]`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    tenantIdIdx: index("magicfolder_tenant_settings_tenant_id_idx").on(table.tenantId),
   })
 )
 
@@ -671,5 +784,81 @@ export const userActivityLogRelations = relations(userActivityLog, ({ one }) => 
 
 export const securityEventLogRelations = relations(securityEventLog, ({ one }) => ({
   user: one(neonAuthUsers, { fields: [securityEventLog.userId], references: [neonAuthUsers.id] }),
+}))
+
+// ============ MagicFolder relations ============
+export const magicfolderObjectsRelations = relations(magicfolderObjects, ({ one, many }) => ({
+  owner: one(neonAuthUsers, { fields: [magicfolderObjects.ownerId], references: [neonAuthUsers.id] }),
+  currentVersion: one(magicfolderObjectVersions, {
+    fields: [magicfolderObjects.currentVersionId],
+    references: [magicfolderObjectVersions.id],
+  }),
+  versions: many(magicfolderObjectVersions),
+  index: many(magicfolderObjectIndex),
+  objectTags: many(magicfolderObjectTags),
+}))
+
+export const magicfolderObjectVersionsRelations = relations(magicfolderObjectVersions, ({ one, many }) => ({
+  object: one(magicfolderObjects, { fields: [magicfolderObjectVersions.objectId], references: [magicfolderObjects.id] }),
+  duplicateGroupVersions: many(magicfolderDuplicateGroupVersions),
+}))
+
+export const magicfolderUploadsRelations = relations(magicfolderUploads, ({ one }) => ({
+  owner: one(neonAuthUsers, { fields: [magicfolderUploads.ownerId], references: [neonAuthUsers.id] }),
+}))
+
+export const magicfolderDuplicateGroupsRelations = relations(magicfolderDuplicateGroups, ({ one, many }) => ({
+  keepVersion: one(magicfolderObjectVersions, {
+    fields: [magicfolderDuplicateGroups.keepVersionId],
+    references: [magicfolderObjectVersions.id],
+  }),
+  versions: many(magicfolderDuplicateGroupVersions),
+}))
+
+export const magicfolderDuplicateGroupVersionsRelations = relations(
+  magicfolderDuplicateGroupVersions,
+  ({ one }) => ({
+    group: one(magicfolderDuplicateGroups, {
+      fields: [magicfolderDuplicateGroupVersions.groupId],
+      references: [magicfolderDuplicateGroups.id],
+    }),
+    version: one(magicfolderObjectVersions, {
+      fields: [magicfolderDuplicateGroupVersions.versionId],
+      references: [magicfolderObjectVersions.id],
+    }),
+  })
+)
+
+export const magicfolderObjectIndexRelations = relations(magicfolderObjectIndex, ({ one }) => ({
+  object: one(magicfolderObjects, {
+    fields: [magicfolderObjectIndex.objectId],
+    references: [magicfolderObjects.id],
+  }),
+}))
+
+export const magicfolderTagsRelations = relations(magicfolderTags, ({ many }) => ({
+  objectTags: many(magicfolderObjectTags),
+}))
+
+export const magicfolderObjectTagsRelations = relations(magicfolderObjectTags, ({ one }) => ({
+  object: one(magicfolderObjects, {
+    fields: [magicfolderObjectTags.objectId],
+    references: [magicfolderObjects.id],
+  }),
+  tag: one(magicfolderTags, {
+    fields: [magicfolderObjectTags.tagId],
+    references: [magicfolderTags.id],
+  }),
+}))
+
+export const magicfolderSavedViewsRelations = relations(magicfolderSavedViews, ({ one }) => ({
+  user: one(neonAuthUsers, { fields: [magicfolderSavedViews.userId], references: [neonAuthUsers.id] }),
+}))
+
+export const magicfolderUserPreferencesRelations = relations(magicfolderUserPreferences, ({ one }) => ({
+  user: one(neonAuthUsers, {
+    fields: [magicfolderUserPreferences.userId],
+    references: [neonAuthUsers.id],
+  }),
 }))
 

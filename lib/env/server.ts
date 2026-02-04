@@ -2,7 +2,8 @@ import "@/lib/server/only"
 import { z } from "zod"
 
 const ServerEnvSchema = z.object({
-  DATABASE_URL: z.string().min(1).optional(),
+  // Required for DB (Neon + Drizzle). Use pooler URL; get from Neon Dashboard or pnpm neon:projects.
+  DATABASE_URL: z.string().min(1),
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
 
   // Dev-only convenience: default tenant when cookie/header is missing.
@@ -63,7 +64,7 @@ export function requireServerEnv<K extends keyof ServerEnv>(key: K): NonNullable
   if (value == null || value === "") {
     throw new Error(
       `Missing required server environment variable: ${String(key)}\n` +
-        `Set this variable in your .env.local or .env file.`
+      `Set this variable in your .env file.`
     )
   }
   return value as NonNullable<ServerEnv[K]>

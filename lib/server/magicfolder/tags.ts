@@ -15,6 +15,7 @@ import {
   magicfolderObjects,
   magicfolderTags,
 } from "@/lib/server/db/schema"
+import { logger } from "@/lib/server/logger"
 
 export type TagRow = {
   id: string
@@ -27,12 +28,17 @@ export type TagRow = {
 export async function listTagsByTenant(
   tenantId: string
 ): Promise<TagRow[]> {
-  const db = getDb()
-  const rows = await db
-    .select()
-    .from(magicfolderTags)
-    .where(eq(magicfolderTags.tenantId, tenantId))
-  return rows
+  try {
+    const db = getDb()
+    const rows = await db
+      .select()
+      .from(magicfolderTags)
+      .where(eq(magicfolderTags.tenantId, tenantId))
+    return rows
+  } catch (error) {
+    logger.error({ err: error, tenantId }, "[magicfolder/tags] listTagsByTenant failed")
+    throw error
+  }
 }
 
 export async function listTagsForObject(
@@ -176,6 +182,29 @@ export async function removeTagFromObject(
 
 function nameToSlug(name: string): string {
   return name.toLowerCase().trim().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")
+}
+
+export async function deleteTag(
+  tenantId: string,
+  tagId: string
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const db = getDb()
+  const [tag] = await db
+    .select({ id: magicfolderTags.id })
+    .from(magicfolderTags)
+    .where(
+      and(
+        eq(magicfolderTags.id, tagId),
+        eq(magicfolderTags.tenantId, tenantId)
+      )
+    )
+    .limit(1)
+  if (!tag) return { ok: false, error: "Tag not found" }
+  await db
+    .delete(magicfolderObjectTags)
+    .where(eq(magicfolderObjectTags.tagId, tagId))
+  await db.delete(magicfolderTags).where(eq(magicfolderTags.id, tagId))
+  return { ok: true }
 }
 
 export async function createTag(

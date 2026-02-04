@@ -1,16 +1,15 @@
-"use client"
-
 /**
- * Error boundary for MagicFolder segment.
- * Catches errors in magicfolder routes and shows recovery UI.
- * @see https://nextjs.org/docs/app/api-reference/file-conventions/error
+ * @domain magicfolder
+ * @layer ui
+ * @responsibility Error state for main MagicFolder page
  */
 
+"use client"
+
 import { useEffect } from "react"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircleIcon } from "lucide-react"
+import { AlertTriangle } from "lucide-react"
 
 export default function MagicFolderError({
   error,
@@ -20,27 +19,21 @@ export default function MagicFolderError({
   reset: () => void
 }) {
   useEffect(() => {
-    console.error("[MagicFolder]", error)
+    console.error('MagicFolder error:', error)
   }, [error])
 
   return (
-    <Card data-slot="magicfolder-error">
-      <CardHeader className="border-b">
-        <CardTitle>MagicFolder error</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <Alert variant="destructive">
-          <AlertCircleIcon />
-          <AlertTitle>Something went wrong</AlertTitle>
-          <AlertDescription>{error.message}</AlertDescription>
-        </Alert>
-        {error.digest ? (
-          <p className="text-muted-foreground text-xs">Digest: {error.digest}</p>
-        ) : null}
-        <Button onClick={() => reset()} variant="outline">
-          Try again
-        </Button>
-      </CardContent>
-    </Card>
+    <div className="flex items-center justify-center min-h-[400px] p-4">
+      <Card className="max-w-md w-full">
+        <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
+          <AlertTriangle className="h-16 w-16 text-destructive" />
+          <h2 className="text-2xl font-bold text-center">Something Went Wrong</h2>
+          <p className="text-muted-foreground text-center">
+            {error.message || "An error occurred while loading your documents. Please try again."}
+          </p>
+          <Button onClick={reset}>Try Again</Button>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

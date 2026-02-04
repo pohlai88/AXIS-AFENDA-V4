@@ -1,27 +1,22 @@
 /**
  * @domain magicfolder
- * @layer ui
- * @responsibility Hash audit UI: run GET audit/hash with sample size, display result
+ * @layer page
+ * @responsibility Hash audit: verify R2 object SHA-256 matches DB
  */
 
 "use client"
 
-import { useState, useCallback } from "react"
-
+import { useState } from "react"
 import Link from "next/link"
 import { routes } from "@/lib/routes"
 import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { AlertCircle, ShieldCheck } from "lucide-react"
+import { ArrowLeft, ShieldCheck, AlertCircle, CheckCircle, Loader2 } from "lucide-react"
 
-import {
-  MagicfolderPageHeader,
-  MagicfolderSection,
-} from "@/components/magicfolder"
-
-type HashAuditResult = {
+type AuditResult = {
   sampled: number
   checked: number
   matched: number
@@ -29,126 +24,147 @@ type HashAuditResult = {
   errors: Array<{ versionId: string; error: string }>
 }
 
-type AuditResponse = {
-  data?: HashAuditResult
-  error?: { code: string; message: string }
-}
-
-export default function MagicFolderAuditPage() {
-  const [sampleSize, setSampleSize] = useState(20)
+export default function AuditPage() {
   const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<AuditResult | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [result, setResult] = useState<HashAuditResult | null>(null)
+  const [sampleSize, setSampleSize] = useState(20)
 
-  const runAudit = useCallback(() => {
-    const size = Math.min(100, Math.max(1, sampleSize))
+  const runAudit = async () => {
     setLoading(true)
     setError(null)
     setResult(null)
-    fetch(`${routes.api.v1.magicfolder.auditHash()}?sample=${size}`, {
-      credentials: "include",
-    })
-      .then((r) => r.json() as Promise<AuditResponse>)
-      .then((res) => {
-        if (res.error) {
-          setError(res.error.message)
-          return
-        }
-        if (res.data) setResult(res.data)
-      })
-      .catch((e) => {
-        setError(e instanceof Error ? e.message : "Audit failed")
-      })
-      .finally(() => setLoading(false))
-  }, [sampleSize])
+    try {
+      const res = await fetch(
+        `${routes.api.v1.magicfolder.auditHash()}?sample=${Math.min(100, Math.max(1, sampleSize))}`,
+        { credentials: "include" }
+      )
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data?.error?.message ?? "Audit failed")
+      }
+      const data = await res.json()
+      setResult(data.data ?? null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Audit failed")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
-    <MagicfolderSection layout="stack" className="space-y-6">
-      <MagicfolderPageHeader
-        title="MagicFolder · Hash audit"
-        description="Verify stored object SHA-256 hashes against R2. Sample versions are re-downloaded and checked."
-        actions={
-          <Link
-            href={routes.ui.magicfolder.landing()}
-            className="text-sm font-medium text-primary hover:underline"
-          >
-            Back to MagicFolder
-          </Link>
-        }
-      />
-
-      <MagicfolderSection layout="stack" className="max-w-md space-y-2">
-        <Label htmlFor="audit-sample-size">Sample size (1–100)</Label>
-        <div className="flex gap-2">
-          <Input
-            id="audit-sample-size"
-            type="number"
-            min={1}
-            max={100}
-            value={sampleSize}
-            onChange={(e) => setSampleSize(parseInt(e.target.value, 10) || 20)}
-          />
-          <Button onClick={runAudit} disabled={loading}>
-            {loading ? "Running…" : "Run audit"}
+    <div className="container max-w-4xl py-6">
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href={routes.ui.magicfolder.root()}>
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
           </Button>
-        </div>
-      </MagicfolderSection>
-
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {result && (
-        <MagicfolderSection layout="stack" className="space-y-3">
-          <div className="flex items-center gap-2 text-sm">
-            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-            <span>
-              Verified <strong>{result.matched}</strong> of <strong>{result.checked}</strong> sampled
-              {result.sampled !== result.checked && ` (requested ${result.sampled})`}.
-            </span>
+          <div>
+            <h1 className="text-2xl font-bold">MagicFolder Audit</h1>
+            <p className="text-muted-foreground">
+              Verify stored objects match database (SHA-256 hash check)
+            </p>
           </div>
-          {result.mismatched.length > 0 && (
+        </div>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <ShieldCheck className="h-5 w-5" />
+            Hash audit
+          </CardTitle>
+          <CardDescription>
+            Sample document versions, re-download from storage, and compare SHA-256 with the database.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Mismatches: {result.mismatched.length}</strong>
-                <ul className="mt-2 list-inside list-disc text-xs">
-                  {result.mismatched.slice(0, 10).map((m, i) => (
-                    <li key={i}>
-                      version {m.versionId.slice(0, 8)}… expected {m.expected.slice(0, 16)}… got{" "}
-                      {m.actual.slice(0, 16)}…
-                    </li>
-                  ))}
-                  {result.mismatched.length > 10 && (
-                    <li>… and {result.mismatched.length - 10} more</li>
-                  )}
-                </ul>
-              </AlertDescription>
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          {result.errors.length > 0 && (
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                <strong>Errors: {result.errors.length}</strong>
-                <ul className="mt-2 list-inside list-disc text-xs text-muted-foreground">
-                  {result.errors.slice(0, 5).map((e, i) => (
-                    <li key={i}>
-                      {e.versionId.slice(0, 8)}…: {e.error}
-                    </li>
-                  ))}
-                  {result.errors.length > 5 && (
-                    <li>… and {result.errors.length - 5} more</li>
-                  )}
-                </ul>
-              </AlertDescription>
-            </Alert>
+
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-muted-foreground" htmlFor="sample">
+              Sample size (1–100):
+            </label>
+            <Input
+              id="sample"
+              type="number"
+              min={1}
+              max={100}
+              value={sampleSize}
+              onChange={(e) => setSampleSize(parseInt(e.target.value, 10) || 20)}
+              className="w-20"
+            />
+            <Button onClick={runAudit} disabled={loading}>
+              {loading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Running...
+                </>
+              ) : (
+                "Run audit"
+              )}
+            </Button>
+          </div>
+
+          {result && (
+            <div className="space-y-4 pt-4 border-t">
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="secondary">Sampled: {result.sampled}</Badge>
+                <Badge variant="secondary">Checked: {result.checked}</Badge>
+                <Badge variant="default" className="bg-emerald-600">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Matched: {result.matched}
+                </Badge>
+                {result.mismatched.length > 0 && (
+                  <Badge variant="destructive">
+                    <AlertCircle className="h-3 w-3 mr-1" />
+                    Mismatched: {result.mismatched.length}
+                  </Badge>
+                )}
+                {result.errors.length > 0 && (
+                  <Badge variant="destructive">Errors: {result.errors.length}</Badge>
+                )}
+              </div>
+              {result.mismatched.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertTitle>Mismatches</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc pl-4 mt-2 space-y-1 text-sm">
+                      {result.mismatched.map((m) => (
+                        <li key={m.versionId}>
+                          Version {m.versionId.slice(0, 8)}… — expected {m.expected.slice(0, 16)}…, got {m.actual.slice(0, 16)}…
+                        </li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+              {result.errors.length > 0 && (
+                <Alert variant="destructive">
+                  <AlertTitle>Errors</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc pl-4 mt-2 space-y-1 text-sm">
+                      {result.errors.map((e) => (
+                        <li key={e.versionId}>
+                          {e.versionId.slice(0, 8)}…: {e.error}
+                        </li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
           )}
-        </MagicfolderSection>
-      )}
-    </MagicfolderSection>
+        </CardContent>
+      </Card>
+    </div>
   )
 }

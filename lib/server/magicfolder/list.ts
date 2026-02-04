@@ -6,7 +6,7 @@
 
 import "@/lib/server/only"
 
-import { and, asc, desc, eq, isNull, ne, sql } from "drizzle-orm"
+import { and, asc, desc, eq, inArray, isNull, ne, sql } from "drizzle-orm"
 
 import { getDb } from "@/lib/server/db/client"
 import {
@@ -327,37 +327,53 @@ export async function listDuplicateGroups(
     .limit(limit)
     .offset(offset)
 
-  const items: DuplicateGroupWithVersions[] = []
+  if (groups.length === 0) {
+    return { items: [], total, limit, offset }
+  }
 
-  for (const g of groups) {
-    const versionRows = await db
-      .select({
-        versionId: magicfolderDuplicateGroupVersions.versionId,
-        objectId: magicfolderObjectVersions.objectId,
-        title: magicfolderObjects.title,
-        mimeType: magicfolderObjectVersions.mimeType,
-        sizeBytes: magicfolderObjectVersions.sizeBytes,
-        sha256: magicfolderObjectVersions.sha256,
-        versionCreatedAt: magicfolderObjectVersions.createdAt,
-      })
-      .from(magicfolderDuplicateGroupVersions)
-      .innerJoin(
-        magicfolderObjectVersions,
-        eq(magicfolderDuplicateGroupVersions.versionId, magicfolderObjectVersions.id)
-      )
-      .innerJoin(
-        magicfolderObjects,
-        eq(magicfolderObjectVersions.objectId, magicfolderObjects.id)
-      )
-      .where(eq(magicfolderDuplicateGroupVersions.groupId, g.id))
+  const groupIds = groups.map((g) => g.id)
+  const versionRows = await db
+    .select({
+      groupId: magicfolderDuplicateGroupVersions.groupId,
+      versionId: magicfolderDuplicateGroupVersions.versionId,
+      objectId: magicfolderObjectVersions.objectId,
+      title: magicfolderObjects.title,
+      mimeType: magicfolderObjectVersions.mimeType,
+      sizeBytes: magicfolderObjectVersions.sizeBytes,
+      sha256: magicfolderObjectVersions.sha256,
+      versionCreatedAt: magicfolderObjectVersions.createdAt,
+    })
+    .from(magicfolderDuplicateGroupVersions)
+    .innerJoin(
+      magicfolderObjectVersions,
+      eq(magicfolderDuplicateGroupVersions.versionId, magicfolderObjectVersions.id)
+    )
+    .innerJoin(
+      magicfolderObjects,
+      eq(magicfolderObjectVersions.objectId, magicfolderObjects.id)
+    )
+    .where(inArray(magicfolderDuplicateGroupVersions.groupId, groupIds))
+    .orderBy(desc(magicfolderObjectVersions.createdAt))
 
-    items.push({
+  const versionsByGroup = new Map<string, Array<(typeof versionRows)[number]>>()
+  for (const row of versionRows) {
+    const bucket = versionsByGroup.get(row.groupId)
+    if (bucket) {
+      bucket.push(row)
+    } else {
+      versionsByGroup.set(row.groupId, [row])
+    }
+  }
+
+  const items: DuplicateGroupWithVersions[] = groups.map((g) => {
+    const versions = versionsByGroup.get(g.id) ?? []
+    return {
       id: g.id,
       tenantId: g.tenantId,
       reason: g.reason,
       keepVersionId: g.keepVersionId,
       createdAt: g.createdAt,
-      versions: versionRows.map((v) => ({
+      versions: versions.map((v) => ({
         versionId: v.versionId,
         objectId: v.objectId,
         title: v.title,
@@ -366,8 +382,8 @@ export async function listDuplicateGroups(
         sha256: v.sha256,
         versionCreatedAt: v.versionCreatedAt,
       })),
-    })
-  }
+    }
+  })
 
   return { items, total, limit, offset }
 }

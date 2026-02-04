@@ -43,7 +43,7 @@ vercel env add CRON_SECRET preview
 
 ### Local development
 
-- In `.env` or `.env.local`, set:
+- In `.env`, set:
   - `CRON_SECRET=your-secret-at-least-32-chars`
 - Use the same value as in Vercel if you want to call cron routes locally with the same secret.
 

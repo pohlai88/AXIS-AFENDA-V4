@@ -97,7 +97,7 @@ export type MagicfolderUpdateStatusRequest = z.infer<typeof MagicfolderUpdateSta
 // ============ Bulk actions ============
 
 export const MagicfolderBulkRequestSchema = z.object({
-  action: z.enum(["archive", "addTag"]),
+  action: z.enum(["archive", "addTag", "delete", "activate"]),
   objectIds: z.array(z.string().uuid()).min(1).max(100),
   tagId: z.string().uuid().optional(),
 })

@@ -12,6 +12,11 @@ export type RlsContext = {
   teamId?: string | null
 }
 
+/** Escape a string for use inside a single-quoted SQL literal (e.g. set_config values). */
+function escapeSqlLiteral(value: string): string {
+  return value.replace(/'/g, "''")
+}
+
 export async function withRlsDbEx<T>(
   ctx: RlsContext,
   fn: (db: Db, sql: postgres.Sql) => Promise<T>
@@ -28,10 +33,10 @@ export async function withRlsDbEx<T>(
     await assertRlsConfiguredOnce(txSql)
 
     const defaults = getDbSessionDefaults()
-    // Neon pooler-safe: apply timeouts transaction-locally (avoid startup packet options).
-    await txSql`set local statement_timeout = ${defaults.statementTimeoutMs};`
-    await txSql`set local lock_timeout = ${defaults.lockTimeoutMs};`
-    await txSql`set local idle_in_transaction_session_timeout = ${defaults.idleInTxTimeoutMs};`
+    // Neon pooler-safe: use unsafe() so no $1 placeholders are sent (some poolers drop bind params).
+    await txSql.unsafe(`set local statement_timeout = ${defaults.statementTimeoutMs};`)
+    await txSql.unsafe(`set local lock_timeout = ${defaults.lockTimeoutMs};`)
+    await txSql.unsafe(`set local idle_in_transaction_session_timeout = ${defaults.idleInTxTimeoutMs};`)
 
     const expectedRole = process.env.DB_ASSERT_RLS_ROLE
     if (expectedRole) {
@@ -43,18 +48,29 @@ export async function withRlsDbEx<T>(
       }
     }
 
-    // Transaction-local session setting.
-    await txSql`select set_config('app.user_id', ${ctx.userId}, true);`
+    // Transaction-local session setting (unsafe inlined to avoid $1 with poolers that strip bind params).
+    const userIdLit = escapeSqlLiteral(ctx.userId)
+    await txSql.unsafe(`select set_config('app.user_id', '${userIdLit}', true);`)
 
     // Optional tenant context (for future RLS policies / auditing).
     if (ctx.organizationId !== undefined) {
-      await txSql`select set_config('app.organization_id', ${ctx.organizationId ?? ""}, true);`
+      const orgIdLit = escapeSqlLiteral(ctx.organizationId ?? "")
+      await txSql.unsafe(`select set_config('app.organization_id', '${orgIdLit}', true);`)
     }
     if (ctx.teamId !== undefined) {
-      await txSql`select set_config('app.team_id', ${ctx.teamId ?? ""}, true);`
+      const teamIdLit = escapeSqlLiteral(ctx.teamId ?? "")
+      await txSql.unsafe(`select set_config('app.team_id', '${teamIdLit}', true);`)
     }
 
-    const txDb = drizzle(txSql, { schema })
+    // postgres.js transaction sql does not expose .options; drizzle-orm/postgres-js expects client.options.parsers/serializers.
+    const mainClient = getDbClient()
+    const txWithOptions = txSql as postgres.Sql & { options?: { parsers?: Record<string, unknown>; serializers?: Record<string, unknown> } }
+    if (!txWithOptions.options) {
+      const mainOpts = (mainClient as postgres.Sql & { options?: { parsers?: Record<string, unknown>; serializers?: Record<string, unknown> } }).options
+      txWithOptions.options = mainOpts ?? { parsers: {}, serializers: {} }
+    }
+
+    const txDb = drizzle(txWithOptions, { schema })
     return await fn(txDb, txSql)
   })) as unknown as T
 

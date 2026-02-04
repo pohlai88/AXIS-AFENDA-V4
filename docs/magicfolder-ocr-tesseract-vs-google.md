@@ -129,7 +129,7 @@ Both are Python libraries. From Node, invoke a small Python script via `child_pr
 
 **Recommendation:** Start with **multi-pass Tesseract (PSM)** and **stronger preprocessing** — both are easy to add in the current codebase. Add **PaddleOCR or EasyOCR as fallback** only when you need higher accuracy on difficult images and can maintain a Python helper. Use **Google Vision** when you want the highest accuracy and are okay with API cost and network dependency.
 
-**Implemented:** Multi-pass PSM and stronger preprocessing are implemented in `lib/server/magicfolder/ocr.ts`. Use `TESSERACT_PSM_MULTI_PASS`, `OCR_PREPROCESS_NORMALISE`, and `OCR_PREPROCESS_GRAYSCALE` (see `.env.example`) to toggle. **PaddleOCR + EasyOCR fallback** is also implemented: set `OCR_PYTHON_FALLBACK=1` and install Python deps with `pip install -r scripts/requirements-ocr.txt`; see [magicfolder-ocr-python-fallback.md](magicfolder-ocr-python-fallback.md).
+**Implemented:** Multi-pass PSM and stronger preprocessing are implemented in `lib/server/magicfolder/ocr.ts`. Use `TESSERACT_PSM_MULTI_PASS`, `OCR_PREPROCESS_NORMALISE`, and `OCR_PREPROCESS_GRAYSCALE` (see `.env`) to toggle. **PaddleOCR + EasyOCR fallback** is also implemented: set `OCR_PYTHON_FALLBACK=1` and install Python deps with `pip install -r scripts/requirements-ocr.txt`; see [magicfolder-ocr-python-fallback.md](magicfolder-ocr-python-fallback.md).
 
 ---
 

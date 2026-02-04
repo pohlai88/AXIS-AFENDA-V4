@@ -61,7 +61,9 @@ export function AppSidebar({ userId }: Props) {
     pathname.startsWith(routes.ui.magicfolder.duplicates()) ||
     pathname.startsWith(routes.ui.magicfolder.unsorted()) ||
     pathname.startsWith(routes.ui.magicfolder.search()) ||
-    pathname.startsWith(routes.ui.magicfolder.collections())
+    pathname.startsWith(routes.ui.magicfolder.collections()) ||
+    pathname.startsWith(routes.ui.magicfolder.settings()) ||
+    pathname.startsWith(routes.ui.magicfolder.audit())
 
   const navMain: NavMainItem[] = [
     {
@@ -86,6 +88,8 @@ export function AppSidebar({ userId }: Props) {
         { title: "MagicFolder Unsorted", url: routes.ui.magicfolder.unsorted() },
         { title: "MagicFolder Search", url: routes.ui.magicfolder.search() },
         { title: "MagicFolder Collections", url: routes.ui.magicfolder.collections() },
+        { title: "MagicFolder Settings", url: routes.ui.magicfolder.settings() },
+        { title: "MagicFolder Audit", url: routes.ui.magicfolder.audit() },
         { title: "Analytics", url: routes.ui.orchestra.analytics() },
         { title: "Modules", url: routes.ui.orchestra.modules() },
         { title: "Approvals", url: routes.ui.orchestra.approvals() },
